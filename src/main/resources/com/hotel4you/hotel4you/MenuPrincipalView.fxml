@@ -8,12 +8,28 @@
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.hotel4you.hotel4you.View.MenuPrincipalViewController"
-      alignment="CENTER" spacing="16">
+      alignment="CENTER"
+      spacing="16">
+
     <padding>
-        <Insets top="24" right="24" bottom="24" left="24"/>
+        <Insets top="24"
+                right="24"
+                bottom="24"
+                left="24"/>
     </padding>
 
-    <Label fx:id="labelBoasVindas" style="-fx-font-size: 18px;"/>
-    <Label text="Menu em desenvolvimento."/>
-    <Button text="Terminar sessão" onAction="#onTerminarSessao"/>
+    <Label fx:id="labelBoasVindas"
+           style="-fx-font-size: 18px;"/>
+
+    <Label text="Menu principal"/>
+
+    <Button fx:id="botaoGestaoFuncionarios"
+            text="Gestão de funcionários"
+            onAction="#onGestaoFuncionarios"
+            visible="false"
+            managed="false"/>
+
+    <Button text="Terminar sessão"
+            onAction="#onTerminarSessao"/>
+
 </VBox>
