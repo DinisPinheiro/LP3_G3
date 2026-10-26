@@ -37,3 +37,7 @@ build/
 
 ### Mac OS ###
 .DS_Store
+/hotel4you/.idea/compiler.xml
+/hotel4you/.idea/jarRepositories.xml
+/hotel4you/.idea/workspace.xml
+/.gitignore
