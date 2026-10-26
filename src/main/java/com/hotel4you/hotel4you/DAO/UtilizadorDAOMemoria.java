@@ -15,7 +15,9 @@ import java.util.Optional;
  * estar pronta, e para os testes unitários. Quando existir o DAO SQL, só é preciso trocar a
  * instância criada no {@code Main}.
  */
-public class UtilizadorDAOMemoria implements UtilizadorDAO {
+public class UtilizadorDAOMemoria extends UtilizadorDAO {
+
+    /*Inicio do comment --------- TEMPORARIO ---------
 
     private final Map<Integer, Utilizador> utilizadores = new LinkedHashMap<>();
     private int proximoId = 1;
@@ -64,4 +66,7 @@ public class UtilizadorDAOMemoria implements UtilizadorDAO {
                 .filter(u -> u.getUsername().equalsIgnoreCase(username.trim()))
                 .findFirst();
     }
+
+    ------Fim de comentario */
+
 }
