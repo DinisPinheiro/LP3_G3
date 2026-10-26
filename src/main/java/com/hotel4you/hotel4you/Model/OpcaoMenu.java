@@ -1,9 +1,11 @@
 package com.hotel4you.hotel4you.Model;
 
-import static com.hotel4you.hotel4you.Model.Perfil.EMPRESA_RESTAURACAO;
-import static com.hotel4you.hotel4you.Model.Perfil.FORNECEDOR;
-import static com.hotel4you.hotel4you.Model.Perfil.GESTOR;
-import static com.hotel4you.hotel4you.Model.Perfil.RECECIONISTA;
+import static com.hotel4you.hotel4you.Model.enums.Perfil.EMPRESA_RESTAURACAO;
+import static com.hotel4you.hotel4you.Model.enums.Perfil.FORNECEDOR;
+import static com.hotel4you.hotel4you.Model.enums.Perfil.GESTOR;
+import static com.hotel4you.hotel4you.Model.enums.Perfil.RECECIONISTA;
+
+import com.hotel4you.hotel4you.Model.enums.Perfil;
 
 import java.util.Arrays;
 import java.util.EnumSet;

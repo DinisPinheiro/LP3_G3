@@ -1,17 +1,16 @@
 package com.hotel4you.hotel4you.Controller;
 
 import com.hotel4you.hotel4you.Model.OpcaoMenu;
-import com.hotel4you.hotel4you.Model.Perfil;
+import com.hotel4you.hotel4you.Model.enums.Perfil;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * Decide que opções de menu cada perfil pode ver e usar (RF-03).
+ * Decide que opções do menu principal cada perfil pode ver e usar (RF-03).
  * <p>
- * Fica no Controller para que a View só tenha de mostrar o que recebe,
- * sem regras de permissões.
+ * Fica no Controller para que a View só mostre o que recebe, sem regras de permissões.
  */
 public class MenuController {
 
