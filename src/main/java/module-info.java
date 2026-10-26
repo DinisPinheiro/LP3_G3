@@ -1,6 +1,7 @@
 module com.hotel4you.hotel4you {
     requires javafx.controls;
     requires javafx.fxml;
+    requires java.sql;
 
 
     opens com.hotel4you.hotel4you to javafx.fxml;
