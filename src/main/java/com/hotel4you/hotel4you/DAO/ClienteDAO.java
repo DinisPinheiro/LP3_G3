@@ -1,42 +1,27 @@
 package com.hotel4you.hotel4you.DAO;
 
-import java.sql.*;
+import com.hotel4you.hotel4you.Model.Cliente;
 
-public class ClienteDAO {
+import java.util.Optional;
 
-    public boolean inserir(String nome, String documento, String contacto) {
-        String sql = "INSERT INTO dbo.Cliente (Nome, Documento, Contacto) VALUES (?, ?, ?)";
+/**
+ * Acesso aos clientes guardados. O documento de identificação do cliente ({@link Cliente#getDocumento()})
+ * é o NIF e é único: não podem existir dois clientes com o mesmo.
+ */
+public interface ClienteDAO extends DAO<Cliente> {
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    /**
+     * {@inheritDoc}
+     *
+     * @throws DAOException se já existir um cliente com o mesmo NIF/documento, ou se não for possível guardar
+     */
+    @Override
+    Cliente inserir(Cliente cliente);
 
-            stmt.setString(1, nome);
-            stmt.setString(2, documento);
-            stmt.setString(3, contacto);
-
-            stmt.executeUpdate();
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public String obterNomePorId(int idCliente) {
-        String sql = "SELECT Nome FROM dbo.Cliente WHERE IdCliente = ?";
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, idCliente);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("Nome");
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
+    /**
+     * @param documento NIF/documento de identificação
+     * @return o cliente, ou vazio se não existir
+     * @throws DAOException se não for possível ler
+     */
+    Optional<Cliente> procurarPorDocumento(String documento);
 }

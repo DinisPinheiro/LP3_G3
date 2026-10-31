@@ -1,46 +1,60 @@
 package com.hotel4you.hotel4you.DAO;
 
-import java.math.BigDecimal;
-import java.sql.*;
-import java.util.ArrayList;
+import com.hotel4you.hotel4you.Model.Quarto;
+import com.hotel4you.hotel4you.Model.enums.TipoQuarto;
+
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
-public class QuartoDAO {
+/**
+ * Acesso aos quartos e aos equipamentos que cada um tem. Os quartos nunca se apagam com
+ * reservas associadas: nesse caso desativam-se ({@link Quarto#setAtivo(boolean)}).
+ */
+public interface QuartoDAO extends DAO<Quarto> {
 
-    public boolean inserir(int numero, int piso, int idTipoQuarto, BigDecimal precoBase, String vista) {
-        String sql = "INSERT INTO dbo.Quarto (Numero, Piso, IdTipoQuarto, PrecoBase, Vista, Ativo) VALUES (?, ?, ?, ?, ?, 1)";
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Os equipamentos do quarto têm de existir já no catálogo (id diferente de 0).
+     *
+     * @throws DAOException se o número já existir, se algum equipamento não estiver guardado ou se não for possível guardar
+     */
+    @Override
+    Quarto inserir(Quarto quarto);
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Atualiza tipo, local, preço, vista, estado e a lista de equipamentos (o número e o piso não mudam).
+     */
+    @Override
+    void atualizar(Quarto quarto);
 
-            stmt.setInt(1, numero);
-            stmt.setInt(2, piso);
-            stmt.setInt(3, idTipoQuarto);
-            stmt.setBigDecimal(4, precoBase);
-            stmt.setString(5, vista);
+    /**
+     * @param numero número do quarto (ex.: 202)
+     * @return o quarto, ou vazio se não existir
+     * @throws DAOException se não for possível ler
+     */
+    Optional<Quarto> procurarPorNumero(int numero);
 
-            stmt.executeUpdate();
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
+    /**
+     * @return os quartos ativos, ordenados por número
+     * @throws DAOException se não for possível ler
+     */
+    List<Quarto> listarAtivos();
 
-    public List<Integer> listarQuartosAtivos() {
-        List<Integer> quartos = new ArrayList<>();
-        String sql = "SELECT Numero FROM dbo.Quarto WHERE Ativo = 1";
-
-        try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                quartos.add(rs.getInt("Numero"));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return quartos;
-    }
+    /**
+     * Quartos ativos sem nenhuma reserva ativa (pendente ou com check-in) que se sobreponha ao
+     * intervalo pedido. Uma reserva ocupa as noites de {@code dataEntrada} até à véspera de
+     * {@code dataSaida}, por isso uma reserva que sai no dia em que outra entra não se sobrepõe.
+     *
+     * @param tipo        tipo pretendido, ou {@code null} para qualquer tipo
+     * @param dataEntrada primeira noite
+     * @param dataSaida   dia de saída (posterior à entrada)
+     * @return quartos disponíveis, ordenados por número
+     * @throws IllegalArgumentException se a saída não for posterior à entrada
+     * @throws DAOException             se não for possível ler
+     */
+    List<Quarto> listarDisponiveis(TipoQuarto tipo, LocalDate dataEntrada, LocalDate dataSaida);
 }

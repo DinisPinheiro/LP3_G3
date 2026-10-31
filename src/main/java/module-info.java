@@ -2,7 +2,7 @@ module com.hotel4you.hotel4you {
     requires javafx.controls;
     requires javafx.fxml;
     requires java.sql;
-
+    requires com.microsoft.sqlserver.jdbc;
 
     opens com.hotel4you.hotel4you to javafx.fxml;
     opens com.hotel4you.hotel4you.View to javafx.fxml;
