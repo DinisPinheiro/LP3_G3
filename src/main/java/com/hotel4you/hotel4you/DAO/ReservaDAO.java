@@ -1,42 +1,53 @@
 package com.hotel4you.hotel4you.DAO;
 
-import java.sql.*;
+import com.hotel4you.hotel4you.Model.Reserva;
 
-public class ReservaDAO {
+import java.time.LocalDate;
+import java.util.List;
 
-    public boolean inserir(int idCliente, int idQuarto, String dataEntrada, String dataSaida) {
-        String sql = "INSERT INTO dbo.Reserva (IdCliente, IdQuarto, DataEntrada, DataSaida, Estado) VALUES (?, ?, ?, ?, 'PENDENTE')";
+/**
+ * Acesso às reservas. O histórico não se perde: a regra de quem pode apagar uma reserva
+ * ({@code Utilizador.podeApagarReservas()} e {@code Reserva.podeSerApagada()}) é verificada
+ * pelo Controller antes de chamar {@link #remover(int)}.
+ * <p>
+ * Nesta versão persistem-se cliente, quarto, datas, estado, valor total e momentos de
+ * check-in/check-out. O cartão magnético e os consumos ficam para a Sprint 4.
+ */
+public interface ReservaDAO extends DAO<Reserva> {
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    /**
+     * {@inheritDoc}
+     * <p>
+     * A verificação de disponibilidade e a gravação são feitas na mesma transação, para duas
+     * reservas em simultâneo não ocuparem o mesmo quarto.
+     *
+     * @throws DAOException se o cliente ou o quarto não estiverem guardados, se o quarto já tiver
+     *                      uma reserva ativa nesse período ou se não for possível guardar
+     */
+    @Override
+    Reserva inserir(Reserva reserva);
 
-            stmt.setInt(1, idCliente);
-            stmt.setInt(2, idQuarto);
-            stmt.setDate(3, Date.valueOf(dataEntrada)); // Formato "AAAA-MM-DD"
-            stmt.setDate(4, Date.valueOf(dataSaida));
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Atualiza estado, valor total e momentos de check-in/check-out (cliente, quarto e datas não mudam).
+     */
+    @Override
+    void atualizar(Reserva reserva);
 
-            stmt.executeUpdate();
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
+    /**
+     * @param idCliente identificador do cliente
+     * @return reservas do cliente, da mais recente para a mais antiga
+     * @throws DAOException se não for possível ler
+     */
+    List<Reserva> listarPorCliente(int idCliente);
 
-    public boolean atualizarEstado(int idReserva, String novoEstado) {
-        String sql = "UPDATE dbo.Reserva SET Estado = ? WHERE IdReserva = ?";
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, novoEstado);
-            stmt.setInt(2, idReserva);
-
-            int linhasAfetadas = stmt.executeUpdate();
-            return linhasAfetadas > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
+    /**
+     * @param idQuarto    identificador do quarto
+     * @param dataEntrada primeira noite
+     * @param dataSaida   dia de saída
+     * @return {@code true} se o quarto tem uma reserva ativa (pendente ou com check-in) que se sobreponha ao período
+     * @throws DAOException se não for possível ler
+     */
+    boolean existeSobreposicao(int idQuarto, LocalDate dataEntrada, LocalDate dataSaida);
 }
