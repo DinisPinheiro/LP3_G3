@@ -70,6 +70,14 @@ public class MenuPrincipalViewController {
         //     Navegador.mudarPara("RegistarClienteView.fxml", "Registar cliente");
         //     return;
         // }
+        if (opcao == OpcaoMenu.REGISTAR_CLIENTE) {
+            Navegador.mudarPara("GestaoClientesView.fxml", "Hotel4You - Clientes");
+            return;
+        }
+        if (opcao == OpcaoMenu.CONFIGURAR_QUARTOS) {
+            Navegador.mudarPara("GestaoQuartosView.fxml", "Hotel4You - Quartos");
+            return;
+        }
         labelMensagem.setText("\"" + opcao.getTexto() + "\" está em desenvolvimento.");
     }
 }

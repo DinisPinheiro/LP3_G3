@@ -1,13 +1,23 @@
 package com.hotel4you.hotel4you;
 
+import com.hotel4you.hotel4you.Controller.GestaoClientesController;
+import com.hotel4you.hotel4you.Controller.GestaoQuartosController;
 import com.hotel4you.hotel4you.Controller.LoginController;
 import com.hotel4you.hotel4you.Controller.MenuController;
 import com.hotel4you.hotel4you.Controller.Sessao;
+import com.hotel4you.hotel4you.DAO.ClienteDAO;
+import com.hotel4you.hotel4you.DAO.ClienteDAOSQL;
 import com.hotel4you.hotel4you.DAO.DAOException;
+import com.hotel4you.hotel4you.DAO.EquipamentoDAO;
+import com.hotel4you.hotel4you.DAO.EquipamentoDAOSQL;
+import com.hotel4you.hotel4you.DAO.QuartoDAO;
+import com.hotel4you.hotel4you.DAO.QuartoDAOSQL;
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAO;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAOSQL;
 import com.hotel4you.hotel4you.Utils.Navegador;
+import com.hotel4you.hotel4you.View.GestaoClientesViewController;
+import com.hotel4you.hotel4you.View.GestaoQuartosViewController;
 import com.hotel4you.hotel4you.View.LoginViewController;
 import com.hotel4you.hotel4you.View.MenuPrincipalViewController;
 import javafx.application.Application;
@@ -31,6 +41,12 @@ public class Main extends Application {
         Sessao sessao = new Sessao();
         LoginController loginController = new LoginController(utilizadorDAO, sessao);
         MenuController menuController = new MenuController();
+        ClienteDAO clienteDAO = new ClienteDAOSQL();
+        QuartoDAO quartoDAO = new QuartoDAOSQL();
+        EquipamentoDAO equipamentoDAO = new EquipamentoDAOSQL();
+        GestaoClientesController gestaoClientesController = new GestaoClientesController(clienteDAO, sessao);
+        GestaoQuartosController gestaoQuartosController =
+                new GestaoQuartosController(quartoDAO, equipamentoDAO, sessao);
 
         Navegador.iniciar(stage, tipo -> {
             if (tipo == LoginViewController.class) {
@@ -38,6 +54,12 @@ public class Main extends Application {
             }
             if (tipo == MenuPrincipalViewController.class) {
                 return new MenuPrincipalViewController(sessao, menuController);
+            }
+            if (tipo == GestaoClientesViewController.class) {
+                return new GestaoClientesViewController(gestaoClientesController);
+            }
+            if (tipo == GestaoQuartosViewController.class) {
+                return new GestaoQuartosViewController(gestaoQuartosController);
             }
             throw new IllegalArgumentException("View desconhecida: " + tipo.getName());
         });

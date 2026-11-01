@@ -62,6 +62,18 @@ public class Quarto {
      * @return preço por noite
      */
     public BigDecimal precoNoite() {
+        return calcularPrecoNoite(precoBase, vista);
+    }
+
+    /**
+     * Calcula o preço de uma noite: preço base mais o suplemento da vista.
+     * Existe como método estático para o ecrã de configuração mostrar o preço antes de guardar o quarto.
+     *
+     * @param precoBase preço base por noite
+     * @param vista     vista do quarto
+     * @return preço por noite
+     */
+    public static BigDecimal calcularPrecoNoite(BigDecimal precoBase, Vista vista) {
         return precoBase.add(vista.getSuplemento());
     }
 
