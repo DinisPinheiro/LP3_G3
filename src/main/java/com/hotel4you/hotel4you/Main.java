@@ -1,5 +1,6 @@
 package com.hotel4you.hotel4you;
 
+import com.hotel4you.hotel4you.Controller.GestaoFuncionariosController;
 import com.hotel4you.hotel4you.Controller.LoginController;
 import com.hotel4you.hotel4you.Controller.MenuController;
 import com.hotel4you.hotel4you.Controller.Sessao;
@@ -8,6 +9,7 @@ import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAO;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAOSQL;
 import com.hotel4you.hotel4you.Utils.Navegador;
+import com.hotel4you.hotel4you.View.GestaoFuncionariosViewController;
 import com.hotel4you.hotel4you.View.LoginViewController;
 import com.hotel4you.hotel4you.View.MenuPrincipalViewController;
 import javafx.application.Application;
@@ -31,6 +33,8 @@ public class Main extends Application {
         Sessao sessao = new Sessao();
         LoginController loginController = new LoginController(utilizadorDAO, sessao);
         MenuController menuController = new MenuController();
+        GestaoFuncionariosController gestaoFuncionariosController =
+                new GestaoFuncionariosController(utilizadorDAO, sessao);
 
         Navegador.iniciar(stage, tipo -> {
             if (tipo == LoginViewController.class) {
@@ -38,6 +42,9 @@ public class Main extends Application {
             }
             if (tipo == MenuPrincipalViewController.class) {
                 return new MenuPrincipalViewController(sessao, menuController);
+            }
+            if (tipo == GestaoFuncionariosViewController.class) {
+                return new GestaoFuncionariosViewController(gestaoFuncionariosController);
             }
             throw new IllegalArgumentException("View desconhecida: " + tipo.getName());
         });
