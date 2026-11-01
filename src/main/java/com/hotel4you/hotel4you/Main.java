@@ -3,6 +3,7 @@ package com.hotel4you.hotel4you;
 import com.hotel4you.hotel4you.Controller.GestaoFuncionariosController;
 import com.hotel4you.hotel4you.Controller.GestaoClientesController;
 import com.hotel4you.hotel4you.Controller.GestaoQuartosController;
+import com.hotel4you.hotel4you.Controller.GestaoReservasController;
 import com.hotel4you.hotel4you.Controller.LoginController;
 import com.hotel4you.hotel4you.Controller.MenuController;
 import com.hotel4you.hotel4you.Controller.Sessao;
@@ -13,6 +14,8 @@ import com.hotel4you.hotel4you.DAO.EquipamentoDAO;
 import com.hotel4you.hotel4you.DAO.EquipamentoDAOSQL;
 import com.hotel4you.hotel4you.DAO.QuartoDAO;
 import com.hotel4you.hotel4you.DAO.QuartoDAOSQL;
+import com.hotel4you.hotel4you.DAO.ReservaDAO;
+import com.hotel4you.hotel4you.DAO.ReservaDAOSQL;
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAO;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAOSQL;
@@ -20,6 +23,7 @@ import com.hotel4you.hotel4you.Utils.Navegador;
 import com.hotel4you.hotel4you.View.GestaoFuncionariosViewController;
 import com.hotel4you.hotel4you.View.GestaoClientesViewController;
 import com.hotel4you.hotel4you.View.GestaoQuartosViewController;
+import com.hotel4you.hotel4you.View.GestaoReservasViewController;
 import com.hotel4you.hotel4you.View.LoginViewController;
 import com.hotel4you.hotel4you.View.MenuPrincipalViewController;
 import javafx.application.Application;
@@ -51,6 +55,9 @@ public class Main extends Application {
                 new GestaoQuartosController(quartoDAO, equipamentoDAO, sessao);
         GestaoFuncionariosController gestaoFuncionariosController =
                 new GestaoFuncionariosController(utilizadorDAO, sessao);
+        ReservaDAO reservaDAO = new ReservaDAOSQL(clienteDAO, quartoDAO);
+        GestaoReservasController gestaoReservasController =
+                new GestaoReservasController(reservaDAO, clienteDAO, quartoDAO, sessao);
 
         Navegador.iniciar(stage, tipo -> {
             if (tipo == LoginViewController.class) {
@@ -67,6 +74,9 @@ public class Main extends Application {
             }
             if (tipo == GestaoQuartosViewController.class) {
                 return new GestaoQuartosViewController(gestaoQuartosController);
+            }
+            if (tipo == GestaoReservasViewController.class) {
+                return new GestaoReservasViewController(gestaoReservasController, gestaoClientesController);
             }
             throw new IllegalArgumentException("View desconhecida: " + tipo.getName());
         });
