@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="Order">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Header">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="OrderNumber" type="xs:string"/>
+							<xs:element name="OrderDate">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="Date">
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="Year" type="xs:unsignedShort"/>
+													<xs:element name="Month" type="xs:unsignedShort"/>
+													<xs:element name="Day" type="xs:unsignedShort"/>
+												</xs:sequence>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="SupplierParty">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="PartyIdentifier" type="xs:string"/>
+										<xs:element name="NameAddress">
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="Name" type="xs:string"/>
+													<xs:element name="Address1" type="xs:string"/>
+													<xs:element name="Address2" type="xs:string"/>
+													<xs:element name="City" type="xs:string"/>
+													<xs:element name="PostalCode" type="xs:string"/>
+													<xs:element name="Country">
+														<xs:complexType>
+															<xs:simpleContent>
+																<xs:extension base="xs:string">
+																	<xs:attribute name="ISOCountryCode" type="xs:string" use="required"/>
+																</xs:extension>
+															</xs:simpleContent>
+														</xs:complexType>
+													</xs:element>
+												</xs:sequence>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element maxOccurs="unbounded" name="Line">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="LineNumber" type="xs:unsignedByte"/>
+							<xs:element name="Product">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="ProductIdentifier">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attribute name="Agency" type="xs:string" use="required"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="ProductDescription" type="xs:string"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="Quantity">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="Value">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:unsignedShort">
+														<xs:attribute name="UOM" use="required">
+															<xs:simpleType>
+																<xs:restriction base="xs:string">
+																	<xs:enumeration value="Box"/>
+																	<xs:enumeration value="Unit"/>
+																	<xs:enumeration value="Kilogram"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute name="QuantityType" type="xs:string" use="required"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:element maxOccurs="unbounded" name="InformationalQuantity">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="Value">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:unsignedShort">
+														<xs:attribute name="UOM" use="required">
+															<xs:simpleType>
+																<xs:restriction base="xs:string">
+																	<xs:enumeration value="Box"/>
+																	<xs:enumeration value="Unit"/>
+																	<xs:enumeration value="Kilogram"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute name="QuantityType" type="xs:string" use="required"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="PricePerUnit">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="CurrencyValue">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:decimal">
+														<xs:attribute name="CurrencyType" type="xs:string" use="required"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="Value">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:unsignedShort">
+														<xs:attribute name="UOM" use="required">
+															<xs:simpleType>
+																<xs:restriction base="xs:string">
+																	<xs:enumeration value="Box"/>
+																	<xs:enumeration value="Unit"/>
+																	<xs:enumeration value="Kilogram"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="MonetaryAdjustment">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="MonetaryAdjustmentLine" type="xs:unsignedByte"/>
+										<xs:element name="MonetaryAdjustmentStartAmount">
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="CurrencyValue">
+														<xs:complexType>
+															<xs:simpleContent>
+																<xs:extension base="xs:decimal">
+																	<xs:attribute name="CurrencyType" type="xs:string" use="required"/>
+																</xs:extension>
+															</xs:simpleContent>
+														</xs:complexType>
+													</xs:element>
+												</xs:sequence>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="TaxAdjustment">
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="TaxPercent" type="xs:unsignedByte"/>
+													<xs:element name="TaxAmount">
+														<xs:complexType>
+															<xs:sequence>
+																<xs:element name="CurrencyValue">
+																	<xs:complexType>
+																		<xs:simpleContent>
+																			<xs:extension base="xs:decimal">
+																				<xs:attribute name="CurrencyType" type="xs:string" use="required"/>
+																			</xs:extension>
+																		</xs:simpleContent>
+																	</xs:complexType>
+																</xs:element>
+															</xs:sequence>
+														</xs:complexType>
+													</xs:element>
+													<xs:element name="TaxLocation" type="xs:string"/>
+												</xs:sequence>
+												<xs:attribute name="TaxType" type="xs:string" use="required"/>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute name="AdjustmentType" type="xs:string" use="required"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="LineBaseAmount">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="CurrencyValue">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:decimal">
+														<xs:attribute name="CurrencyType" type="xs:string" use="required"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

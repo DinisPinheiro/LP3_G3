@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Order>
+	<Header>
+		<OrderNumber>OC56974</OrderNumber>
+		<OrderDate>
+			<Date>
+				<Year>2026</Year>
+				<Month>10</Month>
+				<Day>05</Day>
+			</Date>
+		</OrderDate>
+		<SupplierParty>
+			<PartyIdentifier>11PT920</PartyIdentifier>
+			<NameAddress>
+				<Name>ProductHero</Name>
+				<Address1>Rua da Alegria</Address1>
+				<Address2>nº1</Address2>
+				<City>Porto</City>
+				<PostalCode>4000-032</PostalCode>
+				<Country ISOCountryCode="PT">Portugal</Country>
+			</NameAddress>
+		</SupplierParty>
+	</Header>
+	<Line>
+		<LineNumber>1</LineNumber>
+		<Product>
+			<ProductIdentifier Agency="Supplier">PZ-1989</ProductIdentifier>
+			<ProductDescription>Toalha de banho 400g cinza</ProductDescription>
+		</Product>
+		<Quantity QuantityType="Count">
+			<Value UOM="Box">50</Value>
+		</Quantity>
+		<InformationalQuantity QuantityType="NetWeight">
+			<Value UOM="Kilogram">200</Value>
+		</InformationalQuantity>
+		<InformationalQuantity QuantityType="Count">
+			<Value UOM="Unit">500</Value>
+		</InformationalQuantity>
+		<PricePerUnit>
+			<CurrencyValue CurrencyType="EUR">2.51</CurrencyValue>
+			<Value UOM="Box">1</Value>
+		</PricePerUnit>
+		<MonetaryAdjustment AdjustmentType="Tax">
+			<MonetaryAdjustmentLine>1</MonetaryAdjustmentLine>
+			<MonetaryAdjustmentStartAmount>
+				<CurrencyValue CurrencyType="EUR">125.50</CurrencyValue>
+			</MonetaryAdjustmentStartAmount>
+			<TaxAdjustment TaxType="VAT">
+				<TaxPercent>23</TaxPercent>
+				<TaxAmount>
+					<CurrencyValue CurrencyType="EUR">28.87</CurrencyValue>
+				</TaxAmount>
+				<TaxLocation>PT</TaxLocation>
+			</TaxAdjustment>
+		</MonetaryAdjustment>
+		<LineBaseAmount>
+			<CurrencyValue CurrencyType="EUR">154.37</CurrencyValue>
+		</LineBaseAmount>
+	</Line>
+	<Line>
+		<LineNumber>2</LineNumber>
+		<Product>
+			<ProductIdentifier Agency="Supplier">XQF6324</ProductIdentifier>
+			<ProductDescription>Rituals Condicionador/Champô de banho 200ml</ProductDescription>
+		</Product>
+		<Quantity QuantityType="Count">
+			<Value UOM="Unit">200</Value>
+		</Quantity>
+		<InformationalQuantity QuantityType="NetWeight">
+			<Value UOM="Kilogram">20</Value>
+		</InformationalQuantity>
+		<InformationalQuantity QuantityType="Count">
+			<Value UOM="Box">10</Value>
+		</InformationalQuantity>
+		<PricePerUnit>
+			<CurrencyValue CurrencyType="EUR">3.49</CurrencyValue>
+			<Value UOM="Unit">1</Value>
+		</PricePerUnit>
+		<MonetaryAdjustment AdjustmentType="Tax">
+			<MonetaryAdjustmentLine>1</MonetaryAdjustmentLine>
+			<MonetaryAdjustmentStartAmount>
+				<CurrencyValue CurrencyType="EUR">698.00</CurrencyValue>
+			</MonetaryAdjustmentStartAmount>
+			<TaxAdjustment TaxType="VAT">
+				<TaxPercent>23</TaxPercent>
+				<TaxAmount>
+					<CurrencyValue CurrencyType="EUR">160.51</CurrencyValue>
+				</TaxAmount>
+				<TaxLocation>PT</TaxLocation>
+			</TaxAdjustment>
+		</MonetaryAdjustment>
+		<LineBaseAmount>
+			<CurrencyValue CurrencyType="EUR">858.54</CurrencyValue>
+		</LineBaseAmount>
+	</Line>
+	<Line>
+		<LineNumber>3</LineNumber>
+		<Product>
+			<ProductIdentifier Agency="Supplier">X569P</ProductIdentifier>
+			<ProductDescription>Secador de cabelo Philips Preto</ProductDescription>
+		</Product>
+		<Quantity QuantityType="Count">
+			<Value UOM="Unit">50</Value>
+		</Quantity>
+		<InformationalQuantity QuantityType="NetWeight">
+			<Value UOM="Kilogram">38</Value>
+		</InformationalQuantity>
+		<PricePerUnit>
+			<CurrencyValue CurrencyType="EUR">29.99</CurrencyValue>
+			<Value UOM="Unit">1</Value>
+		</PricePerUnit>
+		<MonetaryAdjustment AdjustmentType="Tax">
+			<MonetaryAdjustmentLine>1</MonetaryAdjustmentLine>
+			<MonetaryAdjustmentStartAmount>
+				<CurrencyValue CurrencyType="EUR">1499.50</CurrencyValue>
+			</MonetaryAdjustmentStartAmount>
+			<TaxAdjustment TaxType="VAT">
+				<TaxPercent>23</TaxPercent>
+				<TaxAmount>
+					<CurrencyValue CurrencyType="EUR">344.89</CurrencyValue>
+				</TaxAmount>
+				<TaxLocation>PT</TaxLocation>
+			</TaxAdjustment>
+		</MonetaryAdjustment>
+		<LineBaseAmount>
+			<CurrencyValue CurrencyType="EUR">1844.39</CurrencyValue>
+		</LineBaseAmount>
+	</Line>
+	<Line>
+		<LineNumber>4</LineNumber>
+		<Product>
+			<ProductIdentifier Agency="Supplier">LG18964</ProductIdentifier>
+			<ProductDescription>LG 32LM6370PLA LED FullHD</ProductDescription>
+		</Product>
+		<Quantity QuantityType="Count">
+			<Value UOM="Unit">50</Value>
+		</Quantity>
+		<InformationalQuantity QuantityType="NetWeight">
+			<Value UOM="Kilogram">250</Value>
+		</InformationalQuantity>
+		<PricePerUnit>
+			<CurrencyValue CurrencyType="EUR">180.50</CurrencyValue>
+			<Value UOM="Unit">1</Value>
+		</PricePerUnit>
+		<MonetaryAdjustment AdjustmentType="Tax">
+			<MonetaryAdjustmentLine>1</MonetaryAdjustmentLine>
+			<MonetaryAdjustmentStartAmount>
+				<CurrencyValue CurrencyType="EUR">9025</CurrencyValue>
+			</MonetaryAdjustmentStartAmount>
+			<TaxAdjustment TaxType="VAT">
+				<TaxPercent>23</TaxPercent>
+				<TaxAmount>
+					<CurrencyValue CurrencyType="EUR">2075.75</CurrencyValue>
+				</TaxAmount>
+				<TaxLocation>PT</TaxLocation>
+			</TaxAdjustment>
+		</MonetaryAdjustment>
+		<LineBaseAmount>
+			<CurrencyValue CurrencyType="EUR">11100.75</CurrencyValue>
+		</LineBaseAmount>
+	</Line>
+	<Line>
+		<LineNumber>5</LineNumber>
+		<Product>
+			<ProductIdentifier Agency="Supplier">CF-9812</ProductIdentifier>
+			<ProductDescription>Cofre hotel ALPHA 25</ProductDescription>
+		</Product>
+		<Quantity QuantityType="Count">
+			<Value UOM="Unit">50</Value>
+		</Quantity>
+		<InformationalQuantity QuantityType="NetWeight">
+			<Value UOM="Kilogram">425</Value>
+		</InformationalQuantity>
+		<PricePerUnit>
+			<CurrencyValue CurrencyType="EUR">55.80</CurrencyValue>
+			<Value UOM="Unit">1</Value>
+		</PricePerUnit>
+		<MonetaryAdjustment AdjustmentType="Tax">
+			<MonetaryAdjustmentLine>1</MonetaryAdjustmentLine>
+			<MonetaryAdjustmentStartAmount>
+				<CurrencyValue CurrencyType="EUR">2790</CurrencyValue>
+			</MonetaryAdjustmentStartAmount>
+			<TaxAdjustment TaxType="VAT">
+				<TaxPercent>23</TaxPercent>
+				<TaxAmount>
+					<CurrencyValue CurrencyType="EUR">641.70</CurrencyValue>
+				</TaxAmount>
+				<TaxLocation>PT</TaxLocation>
+			</TaxAdjustment>
+		</MonetaryAdjustment>
+		<LineBaseAmount>
+			<CurrencyValue CurrencyType="EUR">3431.70</CurrencyValue>
+		</LineBaseAmount>
+	</Line>
+</Order>
