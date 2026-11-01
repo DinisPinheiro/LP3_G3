@@ -65,6 +65,10 @@ public class MenuPrincipalViewController {
             labelMensagem.setText("Não tem permissões para esta opção.");
             return;
         }
+        if (opcao == OpcaoMenu.GERIR_FUNCIONARIOS) {
+            Navegador.mudarPara("GestaoFuncionariosView.fxml", "Hotel4You - Gestão de funcionários");
+            return;
+        }
         // Cada story acrescenta aqui o seu ecrã, por exemplo:
         // if (opcao == OpcaoMenu.REGISTAR_CLIENTE) {
         //     Navegador.mudarPara("RegistarClienteView.fxml", "Registar cliente");

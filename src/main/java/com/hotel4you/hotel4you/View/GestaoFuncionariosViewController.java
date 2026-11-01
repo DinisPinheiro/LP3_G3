@@ -1,5 +1,6 @@
 package com.hotel4you.hotel4you.View;
 
+import com.hotel4you.hotel4you.Controller.AcessoDadosException;
 import com.hotel4you.hotel4you.Controller.GestaoFuncionariosController;
 import com.hotel4you.hotel4you.Model.Utilizador;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
@@ -41,6 +42,9 @@ public class GestaoFuncionariosViewController {
     @FXML
     private Label labelMensagem;
 
+    /**
+     * @param controller controller que trata das regras de gestão de funcionários
+     */
     public GestaoFuncionariosViewController(
             GestaoFuncionariosController controller) {
 
@@ -179,8 +183,17 @@ public class GestaoFuncionariosViewController {
      */
     private void atualizarLista() {
 
-        List<Utilizador> utilizadores =
-                controller.listarFuncionarios();
+        List<Utilizador> utilizadores;
+
+        try {
+            utilizadores = controller.listarFuncionarios();
+        } catch (AcessoDadosException e) {
+            labelMensagem.setText(
+                    "Não foi possível consultar os utilizadores: "
+                            + e.getMessage()
+            );
+            utilizadores = List.of();
+        }
 
         listaUtilizadores.setItems(
                 FXCollections.observableArrayList(utilizadores)
