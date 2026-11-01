@@ -21,7 +21,7 @@ import java.util.Set;
 public enum OpcaoMenu {
 
     // Rececionista (e gestor)
-    REGISTAR_CLIENTE("Registar cliente", RECECIONISTA, GESTOR),
+    REGISTAR_CLIENTE("Registar e consultar clientes", RECECIONISTA, GESTOR),
     CONSULTAR_DISPONIBILIDADE("Consultar disponibilidade de quartos", RECECIONISTA, GESTOR),
     CRIAR_RESERVA("Criar reserva", RECECIONISTA, GESTOR),
     CANCELAR_RESERVA("Cancelar reserva", RECECIONISTA, GESTOR),

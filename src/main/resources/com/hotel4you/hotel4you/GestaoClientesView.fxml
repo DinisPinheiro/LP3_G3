@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.hotel4you.hotel4you.View.GestaoClientesViewController"
+      spacing="10">
+    <padding>
+        <Insets top="18" right="18" bottom="18" left="18"/>
+    </padding>
+
+    <Label text="Registo e consulta de clientes"
+           style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+
+    <GridPane hgap="10" vgap="8">
+        <columnConstraints>
+            <ColumnConstraints minWidth="150"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+        </columnConstraints>
+        <Label text="Nome completo *" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <TextField fx:id="campoNome" promptText="Nome do cliente" maxWidth="Infinity"
+                   GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        <Label text="NIF / documento *" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <TextField fx:id="campoDocumento" promptText="NIF ou documento de identificação" maxWidth="Infinity"
+                   GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+        <Label text="Contacto" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <TextField fx:id="campoContacto" promptText="Telefone ou email (opcional)" maxWidth="Infinity"
+                   GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+    </GridPane>
+
+    <HBox spacing="8">
+        <Button text="Registar cliente" defaultButton="true" onAction="#onRegistar"/>
+        <Button text="Cancelar" onAction="#onCancelar"/>
+        <Label text="Enter avança de campo. Escreva 0 e Enter para cancelar."
+               style="-fx-text-fill: #777777;"/>
+    </HBox>
+
+    <Label text="Clientes registados:"/>
+    <TextField fx:id="campoPesquisa" promptText="Pesquisar por nome ou NIF/documento"/>
+    <ListView fx:id="listaClientes" VBox.vgrow="ALWAYS" prefHeight="150"/>
+
+    <Label fx:id="labelMensagem" wrapText="true"/>
+    <Button text="Voltar ao menu" onAction="#onVoltar"/>
+</VBox>
