@@ -82,6 +82,10 @@ public class MenuPrincipalViewController {
             Navegador.mudarPara("GestaoQuartosView.fxml", "Hotel4You - Quartos");
             return;
         }
+        if (opcao == OpcaoMenu.CRIAR_RESERVA) {
+            Navegador.mudarPara("GestaoReservasView.fxml", "Hotel4You - Criar reserva");
+            return;
+        }
         labelMensagem.setText("\"" + opcao.getTexto() + "\" está em desenvolvimento.");
     }
 }
