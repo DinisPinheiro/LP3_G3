@@ -86,6 +86,10 @@ public class MenuPrincipalViewController {
             Navegador.mudarPara("GestaoReservasView.fxml", "Hotel4You - Criar reserva");
             return;
         }
+        if (opcao == OpcaoMenu.CANCELAR_RESERVA || opcao == OpcaoMenu.APAGAR_RESERVAS) {
+            Navegador.mudarPara("GestaoCancelamentoReservasView.fxml", "Hotel4You - Cancelar e apagar reservas");
+            return;
+        }
         labelMensagem.setText("\"" + opcao.getTexto() + "\" está em desenvolvimento.");
     }
 }
