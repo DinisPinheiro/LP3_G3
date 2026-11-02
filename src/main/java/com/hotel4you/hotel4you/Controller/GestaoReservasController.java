@@ -6,8 +6,10 @@ import com.hotel4you.hotel4you.DAO.ReservaDAO;
 import com.hotel4you.hotel4you.Model.Cliente;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.Reserva;
+import com.hotel4you.hotel4you.Model.enums.EstadoReserva;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import com.hotel4you.hotel4you.Model.enums.TipoQuarto;
+import com.hotel4you.hotel4you.Utils.Utils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -15,12 +17,16 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
- * Criação e consulta de reservas na receção (story "Criação de Reservas").
+ * Criação, consulta, cancelamento e eliminação de reservas na receção.
  * <p>
  * Só o rececionista e o gestor (que tem as permissões do rececionista) podem usar este controller.
+ * O rececionista cancela reservas mas não as apaga (o histórico fica guardado); o gestor só apaga
+ * uma reserva se o check-in ainda não tiver sido efetuado.
  * Uma reserva só é criada se o quarto estiver disponível no período pedido. A reserva fica
  * guardada com o cliente, o quarto, as datas, o valor total estimado e o estado
  * {@code PENDENTE} (reservado, à espera de check-in).
@@ -135,8 +141,90 @@ public class GestaoReservasController {
      * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler
      */
     public List<Reserva> consultarReservas() {
+        return consultarReservas(null);
+    }
+
+    /**
+     * Consulta as reservas guardadas, filtrando pelo nome do cliente, pelo número do quarto
+     * ou pelo número da reserva.
+     *
+     * @param pesquisa texto a procurar; vazio ou nulo devolve todas
+     * @return as reservas que correspondem à pesquisa
+     * @throws SecurityException se o utilizador não for rececionista nem gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler
+     */
+    public List<Reserva> consultarReservas(String pesquisa) {
         exigirRececao();
-        return reservaDAO.listarTodos();
+        List<Reserva> reservas = reservaDAO.listarTodos();
+        if (!Utils.estaPreenchido(pesquisa)) {
+            return reservas;
+        }
+        String texto = pesquisa.trim().toLowerCase(Locale.ROOT);
+        return reservas.stream()
+                .filter(r -> r.getCliente().getNome().toLowerCase(Locale.ROOT).contains(texto)
+                        || String.valueOf(r.getQuarto().getNumero()).contains(texto)
+                        || String.valueOf(r.getId()).equals(texto))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Cancela uma reserva a pedido do cliente. O estado passa a {@code CANCELADA}, o registo
+     * fica guardado no histórico e o quarto volta a ficar disponível para esse período
+     * (só as reservas pendentes ou com check-in ocupam o quarto).
+     *
+     * @param idReserva identificador da reserva
+     * @return a reserva cancelada
+     * @throws IllegalArgumentException se a reserva não existir, já estiver cancelada ou já tiver check-in
+     * @throws SecurityException        se o utilizador não for rececionista nem gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
+     */
+    public Reserva cancelarReserva(int idReserva) {
+        exigirRececao();
+        Reserva reserva = procurarReserva(idReserva);
+        if (reserva.getEstado() == EstadoReserva.CANCELADA) {
+            throw new IllegalArgumentException("A reserva n.º " + idReserva + " já está cancelada.");
+        }
+        if (reserva.getEstado() != EstadoReserva.PENDENTE) {
+            throw new IllegalArgumentException("A reserva n.º " + idReserva
+                    + " não pode ser cancelada porque o check-in já foi efetuado.");
+        }
+        reserva.cancelar();
+        reservaDAO.atualizar(reserva);
+        return reserva;
+    }
+
+    /**
+     * Apaga o registo de uma reserva. Só o gestor pode apagar, e só se o check-in nunca foi
+     * efetuado. O rececionista não pode apagar: apenas cancela, e o histórico fica guardado.
+     *
+     * @param idReserva identificador da reserva
+     * @throws IllegalArgumentException se a reserva não existir ou o check-in já tiver sido efetuado
+     * @throws SecurityException        se o utilizador não for o gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível apagar
+     */
+    public void apagarReserva(int idReserva) {
+        Permissoes.exigirPerfil(sessao, "Apenas o gestor pode apagar reservas. "
+                + "O rececionista pode cancelar, mas o registo fica guardado no histórico.", Perfil.GESTOR);
+        Reserva reserva = procurarReserva(idReserva);
+        if (!reserva.podeSerApagada()) {
+            throw new IllegalArgumentException("A reserva n.º " + idReserva
+                    + " não pode ser apagada porque o check-in já foi efetuado.");
+        }
+        reservaDAO.remover(idReserva);
+    }
+
+    /**
+     * @return {@code true} se o utilizador autenticado pode apagar reservas (só o gestor)
+     */
+    public boolean podeApagarReservas() {
+        return sessao.getUtilizadorAtual()
+                .map(utilizador -> utilizador.isAtivo() && utilizador.podeApagarReservas())
+                .orElse(false);
+    }
+
+    private Reserva procurarReserva(int idReserva) {
+        return reservaDAO.procurarPorId(idReserva)
+                .orElseThrow(() -> new IllegalArgumentException("A reserva n.º " + idReserva + " não existe."));
     }
 
     private static void validarDatas(LocalDate entrada, LocalDate saida) {

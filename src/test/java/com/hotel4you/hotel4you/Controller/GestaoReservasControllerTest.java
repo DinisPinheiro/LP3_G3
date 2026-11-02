@@ -4,6 +4,7 @@ import com.hotel4you.hotel4you.DAO.ClienteDAO;
 import com.hotel4you.hotel4you.DAO.DAOException;
 import com.hotel4you.hotel4you.DAO.QuartoDAO;
 import com.hotel4you.hotel4you.DAO.ReservaDAOMemoria;
+import com.hotel4you.hotel4you.Model.CartaoMagnetico;
 import com.hotel4you.hotel4you.Model.Cliente;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.Reserva;
@@ -196,6 +197,153 @@ class GestaoReservasControllerTest {
         sessao.terminar();
         assertThrows(SecurityException.class, () -> controller.criarReserva(maria, quarto202, entrada, saida));
         assertTrue(reservaDAO.listarTodos().isEmpty());
+    }
+
+    // ---- Cancelamento e eliminação de reservas ----
+
+    @Test
+    void rececionistaCancelaAReservaEOEstadoFicaGuardado() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+
+        Reserva cancelada = controller.cancelarReserva(reserva.getId());
+
+        assertEquals(EstadoReserva.CANCELADA, cancelada.getEstado());
+        assertEquals(EstadoReserva.CANCELADA, reservaDAO.procurarPorId(reserva.getId()).orElseThrow().getEstado());
+        assertEquals(0, BigDecimal.ZERO.compareTo(cancelada.calcularTotal()));
+    }
+
+    @Test
+    void cancelarMantemOHistoricoENaoApagaOregisto() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+
+        controller.cancelarReserva(reserva.getId());
+
+        assertEquals(1, reservaDAO.listarTodos().size());
+        assertEquals(1, controller.consultarReservas().size());
+    }
+
+    @Test
+    void aoCancelarOQuartoVoltaAFicarDisponivelParaOPeriodo() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+        assertTrue(reservaDAO.existeSobreposicao(quarto202.getId(), entrada, saida));
+        assertTrue(controller.consultarQuartosDisponiveis(TipoQuarto.DUPLO, entrada, saida).isEmpty());
+
+        controller.cancelarReserva(reserva.getId());
+
+        assertTrue(!reservaDAO.existeSobreposicao(quarto202.getId(), entrada, saida));
+        assertEquals(1, controller.consultarQuartosDisponiveis(TipoQuarto.DUPLO, entrada, saida).size());
+        Reserva nova = controller.criarReserva(maria, quarto202, entrada, saida);
+        assertEquals(EstadoReserva.PENDENTE, nova.getEstado());
+    }
+
+    @Test
+    void naoCancelaUmaReservaJaCancelada() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+        controller.cancelarReserva(reserva.getId());
+
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> controller.cancelarReserva(reserva.getId()));
+
+        assertTrue(erro.getMessage().contains("já está cancelada"));
+    }
+
+    @Test
+    void naoCancelaUmaReservaComCheckInEfetuado() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+        reserva.fazerCheckIn(new CartaoMagnetico(12345, false));
+        reservaDAO.atualizar(reserva);
+
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> controller.cancelarReserva(reserva.getId()));
+
+        assertTrue(erro.getMessage().contains("check-in"));
+        assertEquals(EstadoReserva.CHECK_IN, reservaDAO.procurarPorId(reserva.getId()).orElseThrow().getEstado());
+    }
+
+    @Test
+    void cancelarReservaInexistenteLancaErro() {
+        assertThrows(IllegalArgumentException.class, () -> controller.cancelarReserva(99));
+    }
+
+    @Test
+    void rececionistaNaoPodeApagarOHistoricoDaReserva() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+
+        assertThrows(SecurityException.class, () -> controller.apagarReserva(reserva.getId()));
+
+        assertEquals(1, reservaDAO.listarTodos().size());
+        assertTrue(!controller.podeApagarReservas());
+    }
+
+    @Test
+    void gestorApagaUmaReservaSemCheckIn() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+        sessao.iniciar(Utilizador.novo("gestor", "gestor123", "Gestor", Perfil.GESTOR));
+
+        assertTrue(controller.podeApagarReservas());
+        controller.apagarReserva(reserva.getId());
+
+        assertTrue(reservaDAO.listarTodos().isEmpty());
+        assertTrue(reservaDAO.procurarPorId(reserva.getId()).isEmpty());
+    }
+
+    @Test
+    void gestorApagaTambemUmaReservaCanceladaSemCheckIn() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+        controller.cancelarReserva(reserva.getId());
+        sessao.iniciar(Utilizador.novo("gestor", "gestor123", "Gestor", Perfil.GESTOR));
+
+        controller.apagarReserva(reserva.getId());
+
+        assertTrue(reservaDAO.listarTodos().isEmpty());
+    }
+
+    @Test
+    void gestorNaoApagaUmaReservaComCheckInEfetuado() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+        reserva.fazerCheckIn(new CartaoMagnetico(12345, false));
+        reservaDAO.atualizar(reserva);
+        sessao.iniciar(Utilizador.novo("gestor", "gestor123", "Gestor", Perfil.GESTOR));
+
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> controller.apagarReserva(reserva.getId()));
+
+        assertTrue(erro.getMessage().contains("check-in"));
+        assertEquals(1, reservaDAO.listarTodos().size());
+    }
+
+    @Test
+    void apagarReservaInexistenteLancaErro() {
+        sessao.iniciar(Utilizador.novo("gestor", "gestor123", "Gestor", Perfil.GESTOR));
+
+        assertThrows(IllegalArgumentException.class, () -> controller.apagarReserva(99));
+    }
+
+    @Test
+    void outrosPerfisESemSessaoNaoPodemCancelarNemApagar() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida);
+
+        sessao.iniciar(Utilizador.novo("forn", "forn12345", "Fornecedor", Perfil.FORNECEDOR));
+        assertThrows(SecurityException.class, () -> controller.cancelarReserva(reserva.getId()));
+        assertThrows(SecurityException.class, () -> controller.apagarReserva(reserva.getId()));
+
+        sessao.terminar();
+        assertThrows(SecurityException.class, () -> controller.cancelarReserva(reserva.getId()));
+        assertThrows(SecurityException.class, () -> controller.apagarReserva(reserva.getId()));
+        assertTrue(!controller.podeApagarReservas());
+        assertEquals(EstadoReserva.PENDENTE, reservaDAO.procurarPorId(reserva.getId()).orElseThrow().getEstado());
+    }
+
+    @Test
+    void consultarReservasFiltraPorClienteOuQuarto() {
+        Cliente joao = clienteDAO.inserir(new Cliente(0, "Joao Santos", "PT999", ""));
+        controller.criarReserva(maria, quarto202, entrada, saida);
+        controller.criarReserva(joao, quarto203, entrada, saida);
+
+        assertEquals(2, controller.consultarReservas("").size());
+        assertEquals(1, controller.consultarReservas("maria").size());
+        assertEquals(1, controller.consultarReservas("203").size());
+        assertTrue(controller.consultarReservas("zzz").isEmpty());
     }
 
     // ---- DAO em memória só para este teste (não dependem de outros ficheiros) ----
