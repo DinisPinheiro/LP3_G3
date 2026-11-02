@@ -20,6 +20,7 @@ import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAO;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAOSQL;
 import com.hotel4you.hotel4you.Utils.Navegador;
+import com.hotel4you.hotel4you.View.ConsultaDisponibilidadeViewController;
 import com.hotel4you.hotel4you.View.GestaoFuncionariosViewController;
 import com.hotel4you.hotel4you.View.GestaoClientesViewController;
 import com.hotel4you.hotel4you.View.GestaoCancelamentoReservasViewController;
@@ -78,6 +79,9 @@ public class Main extends Application {
             }
             if (tipo == GestaoReservasViewController.class) {
                 return new GestaoReservasViewController(gestaoReservasController, gestaoClientesController);
+            }
+            if (tipo == ConsultaDisponibilidadeViewController.class) {
+                return new ConsultaDisponibilidadeViewController(gestaoReservasController);
             }
             if (tipo == GestaoCancelamentoReservasViewController.class) {
                 return new GestaoCancelamentoReservasViewController(gestaoReservasController);
