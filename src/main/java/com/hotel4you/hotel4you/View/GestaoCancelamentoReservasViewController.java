@@ -26,7 +26,6 @@ import java.time.format.DateTimeFormatter;
  * "Apagar registo" (só o gestor, e só se o check-in não foi efetuado). Só lê a escolha e mostra
  * mensagens; as regras e as permissões estão no {@link GestaoReservasController}.
  * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class GestaoCancelamentoReservasViewController {
 
