@@ -11,7 +11,10 @@ import com.hotel4you.hotel4you.Utils.Navegador;
 import com.hotel4you.hotel4you.Utils.Utils;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DateCell;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -22,18 +25,18 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * ViewController do ecrã de criação de reservas ({@code GestaoReservasView.fxml}).
  * <p>
- * Passos: escolher o cliente, indicar as datas (dd/mm/aaaa) e o tipo de quarto, ver os quartos
- * disponíveis, escolher um e criar a reserva. Só lê os campos e mostra mensagens; as regras
- * (disponibilidade, datas, valor, permissões) estão no {@link GestaoReservasController}.
- * Escrever "0" num campo de data e carregar Enter (ou o botão Limpar) cancela o que estava a ser preenchido.
+ * Passos: escolher o cliente (lista paginada), indicar as datas (escritas como dd/mm/aaaa ou
+ * escolhidas no calendário) e o tipo de quarto, ver os quartos disponíveis, escolher um e criar
+ * a reserva. Só lê os campos e mostra mensagens; as regras (disponibilidade, datas, valor,
+ * permissões) estão no {@link GestaoReservasController}.
  * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class GestaoReservasViewController {
 
@@ -41,18 +44,34 @@ public class GestaoReservasViewController {
     private static final String COR_SUCESSO = "-fx-text-fill: #1e8449;";
     private static final String COR_NEUTRA = "-fx-text-fill: #555555;";
     private static final DateTimeFormatter FORMATO_DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final String MENSAGEM_DATAS =
+            "Escolha as datas no calendário ou escreva-as no formato dd/mm/aaaa.";
+
+    /** Quantos clientes aparecem em cada página da lista. */
+    private static final int CLIENTES_POR_PAGINA = 5;
 
     private final GestaoReservasController controller;
     private final GestaoClientesController clientesController;
+
+    /** Todos os clientes que correspondem à pesquisa (a lista só mostra uma página de cada vez). */
+    private List<Cliente> clientes = new ArrayList<>();
+    /** Página dos clientes que está a ser mostrada (começa em 0). */
+    private int paginaAtual = 0;
 
     @FXML
     private TextField campoPesquisaCliente;
     @FXML
     private ListView<Cliente> listaClientes;
     @FXML
-    private TextField campoEntrada;
+    private Button botaoAnterior;
     @FXML
-    private TextField campoSaida;
+    private Label labelPagina;
+    @FXML
+    private Button botaoSeguinte;
+    @FXML
+    private DatePicker campoEntrada;
+    @FXML
+    private DatePicker campoSaida;
     @FXML
     private ComboBox<TipoQuarto> campoTipo;
     @FXML
@@ -60,12 +79,10 @@ public class GestaoReservasViewController {
     @FXML
     private Label labelValor;
     @FXML
-    private ListView<Reserva> listaReservas;
-    @FXML
     private Label labelMensagem;
 
     /**
-     * @param controller         controller que cria e consulta reservas
+     * @param controller         controller que cria reservas
      * @param clientesController controller usado para procurar o cliente da reserva
      */
     public GestaoReservasViewController(GestaoReservasController controller,
@@ -103,35 +120,22 @@ public class GestaoReservasViewController {
                 setText(vazio || quarto == null ? null : descrever(quarto));
             }
         });
-        listaReservas.setCellFactory(lista -> new ListCell<Reserva>() {
-            @Override
-            protected void updateItem(Reserva reserva, boolean vazio) {
-                super.updateItem(reserva, vazio);
-                setText(vazio || reserva == null ? null : descrever(reserva));
-            }
-        });
+        configurarCalendario(campoEntrada, 0);  // entrada: a partir de hoje
+        configurarCalendario(campoSaida, 1);    // saída: a partir de amanhã
         campoPesquisaCliente.textProperty().addListener((observavel, antigo, novo) -> atualizarClientes());
-        // Se as datas ou o tipo mudam, a lista de quartos disponíveis deixa de estar certa.
-        campoEntrada.textProperty().addListener((observavel, antigo, novo) -> limparQuartos());
-        campoSaida.textProperty().addListener((observavel, antigo, novo) -> limparQuartos());
         campoTipo.setOnAction(evento -> limparQuartos());
         listaQuartos.getSelectionModel().selectedItemProperty()
                 .addListener((observavel, antigo, novo) -> atualizarValor());
         atualizarClientes();
-        atualizarReservas();
     }
 
     /** Chamado pelo botão "Ver quartos disponíveis". */
     @FXML
     private void onVerQuartos() {
-        if (pediuCancelamento()) {
-            onLimpar();
-            return;
-        }
-        Optional<LocalDate> entrada = Utils.converterData(campoEntrada.getText());
-        Optional<LocalDate> saida = Utils.converterData(campoSaida.getText());
+        Optional<LocalDate> entrada = lerData(campoEntrada);
+        Optional<LocalDate> saida = lerData(campoSaida);
         if (entrada.isEmpty() || saida.isEmpty()) {
-            mostrar("Datas inválidas. Use o formato dd/mm/aaaa, por exemplo 15/12/2026.", COR_ERRO);
+            mostrar(MENSAGEM_DATAS, COR_ERRO);
             return;
         }
         try {
@@ -153,20 +157,16 @@ public class GestaoReservasViewController {
     /** Chamado pelo botão "Criar reserva". */
     @FXML
     private void onCriar() {
-        if (pediuCancelamento()) {
-            onLimpar();
-            return;
-        }
         Cliente cliente = listaClientes.getSelectionModel().getSelectedItem();
         Quarto quarto = listaQuartos.getSelectionModel().getSelectedItem();
         if (cliente == null) {
             mostrar("Escolha um cliente na lista.", COR_ERRO);
             return;
         }
-        Optional<LocalDate> entrada = Utils.converterData(campoEntrada.getText());
-        Optional<LocalDate> saida = Utils.converterData(campoSaida.getText());
+        Optional<LocalDate> entrada = lerData(campoEntrada);
+        Optional<LocalDate> saida = lerData(campoSaida);
         if (entrada.isEmpty() || saida.isEmpty()) {
-            mostrar("Datas inválidas. Use o formato dd/mm/aaaa, por exemplo 15/12/2026.", COR_ERRO);
+            mostrar(MENSAGEM_DATAS, COR_ERRO);
             return;
         }
         if (quarto == null) {
@@ -180,7 +180,6 @@ public class GestaoReservasViewController {
                     + ". Total estimado: " + Utils.formatarPreco(reserva.calcularTotal())
                     + ". Estado: " + descreverEstado(reserva.getEstado()) + ".", COR_SUCESSO);
             limparQuartos();
-            atualizarReservas();
         } catch (IllegalArgumentException | SecurityException e) {
             mostrar(e.getMessage(), COR_ERRO);
         } catch (RuntimeException e) {
@@ -191,12 +190,34 @@ public class GestaoReservasViewController {
     /** Chamado pelo botão "Limpar": apaga as datas, o tipo, a pesquisa e a escolha de quarto. */
     @FXML
     private void onLimpar() {
-        campoEntrada.clear();
-        campoSaida.clear();
+        campoEntrada.setValue(null);
+        campoEntrada.getEditor().clear();
+        campoSaida.setValue(null);
+        campoSaida.getEditor().clear();
         campoTipo.setValue(null);
         campoPesquisaCliente.clear();
+        paginaAtual = 0;
+        mostrarPaginaClientes();
         limparQuartos();
         mostrar("", COR_NEUTRA);
+    }
+
+    /** Chamado pelo botão "Anterior" da lista de clientes. */
+    @FXML
+    private void onPaginaAnterior() {
+        if (paginaAtual > 0) {
+            paginaAtual--;
+            mostrarPaginaClientes();
+        }
+    }
+
+    /** Chamado pelo botão "Seguinte" da lista de clientes. */
+    @FXML
+    private void onPaginaSeguinte() {
+        if (paginaAtual < totalPaginas() - 1) {
+            paginaAtual++;
+            mostrarPaginaClientes();
+        }
     }
 
     /** Chamado pelo botão "Voltar ao menu". */
@@ -205,8 +226,40 @@ public class GestaoReservasViewController {
         Navegador.mudarPara("MenuPrincipalView.fxml", "Hotel4You");
     }
 
-    private boolean pediuCancelamento() {
-        return Utils.eCancelamento(campoEntrada.getText()) || Utils.eCancelamento(campoSaida.getText());
+    /**
+     * Prepara um seletor de data: mostra a data como dd/mm/aaaa, não deixa escolher dias
+     * anteriores ao primeiro permitido e limpa os quartos quando a data muda
+     * (escrita à mão ou escolhida no calendário).
+     *
+     * @param campo                     seletor a preparar
+     * @param diasMinimosAPartirDeHoje  0 = pode ser hoje; 1 = só a partir de amanhã
+     */
+    private void configurarCalendario(DatePicker campo, int diasMinimosAPartirDeHoje) {
+        campo.setConverter(new StringConverter<LocalDate>() {
+            @Override
+            public String toString(LocalDate data) {
+                return data == null ? "" : data.format(FORMATO_DATA);
+            }
+
+            @Override
+            public LocalDate fromString(String texto) {
+                return Utils.converterData(texto).orElse(null);
+            }
+        });
+        LocalDate primeiroDia = LocalDate.now().plusDays(diasMinimosAPartirDeHoje);
+        campo.setDayCellFactory(seletor -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate data, boolean vazio) {
+                super.updateItem(data, vazio);
+                setDisable(vazio || data.isBefore(primeiroDia));
+            }
+        });
+        campo.getEditor().textProperty().addListener((observavel, antigo, novo) -> limparQuartos());
+    }
+
+    /** Lê a data da caixa de texto do seletor (funciona também se ainda não carregou em Enter). */
+    private Optional<LocalDate> lerData(DatePicker campo) {
+        return Utils.converterData(campo.getEditor().getText());
     }
 
     private void limparQuartos() {
@@ -217,8 +270,8 @@ public class GestaoReservasViewController {
     /** Mostra o valor total estimado do quarto escolhido, se as datas já estiverem escritas. */
     private void atualizarValor() {
         Quarto quarto = listaQuartos.getSelectionModel().getSelectedItem();
-        Optional<LocalDate> entrada = Utils.converterData(campoEntrada.getText());
-        Optional<LocalDate> saida = Utils.converterData(campoSaida.getText());
+        Optional<LocalDate> entrada = lerData(campoEntrada);
+        Optional<LocalDate> saida = lerData(campoSaida);
         if (quarto == null || entrada.isEmpty() || saida.isEmpty()) {
             labelValor.setText("");
             return;
@@ -233,21 +286,31 @@ public class GestaoReservasViewController {
         }
     }
 
+    /** Procura os clientes (pesquisa atual) e mostra a primeira página. */
     private void atualizarClientes() {
         try {
-            listaClientes.setItems(FXCollections.observableArrayList(
-                    clientesController.consultarClientes(campoPesquisaCliente.getText())));
+            clientes = new ArrayList<>(clientesController.consultarClientes(campoPesquisaCliente.getText()));
         } catch (RuntimeException e) {
+            clientes = new ArrayList<>();
             mostrar(e.getMessage(), COR_ERRO);
         }
+        paginaAtual = 0;
+        mostrarPaginaClientes();
     }
 
-    private void atualizarReservas() {
-        try {
-            listaReservas.setItems(FXCollections.observableArrayList(controller.consultarReservas()));
-        } catch (RuntimeException e) {
-            mostrar(e.getMessage(), COR_ERRO);
-        }
+    private int totalPaginas() {
+        return Math.max(1, (clientes.size() + CLIENTES_POR_PAGINA - 1) / CLIENTES_POR_PAGINA);
+    }
+
+    /** Mostra na lista só os clientes da página atual e atualiza os botões e o texto da página. */
+    private void mostrarPaginaClientes() {
+        int inicio = paginaAtual * CLIENTES_POR_PAGINA;
+        int fim = Math.min(inicio + CLIENTES_POR_PAGINA, clientes.size());
+        listaClientes.setItems(FXCollections.observableArrayList(new ArrayList<>(clientes.subList(inicio, fim))));
+        labelPagina.setText("Página " + (paginaAtual + 1) + " de " + totalPaginas()
+                + "  (" + clientes.size() + " cliente(s))");
+        botaoAnterior.setDisable(paginaAtual == 0);
+        botaoSeguinte.setDisable(paginaAtual >= totalPaginas() - 1);
     }
 
     private void mostrar(String texto, String estilo) {
@@ -258,14 +321,6 @@ public class GestaoReservasViewController {
     private static String descrever(Quarto quarto) {
         return quarto + "  |  " + quarto.getVista().getNome() + "  |  "
                 + Utils.formatarPreco(quarto.precoNoite()) + " por noite";
-    }
-
-    private static String descrever(Reserva reserva) {
-        return "N.º " + reserva.getId() + "  |  " + reserva.getCliente().getNome() + "  |  " + reserva.getQuarto()
-                + "  |  " + reserva.getDataEntrada().format(FORMATO_DATA) + " a "
-                + reserva.getDataSaida().format(FORMATO_DATA)
-                + "  |  " + Utils.formatarPreco(reserva.calcularTotal())
-                + "  |  " + descreverEstado(reserva.getEstado());
     }
 
     private static String descreverEstado(EstadoReserva estado) {

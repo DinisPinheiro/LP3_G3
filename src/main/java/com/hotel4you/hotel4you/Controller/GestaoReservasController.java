@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
  * guardada com o cliente, o quarto, as datas, o valor total estimado e o estado
  * {@code PENDENTE} (reservado, à espera de check-in).
  * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class GestaoReservasController {
 
