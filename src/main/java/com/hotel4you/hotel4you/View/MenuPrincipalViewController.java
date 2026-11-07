@@ -94,6 +94,10 @@ public class MenuPrincipalViewController {
             Navegador.mudarPara("GestaoCancelamentoReservasView.fxml", "Hotel4You - Cancelar e apagar reservas");
             return;
         }
+        if (opcao == OpcaoMenu.GERIR_STOCK) {
+            Navegador.mudarPara("ConsultaStockView.fxml", "Hotel4You - Stock");
+            return;
+        }
         labelMensagem.setText("\"" + opcao.getTexto() + "\" está em desenvolvimento.");
     }
 }
