@@ -4,14 +4,21 @@ package com.hotel4you.hotel4you.Model.enums;
  * Unidade de medida de uma quantidade na encomenda do fornecedor (atributo {@code UOM} do XML).
  */
 public enum UnidadeMedida {
-    CAIXA("Box"),
-    UNIDADE("Unit"),
-    QUILOGRAMA("Kilogram");
+    CAIXA("Box", "cx"),
+    UNIDADE("Unit", "un"),
+    QUILOGRAMA("Kilogram", "kg");
 
     private final String valorXml;
+    private final String abreviatura;
 
-    UnidadeMedida(String valorXml) {
+    UnidadeMedida(String valorXml, String abreviatura) {
         this.valorXml = valorXml;
+        this.abreviatura = abreviatura;
+    }
+
+    /** @return a abreviatura mostrada ao utilizador e guardada no stock ({@code "cx"}, {@code "un"} ou {@code "kg"}) */
+    public String getAbreviatura() {
+        return abreviatura;
     }
 
     /** @return o texto usado no ficheiro XML (por exemplo {@code "Box"}) */

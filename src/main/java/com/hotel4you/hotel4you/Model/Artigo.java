@@ -11,6 +11,7 @@ public class Artigo {
     private String nome;
     private String unidade;
     private int quantidadeAtual;
+    private Fornecedor fornecedor;
 
     /**
      * @param id              identificador (0 se ainda não foi guardado)
@@ -70,6 +71,16 @@ public class Artigo {
 
     public int getQuantidadeAtual() {
         return quantidadeAtual;
+    }
+
+    /** @return o fornecedor da última entrada deste artigo, ou {@code null} se não tiver */
+    public Fornecedor getFornecedor() {
+        return fornecedor;
+    }
+
+    /** @param fornecedor fornecedor da última entrada deste artigo; pode ser {@code null} */
+    public void setFornecedor(Fornecedor fornecedor) {
+        this.fornecedor = fornecedor;
     }
 
     @Override
