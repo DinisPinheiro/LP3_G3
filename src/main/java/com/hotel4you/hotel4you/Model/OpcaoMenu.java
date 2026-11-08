@@ -38,6 +38,7 @@ public enum OpcaoMenu {
     LISTAGEM_POR_CARTAO("Locais por onde passou um cartão", GESTOR),
     LISTAGEM_POR_QUARTO("Passagens de cartões num quarto", GESTOR),
     CONFIGURAR_QUARTOS("Configurar quartos", GESTOR),
+    EDITAR_VISTAS("Valores das vistas especiais", GESTOR),
 
     // Empresa de restauração
     COZINHA_RESTAURANTE("Cozinha e restaurante", EMPRESA_RESTAURACAO),

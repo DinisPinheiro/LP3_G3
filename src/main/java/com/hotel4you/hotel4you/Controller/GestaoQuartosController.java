@@ -2,6 +2,7 @@ package com.hotel4you.hotel4you.Controller;
 
 import com.hotel4you.hotel4you.DAO.EquipamentoDAO;
 import com.hotel4you.hotel4you.DAO.QuartoDAO;
+import com.hotel4you.hotel4you.DAO.SuplementoVistaDAO;
 import com.hotel4you.hotel4you.Model.Equipamento;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
@@ -35,6 +36,8 @@ public class GestaoQuartosController {
 
     private final QuartoDAO quartoDAO;
     private final EquipamentoDAO equipamentoDAO;
+    /** Valores das vistas em vigor; {@code null} usa os valores iniciais de {@link Vista}. */
+    private final SuplementoVistaDAO suplementoVistaDAO;
     private final Sessao sessao;
 
     /**
@@ -43,8 +46,20 @@ public class GestaoQuartosController {
      * @param sessao         sessão com o utilizador autenticado
      */
     public GestaoQuartosController(QuartoDAO quartoDAO, EquipamentoDAO equipamentoDAO, Sessao sessao) {
+        this(quartoDAO, equipamentoDAO, null, sessao);
+    }
+
+    /**
+     * @param quartoDAO          onde os quartos são guardados
+     * @param equipamentoDAO     catálogo de equipamentos
+     * @param suplementoVistaDAO valores das vistas especiais, editáveis pelo gestor (S4-vistas)
+     * @param sessao             sessão com o utilizador autenticado
+     */
+    public GestaoQuartosController(QuartoDAO quartoDAO, EquipamentoDAO equipamentoDAO,
+                                   SuplementoVistaDAO suplementoVistaDAO, Sessao sessao) {
         this.quartoDAO = Objects.requireNonNull(quartoDAO);
         this.equipamentoDAO = Objects.requireNonNull(equipamentoDAO);
+        this.suplementoVistaDAO = suplementoVistaDAO;
         this.sessao = Objects.requireNonNull(sessao);
     }
 
@@ -120,6 +135,7 @@ public class GestaoQuartosController {
         List<Equipamento> escolhidos = validarEquipamentos(equipamentos);
 
         Quarto quarto = new Quarto(0, numero, piso, local, tipo, preco, vista, true);
+        quarto.setSuplementoVista(obterSuplemento(vista));
         escolhidos.forEach(quarto::adicionarEquipamento);
         return quartoDAO.inserir(quarto);
     }
@@ -150,6 +166,7 @@ public class GestaoQuartosController {
         quarto.setTipo(tipo);
         quarto.setPrecoBase(preco);
         quarto.setVista(vista);
+        quarto.setSuplementoVista(obterSuplemento(vista));
         quarto.setAtivo(ativo);
         new ArrayList<>(quarto.getEquipamentos()).forEach(quarto::removerEquipamento);
         escolhidos.forEach(quarto::adicionarEquipamento);
@@ -157,15 +174,28 @@ public class GestaoQuartosController {
     }
 
     /**
-     * Calcula o preço por noite (preço base mais o suplemento da vista), para mostrar no ecrã
+     * Calcula o preço por noite (preço base mais o valor da vista em vigor), para mostrar no ecrã
      * antes de guardar.
      *
      * @param precoBase preço base por noite
      * @param vista     vista do quarto
      * @return o preço por noite
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler o valor da vista
      */
     public BigDecimal calcularPrecoNoite(BigDecimal precoBase, Vista vista) {
-        return Quarto.calcularPrecoNoite(precoBase, vista);
+        return Quarto.calcularPrecoNoite(precoBase, obterSuplemento(vista));
+    }
+
+    /**
+     * @param vista vista do quarto
+     * @return o valor da vista em vigor (o configurado pelo gestor; o inicial se nunca foi alterado)
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler
+     */
+    public BigDecimal obterSuplemento(Vista vista) {
+        if (suplementoVistaDAO == null) {
+            return vista.getSuplemento();
+        }
+        return suplementoVistaDAO.listar().getOrDefault(vista, vista.getSuplemento());
     }
 
     /**

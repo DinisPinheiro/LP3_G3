@@ -293,8 +293,12 @@ public class GestaoQuartosViewController {
             labelPrecoNoite.setText("-");
             return;
         }
-        labelPrecoNoite.setText(Utils.formatarPreco(controller.calcularPrecoNoite(preco.get(), vista))
-                + " (preço base + " + Utils.formatarPreco(vista.getSuplemento()) + " da vista)");
+        try {
+            labelPrecoNoite.setText(Utils.formatarPreco(controller.calcularPrecoNoite(preco.get(), vista))
+                    + " (preço base + " + Utils.formatarPreco(controller.obterSuplemento(vista)) + " da vista)");
+        } catch (RuntimeException e) {
+            labelPrecoNoite.setText("-");
+        }
     }
 
     private void mostrar(String texto, String estilo) {

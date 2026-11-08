@@ -82,6 +82,10 @@ public class MenuPrincipalViewController {
             Navegador.mudarPara("GestaoQuartosView.fxml", "Hotel4You - Quartos");
             return;
         }
+        if (opcao == OpcaoMenu.EDITAR_VISTAS) {
+            Navegador.mudarPara("GestaoVistasView.fxml", "Hotel4You - Vistas especiais");
+            return;
+        }
         if (opcao == OpcaoMenu.SERVICOS_E_EXTRAS) {
             Navegador.mudarPara("GestaoServicosView.fxml", "Hotel4You - Serviços e extras");
             return;

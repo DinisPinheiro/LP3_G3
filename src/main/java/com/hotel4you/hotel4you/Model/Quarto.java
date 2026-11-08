@@ -23,6 +23,8 @@ public class Quarto {
     private TipoQuarto tipo;
     private BigDecimal precoBase;
     private Vista vista;
+    /** Valor da vista em vigor (o configurado pelo gestor); por omissão, o valor inicial da vista. */
+    private BigDecimal suplementoVista;
     private boolean ativo;
     private final List<Equipamento> equipamentos = new ArrayList<>();
 
@@ -52,17 +54,18 @@ public class Quarto {
         this.tipo = Objects.requireNonNull(tipo, "O tipo de quarto é obrigatório.");
         this.precoBase = validarPreco(precoBase);
         this.vista = Objects.requireNonNull(vista, "A vista é obrigatória.");
+        this.suplementoVista = vista.getSuplemento();
         this.ativo = ativo;
     }
 
     /**
-     * Preço de uma noite: preço base mais o suplemento da vista.
+     * Preço de uma noite: preço base mais o valor da vista em vigor.
      * Consumos (bebidas, lavandaria) são somados na {@link Reserva}.
      *
      * @return preço por noite
      */
     public BigDecimal precoNoite() {
-        return calcularPrecoNoite(precoBase, vista);
+        return calcularPrecoNoite(precoBase, suplementoVista);
     }
 
     /**
@@ -75,6 +78,17 @@ public class Quarto {
      */
     public static BigDecimal calcularPrecoNoite(BigDecimal precoBase, Vista vista) {
         return precoBase.add(vista.getSuplemento());
+    }
+
+    /**
+     * Calcula o preço de uma noite com um valor de vista já conhecido (o configurado pelo gestor).
+     *
+     * @param precoBase  preço base por noite
+     * @param suplemento valor da vista a somar
+     * @return preço por noite
+     */
+    public static BigDecimal calcularPrecoNoite(BigDecimal precoBase, BigDecimal suplemento) {
+        return precoBase.add(suplemento);
     }
 
     /**
@@ -142,8 +156,28 @@ public class Quarto {
         return vista;
     }
 
+    /** Muda a vista; o valor da vista volta ao valor inicial até o DAO ou o controller indicar o em vigor. */
     public void setVista(Vista vista) {
         this.vista = Objects.requireNonNull(vista, "A vista é obrigatória.");
+        this.suplementoVista = vista.getSuplemento();
+    }
+
+    /** @return valor da vista em vigor, somado ao preço base em {@link #precoNoite()} */
+    public BigDecimal getSuplementoVista() {
+        return suplementoVista;
+    }
+
+    /**
+     * Indica o valor da vista em vigor (lido da base de dados pelo DAO).
+     *
+     * @param suplementoVista valor a somar ao preço base por noite, não negativo
+     * @throws IllegalArgumentException se for nulo ou negativo
+     */
+    public void setSuplementoVista(BigDecimal suplementoVista) {
+        if (suplementoVista == null || suplementoVista.signum() < 0) {
+            throw new IllegalArgumentException("O valor da vista não pode ser negativo.");
+        }
+        this.suplementoVista = suplementoVista;
     }
 
     public boolean isAtivo() {
