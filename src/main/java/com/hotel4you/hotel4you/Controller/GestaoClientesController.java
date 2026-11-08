@@ -2,6 +2,7 @@ package com.hotel4you.hotel4you.Controller;
 
 import com.hotel4you.hotel4you.DAO.ClienteDAO;
 import com.hotel4you.hotel4you.Model.Cliente;
+import com.hotel4you.hotel4you.Model.Pagina;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import com.hotel4you.hotel4you.Utils.Utils;
 
@@ -25,6 +26,8 @@ public class GestaoClientesController {
     private static final int MAX_NOME = 100;
     private static final int MAX_DOCUMENTO = 20;
     private static final int MAX_CONTACTO = 100;
+    /** Máximo de clientes que se podem pedir de uma vez numa página. */
+    public static final int MAX_POR_PAGINA = 100;
 
     private final ClienteDAO clienteDAO;
     private final Sessao sessao;
@@ -90,6 +93,32 @@ public class GestaoClientesController {
         }
         clientes.sort(Comparator.comparing(Cliente::getNome, String.CASE_INSENSITIVE_ORDER));
         return clientes;
+    }
+
+    /**
+     * Consulta uma página de clientes, por ordem alfabética do nome. A paginação é feita na base de
+     * dados, por isso só são lidos os clientes que vão ser mostrados. Se a página pedida já não existir
+     * (por exemplo, porque a pesquisa ficou mais curta), devolve a última.
+     *
+     * @param pesquisa parte do nome ou do NIF/documento; vazio ou nulo devolve todos
+     * @param pagina   número da página, a começar em 0
+     * @param tamanho  clientes por página (entre 1 e {@value #MAX_POR_PAGINA})
+     * @return a página de clientes, com o total de resultados
+     * @throws IllegalArgumentException se o tamanho da página for inválido
+     * @throws SecurityException        se o utilizador não for rececionista nem gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler
+     */
+    public Pagina<Cliente> consultarPagina(String pesquisa, int pagina, int tamanho) {
+        exigirRececao();
+        if (tamanho < 1 || tamanho > MAX_POR_PAGINA) {
+            throw new IllegalArgumentException("O tamanho da página deve estar entre 1 e " + MAX_POR_PAGINA + ".");
+        }
+        String termo = pesquisa == null ? "" : pesquisa.trim();
+        int total = clienteDAO.contar(termo);
+        int ultima = Math.max(1, (total + tamanho - 1) / tamanho) - 1;
+        int numero = Math.min(Math.max(pagina, 0), ultima);
+        List<Cliente> clientes = total == 0 ? List.of() : clienteDAO.listarPagina(termo, numero, tamanho);
+        return new Pagina<>(clientes, numero, tamanho, total);
     }
 
     /**

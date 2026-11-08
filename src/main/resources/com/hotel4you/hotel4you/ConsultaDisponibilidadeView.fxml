@@ -3,10 +3,10 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
@@ -28,11 +28,11 @@
             <ColumnConstraints hgrow="ALWAYS"/>
         </columnConstraints>
         <Label text="Data de entrada *" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <TextField fx:id="campoEntrada" promptText="dd/mm/aaaa" maxWidth="Infinity"
-                   GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        <DatePicker fx:id="campoEntrada" promptText="dd/mm/aaaa" maxWidth="Infinity"
+                    GridPane.rowIndex="0" GridPane.columnIndex="1"/>
         <Label text="Data de saída *" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-        <TextField fx:id="campoSaida" promptText="dd/mm/aaaa" maxWidth="Infinity"
-                   GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+        <DatePicker fx:id="campoSaida" promptText="dd/mm/aaaa" maxWidth="Infinity"
+                    GridPane.rowIndex="1" GridPane.columnIndex="1"/>
         <Label text="Tipo de quarto" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
         <ComboBox fx:id="campoTipo" promptText="Qualquer tipo" maxWidth="Infinity"
                   GridPane.rowIndex="2" GridPane.columnIndex="1"/>
@@ -41,7 +41,7 @@
     <HBox spacing="8">
         <Button text="Consultar" defaultButton="true" onAction="#onConsultar"/>
         <Button text="Limpar" onAction="#onLimpar"/>
-        <Label text="Escreva 0 numa data e Enter para cancelar." style="-fx-text-fill: #777777;"/>
+        <Label text="Escolha as datas no calendário ou escreva-as como dd/mm/aaaa." style="-fx-text-fill: #777777;"/>
     </HBox>
 
     <Label fx:id="labelMensagem" wrapText="true"/>
