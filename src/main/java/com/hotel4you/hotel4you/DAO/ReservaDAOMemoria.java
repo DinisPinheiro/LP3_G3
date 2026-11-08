@@ -13,7 +13,7 @@ import java.util.Optional;
 /**
  * {@link ReservaDAO} em memória, <b>só para testes unitários</b>. Respeita o contrato do DAO real:
  * não deixa reservar um quarto que já tenha uma reserva ativa (pendente ou com check-in)
- * que se sobreponha ao período.
+ * que se sobreponha ao período, e não deixa apagar reservas que já tiveram check-in.
  */
 public class ReservaDAOMemoria implements ReservaDAO {
 
@@ -40,9 +40,14 @@ public class ReservaDAOMemoria implements ReservaDAO {
 
     @Override
     public void remover(int id) {
-        if (reservas.remove(id) == null) {
+        Reserva reserva = reservas.get(id);
+        if (reserva == null) {
             throw new DAOException("A reserva com id " + id + " não existe.");
         }
+        if (!reserva.podeSerApagada()) {
+            throw new DAOException("A reserva n.º " + id + " já teve check-in e não pode ser apagada.");
+        }
+        reservas.remove(id);
     }
 
     @Override

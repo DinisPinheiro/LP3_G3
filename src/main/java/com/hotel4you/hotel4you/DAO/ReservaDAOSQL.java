@@ -1,6 +1,7 @@
 package com.hotel4you.hotel4you.DAO;
 
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
+import com.hotel4you.hotel4you.Model.CartaoMagnetico;
 import com.hotel4you.hotel4you.Model.Cliente;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.Reserva;
@@ -13,6 +14,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,32 +25,35 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@link ReservaDAO} sobre a tabela {@code dbo.Reserva}. O cliente e o quarto de cada reserva
- * são lidos através do {@link ClienteDAO} e do {@link QuartoDAO}.
+ * {@link ReservaDAO} sobre a tabela {@code dbo.Reserva}. O cliente, o quarto e o cartão de cada
+ * reserva são lidos através do {@link ClienteDAO}, do {@link QuartoDAO} e do {@link CartaoDAO}.
  */
 public class ReservaDAOSQL implements ReservaDAO {
 
     private static final String COLUNAS =
-            "IdReserva, IdCliente, IdQuarto, DataEntrada, DataSaida, Estado, DataCheckIn, DataCheckOut";
+            "IdReserva, IdCliente, IdQuarto, DataEntrada, DataSaida, Estado, DataCheckIn, DataCheckOut, IdCartao";
     private static final String ESTADOS_ATIVOS = "('PENDENTE', 'CHECK_IN')";
     private static final String SQL_SOBREPOSICAO = "SELECT COUNT(*) FROM dbo.Reserva WHERE IdQuarto = ? AND Estado IN "
             + ESTADOS_ATIVOS + " AND DataEntrada < ? AND DataSaida > ?";
 
     /** Linha lida da base de dados, antes de se juntar o cliente e o quarto. */
     private record Linha(int id, int idCliente, int idQuarto, LocalDate entrada, LocalDate saida,
-                         EstadoReserva estado, LocalDateTime checkIn, LocalDateTime checkOut) {
+                         EstadoReserva estado, LocalDateTime checkIn, LocalDateTime checkOut, Integer idCartao) {
     }
 
     private final ClienteDAO clienteDAO;
     private final QuartoDAO quartoDAO;
+    private final CartaoDAO cartaoDAO;
 
     /**
      * @param clienteDAO DAO usado para ler o cliente de cada reserva
      * @param quartoDAO  DAO usado para ler o quarto de cada reserva
+     * @param cartaoDAO  DAO usado para ler o cartão entregue no check-in
      */
-    public ReservaDAOSQL(ClienteDAO clienteDAO, QuartoDAO quartoDAO) {
+    public ReservaDAOSQL(ClienteDAO clienteDAO, QuartoDAO quartoDAO, CartaoDAO cartaoDAO) {
         this.clienteDAO = Objects.requireNonNull(clienteDAO);
         this.quartoDAO = Objects.requireNonNull(quartoDAO);
+        this.cartaoDAO = Objects.requireNonNull(cartaoDAO);
     }
 
     @Override
@@ -92,15 +97,24 @@ public class ReservaDAOSQL implements ReservaDAO {
 
     @Override
     public void atualizar(Reserva reserva) {
-        String sql = "UPDATE dbo.Reserva SET Estado = ?, ValorTotal = ?, DataCheckIn = ?, DataCheckOut = ? "
-                + "WHERE IdReserva = ?";
+        CartaoMagnetico cartao = reserva.getCartao();
+        if (cartao != null && cartao.getId() <= 0) {
+            throw new DAOException("O cartão da reserva tem de estar guardado.");
+        }
+        String sql = "UPDATE dbo.Reserva SET Estado = ?, ValorTotal = ?, DataCheckIn = ?, DataCheckOut = ?, "
+                + "IdCartao = ? WHERE IdReserva = ?";
         try (Connection conn = DBConnection.getConnection()) {
             int linhas = SqlUtil.executar(conn, sql, ps -> {
                 ps.setString(1, reserva.getEstado().name());
                 ps.setBigDecimal(2, valorTotal(reserva));
                 SqlUtil.definirDataHora(ps, 3, reserva.getDataCheckIn());
                 SqlUtil.definirDataHora(ps, 4, reserva.getDataCheckOut());
-                ps.setInt(5, reserva.getId());
+                if (cartao == null) {
+                    ps.setNull(5, Types.INTEGER);
+                } else {
+                    ps.setInt(5, cartao.getId());
+                }
+                ps.setInt(6, reserva.getId());
             });
             if (linhas == 0) {
                 throw new DAOException("A reserva com id " + reserva.getId() + " não existe.");
@@ -112,10 +126,20 @@ public class ReservaDAOSQL implements ReservaDAO {
 
     @Override
     public void remover(int id) {
+        Reserva reserva = procurarPorId(id)
+                .orElseThrow(() -> new DAOException("A reserva com id " + id + " não existe."));
+        // Regra do check-in (definida no model): uma reserva que já teve check-in nunca se apaga.
+        if (!reserva.podeSerApagada()) {
+            throw new DAOException("A reserva n.º " + id + " já teve check-in e não pode ser apagada.");
+        }
+        // "DataCheckIn IS NULL" repete a regra na própria instrução: se o check-in for feito
+        // entre a leitura acima e o DELETE, a reserva não é apagada.
         try (Connection conn = DBConnection.getConnection()) {
-            int linhas = SqlUtil.executar(conn, "DELETE FROM dbo.Reserva WHERE IdReserva = ?", ps -> ps.setInt(1, id));
+            int linhas = SqlUtil.executar(conn,
+                    "DELETE FROM dbo.Reserva WHERE IdReserva = ? AND DataCheckIn IS NULL", ps -> ps.setInt(1, id));
             if (linhas == 0) {
-                throw new DAOException("A reserva com id " + id + " não existe.");
+                throw new DAOException("A reserva n.º " + id + " já teve check-in ou deixou de existir "
+                        + "e não pode ser apagada.");
             }
         } catch (SQLException e) {
             if (SqlUtil.violaChaveEstrangeira(e)) {
@@ -176,10 +200,13 @@ public class ReservaDAOSQL implements ReservaDAO {
             p.preparar(ps);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    int idCartao = rs.getInt("IdCartao");
+                    boolean semCartao = rs.wasNull();
                     linhas.add(new Linha(rs.getInt("IdReserva"), rs.getInt("IdCliente"), rs.getInt("IdQuarto"),
                             rs.getDate("DataEntrada").toLocalDate(), rs.getDate("DataSaida").toLocalDate(),
                             EstadoReserva.valueOf(rs.getString("Estado")),
-                            SqlUtil.lerDataHora(rs, "DataCheckIn"), SqlUtil.lerDataHora(rs, "DataCheckOut")));
+                            SqlUtil.lerDataHora(rs, "DataCheckIn"), SqlUtil.lerDataHora(rs, "DataCheckOut"),
+                            semCartao ? null : idCartao));
                 }
             }
         } catch (SQLException e) {
@@ -188,17 +215,21 @@ public class ReservaDAOSQL implements ReservaDAO {
         return montar(linhas);
     }
 
-    /** Junta a cada linha o cliente e o quarto (cada um é lido uma só vez). */
+    /** Junta a cada linha o cliente, o quarto e o cartão (cada um é lido uma só vez). */
     private List<Reserva> montar(List<Linha> linhas) {
         Map<Integer, Cliente> clientes = new HashMap<>();
         Map<Integer, Quarto> quartos = new HashMap<>();
+        Map<Integer, CartaoMagnetico> cartoes = new HashMap<>();
         List<Reserva> reservas = new ArrayList<>();
         for (Linha l : linhas) {
             Cliente cliente = clientes.computeIfAbsent(l.idCliente(), id -> clienteDAO.procurarPorId(id)
                     .orElseThrow(() -> new DAOException("O cliente " + id + " da reserva " + l.id() + " não existe.")));
             Quarto quarto = quartos.computeIfAbsent(l.idQuarto(), id -> quartoDAO.procurarPorId(id)
                     .orElseThrow(() -> new DAOException("O quarto " + id + " da reserva " + l.id() + " não existe.")));
-            reservas.add(new Reserva(l.id(), cliente, quarto, l.entrada(), l.saida(), l.estado(), null,
+            CartaoMagnetico cartao = l.idCartao() == null ? null : cartoes.computeIfAbsent(l.idCartao(),
+                    id -> cartaoDAO.procurarPorId(id)
+                            .orElseThrow(() -> new DAOException("O cartão " + id + " da reserva " + l.id() + " não existe.")));
+            reservas.add(new Reserva(l.id(), cliente, quarto, l.entrada(), l.saida(), l.estado(), cartao,
                     l.checkIn(), l.checkOut(), List.of()));
         }
         return reservas;
