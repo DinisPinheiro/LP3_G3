@@ -28,6 +28,7 @@ public enum OpcaoMenu {
     CHECK_IN("Check-in", RECECIONISTA, GESTOR),
     CHECK_OUT("Check-out", RECECIONISTA, GESTOR),
     SERVICOS_QUARTO("Serviços de quarto e extras", RECECIONISTA, GESTOR),
+    SERVICOS_E_EXTRAS("Serviços e extras", RECECIONISTA, GESTOR),
     GERIR_STOCK("Gerir stock", RECECIONISTA, GESTOR),
 
     // Só gestor
@@ -37,7 +38,6 @@ public enum OpcaoMenu {
     LISTAGEM_POR_CARTAO("Locais por onde passou um cartão", GESTOR),
     LISTAGEM_POR_QUARTO("Passagens de cartões num quarto", GESTOR),
     CONFIGURAR_QUARTOS("Configurar quartos", GESTOR),
-    CONFIGURAR_PRECOS("Configurar preços de extras e serviços", GESTOR),
 
     // Empresa de restauração
     COZINHA_RESTAURANTE("Cozinha e restaurante", EMPRESA_RESTAURACAO),

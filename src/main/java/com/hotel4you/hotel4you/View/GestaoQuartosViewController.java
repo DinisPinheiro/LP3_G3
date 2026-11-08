@@ -32,7 +32,6 @@ import java.util.Set;
  * Só lê os campos e mostra mensagens; as regras (número válido, preço, permissões) estão no
  * {@link GestaoQuartosController}.
  * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class GestaoQuartosViewController {
 
