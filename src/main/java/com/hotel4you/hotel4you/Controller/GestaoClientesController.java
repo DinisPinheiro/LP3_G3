@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
  * Só o rececionista e o gestor (que tem as permissões do rececionista) podem usar este controller.
  * Os campos são validados com {@link Utils} e o NIF/documento não pode repetir-se.
  * <p>
+ * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class GestaoClientesController {
 
