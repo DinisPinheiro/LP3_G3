@@ -82,12 +82,20 @@ public class MenuPrincipalViewController {
             Navegador.mudarPara("GestaoQuartosView.fxml", "Hotel4You - Quartos");
             return;
         }
-        if (opcao == OpcaoMenu.EDITAR_VISTAS) {
-            Navegador.mudarPara("GestaoVistasView.fxml", "Hotel4You - Vistas especiais");
+        if (opcao == OpcaoMenu.CONSULTAR_DISPONIBILIDADE) {
+            Navegador.mudarPara("ConsultaDisponibilidadeView.fxml", "Hotel4You - Disponibilidade de quartos");
             return;
         }
-        if (opcao == OpcaoMenu.SERVICOS_E_EXTRAS) {
-            Navegador.mudarPara("GestaoServicosView.fxml", "Hotel4You - Serviços e extras");
+        if (opcao == OpcaoMenu.CRIAR_RESERVA) {
+            Navegador.mudarPara("GestaoReservasView.fxml", "Hotel4You - Criar reserva");
+            return;
+        }
+        if (opcao == OpcaoMenu.CANCELAR_RESERVA || opcao == OpcaoMenu.APAGAR_RESERVAS) {
+            Navegador.mudarPara("GestaoCancelamentoReservasView.fxml", "Hotel4You - Cancelar e apagar reservas");
+            return;
+        }
+        if (opcao == OpcaoMenu.GERIR_STOCK) {
+            Navegador.mudarPara("ConsultaStockView.fxml", "Hotel4You - Stock");
             return;
         }
         labelMensagem.setText("\"" + opcao.getTexto() + "\" está em desenvolvimento.");
