@@ -58,8 +58,12 @@ public class Main extends Application {
         QuartoDAO quartoDAO = new QuartoDAOSQL();
         EquipamentoDAO equipamentoDAO = new EquipamentoDAOSQL();
         GestaoClientesController gestaoClientesController = new GestaoClientesController(clienteDAO, sessao);
+        SuplementoVistaDAO suplementoVistaDAO = new SuplementoVistaDAOSQL();
         GestaoQuartosController gestaoQuartosController =
-                new GestaoQuartosController(quartoDAO, equipamentoDAO, sessao);
+                new GestaoQuartosController(quartoDAO, equipamentoDAO, suplementoVistaDAO, sessao);
+        GestaoVistasController gestaoVistasController = new GestaoVistasController(suplementoVistaDAO, sessao);
+        ServicoDAO servicoDAO = new ServicoDAOSQL();
+        GestaoServicosController gestaoServicosController = new GestaoServicosController(servicoDAO, sessao);
         GestaoFuncionariosController gestaoFuncionariosController =
                 new GestaoFuncionariosController(utilizadorDAO, sessao);
         ReservaDAO reservaDAO = new ReservaDAOSQL(clienteDAO, quartoDAO);
