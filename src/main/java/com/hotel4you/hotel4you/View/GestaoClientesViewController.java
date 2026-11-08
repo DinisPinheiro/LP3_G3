@@ -11,15 +11,6 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 
-/**
- * ViewController do ecrã de registo e consulta de clientes ({@code GestaoClientesView.fxml}).
- * <p>
- * Só lê os campos e mostra mensagens; as regras (campos obrigatórios, NIF/documento único,
- * permissões) estão no {@link GestaoClientesController}. Enter passa ao campo seguinte e,
- * no último, regista; escrever "0" num campo e carregar Enter (ou o botão Cancelar) cancela o registo.
- * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
- */
 public class GestaoClientesViewController {
 
     private static final String COR_ERRO = "-fx-text-fill: #b03a2e;";

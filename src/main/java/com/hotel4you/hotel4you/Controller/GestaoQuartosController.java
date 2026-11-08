@@ -25,7 +25,6 @@ import java.util.Objects;
  * piso 3: 301 a 310), por isso nunca há mais de 10 quartos por piso. O número e o piso não se
  * alteram depois de criado o quarto; para o retirar de uso, desativa-se.
  * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class GestaoQuartosController {
 
