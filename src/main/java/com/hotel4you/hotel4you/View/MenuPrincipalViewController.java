@@ -82,6 +82,14 @@ public class MenuPrincipalViewController {
             Navegador.mudarPara("GestaoQuartosView.fxml", "Hotel4You - Quartos");
             return;
         }
+        if (opcao == OpcaoMenu.EDITAR_VISTAS) {
+            Navegador.mudarPara("GestaoVistasView.fxml", "Hotel4You - Vistas especiais");
+            return;
+        }
+        if (opcao == OpcaoMenu.SERVICOS_E_EXTRAS) {
+            Navegador.mudarPara("GestaoServicosView.fxml", "Hotel4You - Serviços e extras");
+            return;
+        }
         if (opcao == OpcaoMenu.CONSULTAR_DISPONIBILIDADE) {
             Navegador.mudarPara("ConsultaDisponibilidadeView.fxml", "Hotel4You - Disponibilidade de quartos");
             return;
@@ -104,4 +112,4 @@ public class MenuPrincipalViewController {
         }
         labelMensagem.setText("\"" + opcao.getTexto() + "\" está em desenvolvimento.");
     }
-}
+}
