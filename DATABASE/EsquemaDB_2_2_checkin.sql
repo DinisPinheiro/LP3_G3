@@ -7,6 +7,11 @@
      3. Garante que a reserva sabe qual é o seu cartão (coluna IdCartao).
      4. Garante que o estado da reserva só pode ser PENDENTE, CHECK_IN, CHECK_OUT ou CANCELADA.
      5. Regra nova: uma reserva com check-in tem de ter um cartão.
+
+   Como usar:
+     - Corre DEPOIS do EsquemaDB_2_1.sql.
+     - Pode ser corrido mais do que uma vez: só faz o que ainda não estiver feito.
+     - Não apaga nem altera dados.
    ============================================================================================ */
 SET NOCOUNT ON;
 GO

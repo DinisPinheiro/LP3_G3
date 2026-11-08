@@ -24,7 +24,6 @@ import java.util.Objects;
  * <p>
  * Só o rececionista e o gestor podem usar este controller.
  * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class CheckInCheckOutController {
 

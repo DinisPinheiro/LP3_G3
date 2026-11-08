@@ -22,7 +22,6 @@ import java.time.format.DateTimeFormatter;
  * "Fazer check-out" (reservas com check-in). Só lê a escolha e mostra mensagens; as regras
  * (estados, datas, cartão, permissões) estão no {@link CheckInCheckOutController}.
  * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class CheckInCheckOutViewController {
 
