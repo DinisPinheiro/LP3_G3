@@ -6,8 +6,6 @@ import java.util.Arrays;
 
 /**
  * Verificação de permissões por perfil (RF-03), partilhada pelos controllers.
- * <p>
- * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 final class Permissoes {
 
@@ -15,18 +13,28 @@ final class Permissoes {
     }
 
     /**
+     * Indica se há um utilizador ativo com sessão iniciada e com um dos perfis indicados.
+     *
+     * @param sessao  sessão da aplicação
+     * @param perfis  perfis a verificar
+     * @return {@code true} se o utilizador atual é ativo e tem um desses perfis
+     */
+    static boolean temPerfil(Sessao sessao, Perfil... perfis) {
+        return sessao.getUtilizadorAtual()
+                .map(utilizador -> utilizador.isAtivo() && Arrays.asList(perfis).contains(utilizador.getPerfil()))
+                .orElse(false);
+    }
+
+    /**
      * Confirma que há um utilizador ativo com sessão iniciada e com um dos perfis permitidos.
      *
-     * @param sessao    sessão da aplicação
-     * @param mensagem  mensagem do erro, caso o acesso seja recusado
+     * @param sessao     sessão da aplicação
+     * @param mensagem   mensagem do erro, caso o acesso seja recusado
      * @param permitidos perfis que podem aceder
      * @throws SecurityException se não houver sessão, o utilizador estiver desativado ou o perfil não for permitido
      */
     static void exigirPerfil(Sessao sessao, String mensagem, Perfil... permitidos) {
-        boolean permitido = sessao.getUtilizadorAtual()
-                .map(utilizador -> utilizador.isAtivo() && Arrays.asList(permitidos).contains(utilizador.getPerfil()))
-                .orElse(false);
-        if (!permitido) {
+        if (!temPerfil(sessao, permitidos)) {
             throw new SecurityException(mensagem);
         }
     }
