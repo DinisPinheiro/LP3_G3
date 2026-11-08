@@ -94,6 +94,10 @@ public class MenuPrincipalViewController {
             Navegador.mudarPara("GestaoCancelamentoReservasView.fxml", "Hotel4You - Cancelar e apagar reservas");
             return;
         }
+        if (opcao == OpcaoMenu.CHECK_IN || opcao == OpcaoMenu.CHECK_OUT) {
+            Navegador.mudarPara("CheckInCheckOutView.fxml", "Hotel4You - Check-in e check-out");
+            return;
+        }
         if (opcao == OpcaoMenu.GERIR_STOCK) {
             Navegador.mudarPara("ConsultaStockView.fxml", "Hotel4You - Stock");
             return;

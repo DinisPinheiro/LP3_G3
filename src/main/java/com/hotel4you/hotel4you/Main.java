@@ -1,5 +1,6 @@
 package com.hotel4you.hotel4you;
 
+import com.hotel4you.hotel4you.Controller.CheckInCheckOutController;
 import com.hotel4you.hotel4you.Controller.GestaoFuncionariosController;
 import com.hotel4you.hotel4you.Controller.GestaoClientesController;
 import com.hotel4you.hotel4you.Controller.GestaoQuartosController;
@@ -8,6 +9,8 @@ import com.hotel4you.hotel4you.Controller.GestaoStockController;
 import com.hotel4you.hotel4you.Controller.LoginController;
 import com.hotel4you.hotel4you.Controller.MenuController;
 import com.hotel4you.hotel4you.Controller.Sessao;
+import com.hotel4you.hotel4you.DAO.CartaoDAO;
+import com.hotel4you.hotel4you.DAO.CartaoDAOSQL;
 import com.hotel4you.hotel4you.DAO.ClienteDAO;
 import com.hotel4you.hotel4you.DAO.ClienteDAOSQL;
 import com.hotel4you.hotel4you.DAO.DAOException;
@@ -23,6 +26,7 @@ import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAO;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAOSQL;
 import com.hotel4you.hotel4you.Utils.Navegador;
+import com.hotel4you.hotel4you.View.CheckInCheckOutViewController;
 import com.hotel4you.hotel4you.View.ConsultaDisponibilidadeViewController;
 import com.hotel4you.hotel4you.View.ConsultaStockViewController;
 import com.hotel4you.hotel4you.View.GestaoFuncionariosViewController;
@@ -62,9 +66,12 @@ public class Main extends Application {
                 new GestaoQuartosController(quartoDAO, equipamentoDAO, sessao);
         GestaoFuncionariosController gestaoFuncionariosController =
                 new GestaoFuncionariosController(utilizadorDAO, sessao);
-        ReservaDAO reservaDAO = new ReservaDAOSQL(clienteDAO, quartoDAO);
+        CartaoDAO cartaoDAO = new CartaoDAOSQL();
+        ReservaDAO reservaDAO = new ReservaDAOSQL(clienteDAO, quartoDAO, cartaoDAO);
         GestaoReservasController gestaoReservasController =
                 new GestaoReservasController(reservaDAO, clienteDAO, quartoDAO, sessao);
+        CheckInCheckOutController checkInCheckOutController =
+                new CheckInCheckOutController(reservaDAO, cartaoDAO, sessao);
         StockDAO stockDAO = new StockDAOSQL();
         GestaoStockController gestaoStockController = new GestaoStockController(stockDAO, sessao);
 
@@ -92,6 +99,9 @@ public class Main extends Application {
             }
             if (tipo == GestaoCancelamentoReservasViewController.class) {
                 return new GestaoCancelamentoReservasViewController(gestaoReservasController);
+            }
+            if (tipo == CheckInCheckOutViewController.class) {
+                return new CheckInCheckOutViewController(checkInCheckOutController, gestaoReservasController);
             }
             if (tipo == ConsultaStockViewController.class) {
                 return new ConsultaStockViewController(gestaoStockController);

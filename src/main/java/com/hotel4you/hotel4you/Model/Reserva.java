@@ -17,6 +17,9 @@ import java.util.Objects;
  * Ciclo de vida: {@link EstadoReserva#PENDENTE} → {@link EstadoReserva#CHECK_IN}
  * → {@link EstadoReserva#CHECK_OUT}, ou {@link EstadoReserva#CANCELADA} antes do check-in.
  * Operações fora deste ciclo lançam {@link IllegalStateException}.
+ * <p>
+ * No check-in a reserva recebe um cartão magnético ativo (nunca o cartão mestre); no check-out
+ * o cartão é desativado e a reserva deixa de ocupar o quarto.
  */
 public class Reserva {
 
@@ -81,7 +84,8 @@ public class Reserva {
      * Efetiva o check-in, entregando o cartão magnético ao cliente.
      *
      * @param cartao cartão entregue
-     * @throws IllegalStateException se a reserva não estiver pendente
+     * @throws IllegalStateException    se a reserva não estiver pendente
+     * @throws IllegalArgumentException se o cartão for o mestre ou estiver desativado
      */
     public void fazerCheckIn(CartaoMagnetico cartao) {
         fazerCheckIn(cartao, LocalDateTime.now());
@@ -97,13 +101,21 @@ public class Reserva {
         if (estado != EstadoReserva.PENDENTE) {
             throw new IllegalStateException("Só é possível fazer check-in de reservas pendentes (estado: " + estado + ").");
         }
-        this.cartao = Objects.requireNonNull(cartao, "O cartão é obrigatório.");
+        Objects.requireNonNull(cartao, "O cartão é obrigatório.");
+        if (cartao.isMestre()) {
+            throw new IllegalArgumentException("O cartão mestre não pode ser atribuído a um cliente.");
+        }
+        if (!cartao.isAtivo()) {
+            throw new IllegalArgumentException("O cartão " + cartao.getNumero() + " está desativado.");
+        }
+        this.cartao = cartao;
         this.dataCheckIn = Objects.requireNonNull(quando);
         this.estado = EstadoReserva.CHECK_IN;
     }
 
     /**
-     * Efetiva o check-out.
+     * Efetiva o check-out: regista a saída, desativa o cartão do cliente e deixa o quarto livre
+     * (só as reservas pendentes ou com check-in ocupam o quarto).
      *
      * @throws IllegalStateException se o check-in ainda não foi feito
      */
@@ -122,6 +134,9 @@ public class Reserva {
         }
         this.dataCheckOut = Objects.requireNonNull(quando);
         this.estado = EstadoReserva.CHECK_OUT;
+        if (cartao != null) {
+            cartao.desativar();
+        }
     }
 
     /**
