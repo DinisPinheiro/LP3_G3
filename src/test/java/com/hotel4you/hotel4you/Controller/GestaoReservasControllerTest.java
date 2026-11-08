@@ -305,8 +305,8 @@ class GestaoReservasControllerTest {
         reservaDAO.atualizar(reserva);
         sessao.iniciar(Utilizador.novo("gestor", "gestor123", "Gestor", Perfil.GESTOR));
 
-        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
-                () -> controller.apagarReserva(reserva.getId()));
+        // A regra do check-in é aplicada pelo DAO (não pelo controller): por isso o erro é um DAOException.
+        DAOException erro = assertThrows(DAOException.class, () -> controller.apagarReserva(reserva.getId()));
 
         assertTrue(erro.getMessage().contains("check-in"));
         assertEquals(1, reservaDAO.listarTodos().size());
@@ -316,7 +316,7 @@ class GestaoReservasControllerTest {
     void apagarReservaInexistenteLancaErro() {
         sessao.iniciar(Utilizador.novo("gestor", "gestor123", "Gestor", Perfil.GESTOR));
 
-        assertThrows(IllegalArgumentException.class, () -> controller.apagarReserva(99));
+        assertThrows(DAOException.class, () -> controller.apagarReserva(99));
     }
 
     @Test

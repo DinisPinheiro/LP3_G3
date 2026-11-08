@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.hotel4you.hotel4you.View.CheckInCheckOutViewController"
+      spacing="10">
+    <padding>
+        <Insets top="18" right="18" bottom="18" left="18"/>
+    </padding>
+
+    <Label text="Check-in e check-out" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <Label wrapText="true" style="-fx-text-fill: #555555;"
+           text="Check-in: reservas pendentes, a partir do dia de entrada (é atribuído um cartão novo). Check-out: reservas com check-in efetuado (o cartão é desativado e o quarto fica livre)."/>
+
+    <TextField fx:id="campoPesquisa" promptText="Pesquisar por nome do cliente, n.º do quarto ou n.º da reserva"/>
+    <ListView fx:id="listaReservas" VBox.vgrow="ALWAYS" prefHeight="220"/>
+
+    <HBox spacing="8">
+        <Button text="Fazer check-in" onAction="#onCheckIn"/>
+        <Button text="Fazer check-out" onAction="#onCheckOut"/>
+        <Button text="Voltar ao menu" onAction="#onVoltar"/>
+    </HBox>
+
+    <Label fx:id="labelMensagem" wrapText="true"/>
+</VBox>

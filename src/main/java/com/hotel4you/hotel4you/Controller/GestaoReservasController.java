@@ -25,8 +25,8 @@ import java.util.stream.Collectors;
  * Criação, consulta, cancelamento e eliminação de reservas na receção.
  * <p>
  * Só o rececionista e o gestor (que tem as permissões do rececionista) podem usar este controller.
- * O rececionista cancela reservas mas não as apaga (o histórico fica guardado); o gestor só apaga
- * uma reserva se o check-in ainda não tiver sido efetuado.
+ * O rececionista cancela reservas mas não as apaga (o histórico fica guardado); o gestor apaga
+ * reservas, mas a regra "só sem check-in" é aplicada pelo model e pelo DAO, não por este controller.
  * Uma reserva só é criada se o quarto estiver disponível no período pedido. A reserva fica
  * guardada com o cliente, o quarto, as datas, o valor total estimado e o estado
  * {@code PENDENTE} (reservado, à espera de check-in).
@@ -193,22 +193,21 @@ public class GestaoReservasController {
     }
 
     /**
-     * Apaga o registo de uma reserva. Só o gestor pode apagar, e só se o check-in nunca foi
-     * efetuado. O rececionista não pode apagar: apenas cancela, e o histórico fica guardado.
+     * Apaga o registo de uma reserva. Só o gestor pode apagar; o rececionista apenas cancela
+     * e o histórico fica guardado.
+     * <p>
+     * O controller só verifica a <b>permissão</b>. A regra do check-in (só se apaga uma reserva
+     * que nunca teve check-in) é do model ({@code Reserva.podeSerApagada()}) e é aplicada
+     * pelo DAO em {@code ReservaDAO.remover}.
      *
      * @param idReserva identificador da reserva
-     * @throws IllegalArgumentException se a reserva não existir ou o check-in já tiver sido efetuado
-     * @throws SecurityException        se o utilizador não for o gestor
-     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível apagar
+     * @throws SecurityException se o utilizador não for o gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se a reserva não existir, se já teve
+     *                                                  check-in ou se não for possível apagar
      */
     public void apagarReserva(int idReserva) {
         Permissoes.exigirPerfil(sessao, "Apenas o gestor pode apagar reservas. "
                 + "O rececionista pode cancelar, mas o registo fica guardado no histórico.", Perfil.GESTOR);
-        Reserva reserva = procurarReserva(idReserva);
-        if (!reserva.podeSerApagada()) {
-            throw new IllegalArgumentException("A reserva n.º " + idReserva
-                    + " não pode ser apagada porque o check-in já foi efetuado.");
-        }
         reservaDAO.remover(idReserva);
     }
 

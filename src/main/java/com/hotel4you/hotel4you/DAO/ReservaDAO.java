@@ -6,12 +6,12 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Acesso às reservas. O histórico não se perde: a regra de quem pode apagar uma reserva
- * ({@code Utilizador.podeApagarReservas()} e {@code Reserva.podeSerApagada()}) é verificada
- * pelo Controller antes de chamar {@link #remover(int)}.
+ * Acesso às reservas. O histórico não se perde: o DAO só apaga reservas que nunca tiveram
+ * check-in ({@code Reserva.podeSerApagada()}). Quem tem permissão para apagar
+ * ({@code Utilizador.podeApagarReservas()}) é verificado pelo Controller.
  * <p>
- * Nesta versão persistem-se cliente, quarto, datas, estado, valor total e momentos de
- * check-in/check-out. O cartão magnético e os consumos ficam para a Sprint 4.
+ * Persistem-se cliente, quarto, datas, estado, valor total, momentos de check-in/check-out
+ * e o cartão magnético entregue no check-in.
  */
 public interface ReservaDAO extends DAO<Reserva> {
 
@@ -34,6 +34,18 @@ public interface ReservaDAO extends DAO<Reserva> {
      */
     @Override
     void atualizar(Reserva reserva);
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Regra de negócio validada aqui (e não no Controller): só se apaga uma reserva que nunca
+     * teve check-in, ou seja, enquanto {@code Reserva.podeSerApagada()} for verdadeiro.
+     * Uma reserva com check-in (ou já com check-out) fica guardada no histórico.
+     *
+     * @throws DAOException se a reserva não existir, se já teve check-in ou se não for possível apagar
+     */
+    @Override
+    void remover(int id);
 
     /**
      * @param idCliente identificador do cliente
