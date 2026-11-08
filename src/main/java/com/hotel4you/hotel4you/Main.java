@@ -4,7 +4,9 @@ import com.hotel4you.hotel4you.Controller.GestaoFuncionariosController;
 import com.hotel4you.hotel4you.Controller.GestaoClientesController;
 import com.hotel4you.hotel4you.Controller.GestaoQuartosController;
 import com.hotel4you.hotel4you.Controller.GestaoReservasController;
+import com.hotel4you.hotel4you.Controller.GestaoServicosController;
 import com.hotel4you.hotel4you.Controller.GestaoStockController;
+import com.hotel4you.hotel4you.Controller.GestaoVistasController;
 import com.hotel4you.hotel4you.Controller.LoginController;
 import com.hotel4you.hotel4you.Controller.MenuController;
 import com.hotel4you.hotel4you.Controller.Sessao;
@@ -17,8 +19,12 @@ import com.hotel4you.hotel4you.DAO.QuartoDAO;
 import com.hotel4you.hotel4you.DAO.QuartoDAOSQL;
 import com.hotel4you.hotel4you.DAO.ReservaDAO;
 import com.hotel4you.hotel4you.DAO.ReservaDAOSQL;
+import com.hotel4you.hotel4you.DAO.ServicoDAO;
+import com.hotel4you.hotel4you.DAO.ServicoDAOSQL;
 import com.hotel4you.hotel4you.DAO.StockDAO;
 import com.hotel4you.hotel4you.DAO.StockDAOSQL;
+import com.hotel4you.hotel4you.DAO.SuplementoVistaDAO;
+import com.hotel4you.hotel4you.DAO.SuplementoVistaDAOSQL;
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAO;
 import com.hotel4you.hotel4you.DAO.UtilizadorDAOSQL;
@@ -30,6 +36,8 @@ import com.hotel4you.hotel4you.View.GestaoClientesViewController;
 import com.hotel4you.hotel4you.View.GestaoCancelamentoReservasViewController;
 import com.hotel4you.hotel4you.View.GestaoQuartosViewController;
 import com.hotel4you.hotel4you.View.GestaoReservasViewController;
+import com.hotel4you.hotel4you.View.GestaoServicosViewController;
+import com.hotel4you.hotel4you.View.GestaoVistasViewController;
 import com.hotel4you.hotel4you.View.LoginViewController;
 import com.hotel4you.hotel4you.View.MenuPrincipalViewController;
 import com.hotel4you.hotel4you.View.ValidacaoXmlViewController;
@@ -87,6 +95,12 @@ public class Main extends Application {
             }
             if (tipo == GestaoQuartosViewController.class) {
                 return new GestaoQuartosViewController(gestaoQuartosController);
+            }
+            if (tipo == GestaoVistasViewController.class) {
+                return new GestaoVistasViewController(gestaoVistasController);
+            }
+            if (tipo == GestaoServicosViewController.class) {
+                return new GestaoServicosViewController(gestaoServicosController);
             }
             if (tipo == GestaoReservasViewController.class) {
                 return new GestaoReservasViewController(gestaoReservasController, gestaoClientesController);
