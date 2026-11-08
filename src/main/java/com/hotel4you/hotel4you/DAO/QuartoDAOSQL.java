@@ -6,7 +6,6 @@ import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.enums.TipoQuarto;
 import com.hotel4you.hotel4you.Model.enums.Vista;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -25,10 +24,7 @@ import java.util.Set;
  */
 public class QuartoDAOSQL implements QuartoDAO {
 
-    /** Quarto com o valor da vista em vigor (tabela dbo.SuplementoVista, editável pelo gestor). */
-    private static final String SELECT = "SELECT q.IdQuarto, q.Numero, q.Piso, q.Local, q.Tipo, q.PrecoBase, q.Vista, "
-            + "q.Ativo, sv.Valor AS SuplementoVista FROM dbo.Quarto q "
-            + "LEFT JOIN dbo.SuplementoVista sv ON sv.Vista = q.Vista";
+    private static final String COLUNAS = "IdQuarto, Numero, Piso, Local, Tipo, PrecoBase, Vista, Ativo";
 
     @Override
     public Quarto inserir(Quarto quarto) {
@@ -111,22 +107,22 @@ public class QuartoDAOSQL implements QuartoDAO {
 
     @Override
     public Optional<Quarto> procurarPorId(int id) {
-        return procurarUm(SELECT + " WHERE q.IdQuarto = ?", ps -> ps.setInt(1, id));
+        return procurarUm("SELECT " + COLUNAS + " FROM dbo.Quarto WHERE IdQuarto = ?", ps -> ps.setInt(1, id));
     }
 
     @Override
     public Optional<Quarto> procurarPorNumero(int numero) {
-        return procurarUm(SELECT + " WHERE q.Numero = ?", ps -> ps.setInt(1, numero));
+        return procurarUm("SELECT " + COLUNAS + " FROM dbo.Quarto WHERE Numero = ?", ps -> ps.setInt(1, numero));
     }
 
     @Override
     public List<Quarto> listarTodos() {
-        return listar(SELECT + " ORDER BY q.Numero", ps -> { });
+        return listar("SELECT " + COLUNAS + " FROM dbo.Quarto ORDER BY Numero", ps -> { });
     }
 
     @Override
     public List<Quarto> listarAtivos() {
-        return listar(SELECT + " WHERE q.Ativo = 1 ORDER BY q.Numero", ps -> { });
+        return listar("SELECT " + COLUNAS + " FROM dbo.Quarto WHERE Ativo = 1 ORDER BY Numero", ps -> { });
     }
 
     @Override
@@ -134,7 +130,7 @@ public class QuartoDAOSQL implements QuartoDAO {
         if (dataEntrada == null || dataSaida == null || !dataSaida.isAfter(dataEntrada)) {
             throw new IllegalArgumentException("A data de saída deve ser posterior à de entrada.");
         }
-        String sql = SELECT + " WHERE q.Ativo = 1"
+        String sql = "SELECT " + COLUNAS + " FROM dbo.Quarto q WHERE q.Ativo = 1"
                 + (tipo == null ? "" : " AND q.Tipo = ?")
                 + " AND NOT EXISTS (SELECT 1 FROM dbo.Reserva r WHERE r.IdQuarto = q.IdQuarto"
                 + " AND r.Estado IN ('PENDENTE', 'CHECK_IN') AND r.DataEntrada < ? AND r.DataSaida > ?)"
@@ -174,14 +170,9 @@ public class QuartoDAOSQL implements QuartoDAO {
     }
 
     private static Quarto mapear(ResultSet rs) throws SQLException {
-        Quarto quarto = new Quarto(rs.getInt("IdQuarto"), rs.getInt("Numero"), rs.getInt("Piso"), rs.getString("Local"),
+        return new Quarto(rs.getInt("IdQuarto"), rs.getInt("Numero"), rs.getInt("Piso"), rs.getString("Local"),
                 TipoQuarto.valueOf(rs.getString("Tipo")), rs.getBigDecimal("PrecoBase"),
                 Vista.valueOf(rs.getString("Vista")), rs.getBoolean("Ativo"));
-        BigDecimal suplemento = rs.getBigDecimal("SuplementoVista");
-        if (suplemento != null) {
-            quarto.setSuplementoVista(suplemento);
-        }
-        return quarto;
     }
 
     private static void carregarEquipamentos(Connection conn, Quarto quarto) throws SQLException {

@@ -5,11 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c89aea20-db2a-4969-86a6-897ebc89c1a2" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/Controller/Permissoes.java" beforeDir="false" afterPath="$PROJECT_DIR$/Controller/Permissoes.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../../../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../hotel4you/src/main/java/com/hotel4you/hotel4you/Controller/MenuController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../hotel4you/src/main/java/com/hotel4you/hotel4you/Model/OpcaoMenu.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../hotel4you/src/main/java/com/hotel4you/hotel4you/Model/Perfil.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../hotel4you/src/main/java/com/hotel4you/hotel4you/Utils/OperacaoCanceladaException.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../hotel4you/src/main/java/com/hotel4you/hotel4you/Utils/Utils.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../hotel4you/src/main/java/com/hotel4you/hotel4you/View/MenuView.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../hotel4you/src/test/java/com/hotel4you/hotel4you/Controller/MenuControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../../hotel4you/src/test/java/com/hotel4you/hotel4you/Utils/UtilsTest.java" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Model/OpcaoMenu.java" beforeDir="false" afterPath="$PROJECT_DIR$/Model/OpcaoMenu.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Model/Servico.java" beforeDir="false" afterPath="$PROJECT_DIR$/Model/Servico.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/View/MenuPrincipalViewController.java" beforeDir="false" afterPath="$PROJECT_DIR$/View/MenuPrincipalViewController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../resources/com/hotel4you/hotel4you/MenuPrincipalView.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../resources/com/hotel4you/hotel4you/MenuPrincipalView.fxml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,19 +53,6 @@
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;
   }
 }</component>
-  <component name="RunManager">
-    <configuration default="true" type="JetRunConfigurationType">
-      <module name="hotel4you" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
-    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
-      <module name="hotel4you" />
-      <option name="filePath" />
-      <method v="2" />
-    </configuration>
-  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>

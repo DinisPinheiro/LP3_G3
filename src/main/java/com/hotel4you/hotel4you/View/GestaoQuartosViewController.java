@@ -32,6 +32,7 @@ import java.util.Set;
  * Só lê os campos e mostra mensagens; as regras (número válido, preço, permissões) estão no
  * {@link GestaoQuartosController}.
  * <p>
+ * Apoio de IA: Claude (Anthropic), revisto pela equipa.
  */
 public class GestaoQuartosViewController {
 
@@ -293,12 +294,8 @@ public class GestaoQuartosViewController {
             labelPrecoNoite.setText("-");
             return;
         }
-        try {
-            labelPrecoNoite.setText(Utils.formatarPreco(controller.calcularPrecoNoite(preco.get(), vista))
-                    + " (preço base + " + Utils.formatarPreco(controller.obterSuplemento(vista)) + " da vista)");
-        } catch (RuntimeException e) {
-            labelPrecoNoite.setText("-");
-        }
+        labelPrecoNoite.setText(Utils.formatarPreco(controller.calcularPrecoNoite(preco.get(), vista))
+                + " (preço base + " + Utils.formatarPreco(vista.getSuplemento()) + " da vista)");
     }
 
     private void mostrar(String texto, String estilo) {
