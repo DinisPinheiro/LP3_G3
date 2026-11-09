@@ -4,8 +4,8 @@ import com.hotel4you.hotel4you.Controller.GestaoClientesController;
 import com.hotel4you.hotel4you.Model.Cliente;
 import com.hotel4you.hotel4you.Utils.Navegador;
 import com.hotel4you.hotel4you.Utils.Utils;
-import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -25,7 +25,11 @@ public class GestaoClientesViewController {
     private static final String COR_SUCESSO = "-fx-text-fill: #1e8449;";
     private static final String COR_NEUTRA = "-fx-text-fill: #555555;";
 
+    /** Quantos clientes aparecem em cada página da lista. */
+    private static final int CLIENTES_POR_PAGINA = 8;
+
     private final GestaoClientesController controller;
+    private PaginadorClientes paginador;
 
     @FXML
     private TextField campoNome;
@@ -37,6 +41,12 @@ public class GestaoClientesViewController {
     private TextField campoPesquisa;
     @FXML
     private ListView<Cliente> listaClientes;
+    @FXML
+    private Button botaoAnterior;
+    @FXML
+    private Label labelPagina;
+    @FXML
+    private Button botaoSeguinte;
     @FXML
     private Label labelMensagem;
 
@@ -60,8 +70,10 @@ public class GestaoClientesViewController {
         campoNome.setOnAction(evento -> avancarPara(campoDocumento));
         campoDocumento.setOnAction(evento -> avancarPara(campoContacto));
         campoContacto.setOnAction(evento -> onRegistar());
-        campoPesquisa.textProperty().addListener((observavel, antigo, novo) -> atualizarLista());
-        atualizarLista();
+        paginador = new PaginadorClientes(controller, listaClientes, botaoAnterior, labelPagina, botaoSeguinte,
+                CLIENTES_POR_PAGINA, mensagem -> mostrar(mensagem, COR_ERRO));
+        campoPesquisa.textProperty().addListener((observavel, antigo, novo) -> paginador.pesquisar(novo));
+        paginador.pesquisar(campoPesquisa.getText());
     }
 
     /** Chamado pelo botão "Registar cliente". */
@@ -76,7 +88,7 @@ public class GestaoClientesViewController {
                     campoNome.getText(), campoDocumento.getText(), campoContacto.getText());
             mostrar("Cliente registado: " + cliente.getNome() + ".", COR_SUCESSO);
             limparFormulario();
-            atualizarLista();
+            paginador.recarregar();
             campoNome.requestFocus();
         } catch (IllegalArgumentException | SecurityException e) {
             mostrar(e.getMessage(), COR_ERRO);
@@ -91,6 +103,18 @@ public class GestaoClientesViewController {
         limparFormulario();
         mostrar("Registo cancelado.", COR_NEUTRA);
         campoNome.requestFocus();
+    }
+
+    /** Chamado pelo botão "Anterior" da lista de clientes. */
+    @FXML
+    private void onPaginaAnterior() {
+        paginador.anterior();
+    }
+
+    /** Chamado pelo botão "Seguinte" da lista de clientes. */
+    @FXML
+    private void onPaginaSeguinte() {
+        paginador.seguinte();
     }
 
     /** Chamado pelo botão "Voltar ao menu". */
@@ -111,15 +135,6 @@ public class GestaoClientesViewController {
         return Utils.eCancelamento(campoNome.getText())
                 || Utils.eCancelamento(campoDocumento.getText())
                 || Utils.eCancelamento(campoContacto.getText());
-    }
-
-    private void atualizarLista() {
-        try {
-            listaClientes.setItems(FXCollections.observableArrayList(
-                    controller.consultarClientes(campoPesquisa.getText())));
-        } catch (RuntimeException e) {
-            mostrar(e.getMessage(), COR_ERRO);
-        }
     }
 
     private void limparFormulario() {

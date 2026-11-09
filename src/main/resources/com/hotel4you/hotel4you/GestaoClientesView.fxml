@@ -47,6 +47,11 @@
     <Label text="Clientes registados:"/>
     <TextField fx:id="campoPesquisa" promptText="Pesquisar por nome ou NIF/documento"/>
     <ListView fx:id="listaClientes" VBox.vgrow="ALWAYS" prefHeight="150"/>
+    <HBox spacing="8" alignment="CENTER_LEFT">
+        <Button fx:id="botaoAnterior" text="Anterior" onAction="#onPaginaAnterior"/>
+        <Label fx:id="labelPagina"/>
+        <Button fx:id="botaoSeguinte" text="Seguinte" onAction="#onPaginaSeguinte"/>
+    </HBox>
 
     <Label fx:id="labelMensagem" wrapText="true"/>
     <Button text="Voltar ao menu" onAction="#onVoltar"/>

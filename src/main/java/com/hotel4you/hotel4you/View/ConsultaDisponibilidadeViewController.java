@@ -10,10 +10,10 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.util.StringConverter;
 
 import java.time.LocalDate;
@@ -27,10 +27,10 @@ import java.util.stream.Collectors;
  * ViewController do ecrã de consulta de disponibilidade de quartos
  * ({@code ConsultaDisponibilidadeView.fxml}).
  * <p>
- * O utilizador indica o intervalo de datas (dd/mm/aaaa) e, opcionalmente, o tipo de quarto
+ * O utilizador indica o intervalo de datas (no calendário ou escritas como dd/mm/aaaa) e, opcionalmente, o tipo de quarto
  * (individual, duplo ou família), e vê os quartos livres nesse período. Só lê os campos e mostra
  * mensagens; as regras (disponibilidade, datas, permissões) estão no {@link GestaoReservasController}.
- * Escrever "0" num campo de data e carregar Enter (ou o botão Limpar) cancela o que estava a ser preenchido.
+ * O botão Limpar cancela o que estava a ser preenchido.
  */
 public class ConsultaDisponibilidadeViewController {
 
@@ -41,9 +41,9 @@ public class ConsultaDisponibilidadeViewController {
     private final GestaoReservasController controller;
 
     @FXML
-    private TextField campoEntrada;
+    private DatePicker campoEntrada;
     @FXML
-    private TextField campoSaida;
+    private DatePicker campoSaida;
     @FXML
     private ComboBox<TipoQuarto> campoTipo;
     @FXML
@@ -94,8 +94,8 @@ public class ConsultaDisponibilidadeViewController {
                 .map(Equipamento::getNome).collect(Collectors.joining(", "))));
         tabelaQuartos.setPlaceholder(new Label("Indique as datas e carregue em \"Consultar\"."));
         // Se as datas ou o tipo mudam, a lista mostrada deixa de estar certa.
-        campoEntrada.textProperty().addListener((observavel, antigo, novo) -> limparResultados());
-        campoSaida.textProperty().addListener((observavel, antigo, novo) -> limparResultados());
+        SeletorData.configurar(campoEntrada, 0, this::limparResultados);  // entrada: a partir de hoje
+        SeletorData.configurar(campoSaida, 1, this::limparResultados);    // saída: a partir de amanhã
         campoTipo.setOnAction(evento -> limparResultados());
     }
 
@@ -106,10 +106,10 @@ public class ConsultaDisponibilidadeViewController {
             onLimpar();
             return;
         }
-        Optional<LocalDate> entrada = Utils.converterData(campoEntrada.getText());
-        Optional<LocalDate> saida = Utils.converterData(campoSaida.getText());
+        Optional<LocalDate> entrada = SeletorData.ler(campoEntrada);
+        Optional<LocalDate> saida = SeletorData.ler(campoSaida);
         if (entrada.isEmpty() || saida.isEmpty()) {
-            mostrar("Datas inválidas. Use o formato dd/mm/aaaa, por exemplo 15/12/2026.", COR_ERRO);
+            mostrar("Datas inválidas. Escolha-as no calendário ou escreva-as no formato dd/mm/aaaa.", COR_ERRO);
             return;
         }
         try {
@@ -136,8 +136,8 @@ public class ConsultaDisponibilidadeViewController {
     /** Chamado pelo botão "Limpar": apaga as datas, o tipo e os resultados. */
     @FXML
     private void onLimpar() {
-        campoEntrada.clear();
-        campoSaida.clear();
+        SeletorData.limpar(campoEntrada);
+        SeletorData.limpar(campoSaida);
         campoTipo.setValue(null);
         limparResultados();
     }
@@ -149,7 +149,8 @@ public class ConsultaDisponibilidadeViewController {
     }
 
     private boolean pediuCancelamento() {
-        return Utils.eCancelamento(campoEntrada.getText()) || Utils.eCancelamento(campoSaida.getText());
+        return Utils.eCancelamento(campoEntrada.getEditor().getText())
+                || Utils.eCancelamento(campoSaida.getEditor().getText());
     }
 
     private void limparResultados() {
