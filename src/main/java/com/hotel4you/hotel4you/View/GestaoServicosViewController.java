@@ -2,6 +2,7 @@ package com.hotel4you.hotel4you.View;
 
 import com.hotel4you.hotel4you.Controller.GestaoServicosController;
 import com.hotel4you.hotel4you.Model.Servico;
+import com.hotel4you.hotel4you.Model.enums.TipoCobranca;
 import com.hotel4you.hotel4you.Model.enums.TipoServico;
 import com.hotel4you.hotel4you.Utils.Navegador;
 import com.hotel4you.hotel4you.Utils.Utils;
@@ -22,8 +23,8 @@ import java.util.Optional;
 /**
  * ViewController do ecrã de serviços e extras ({@code GestaoServicosView.fxml}).
  * <p>
- * O gestor escolhe um item na lista para o editar (incluindo o preço e o estado ativo) ou carrega em
- * "Novo". O rececionista só vê a lista (o formulário fica escondido). Só lê os campos e mostra
+ * O gestor escolhe um item na lista para o editar (incluindo o preço, a forma de cobrança e o estado
+ * ativo) ou carrega em "Novo". O rececionista só vê a lista (o formulário fica escondido). Só lê os campos e mostra
  * mensagens; as regras e as permissões estão no {@link GestaoServicosController}.
  */
 public class GestaoServicosViewController {
@@ -55,6 +56,8 @@ public class GestaoServicosViewController {
     private TextField campoDescricao;
     @FXML
     private TextField campoPreco;
+    @FXML
+    private ComboBox<TipoCobranca> campoCobranca;
     @FXML
     private CheckBox campoAtivo;
 
@@ -111,14 +114,14 @@ public class GestaoServicosViewController {
         try {
             if (servicoSelecionado == null) {
                 Servico criado = controller.criarServico(campoTipo.getValue(), campoNome.getText(),
-                        campoCategoria.getText(), campoDescricao.getText(), preco.get());
+                        campoCategoria.getText(), campoDescricao.getText(), preco.get(), campoCobranca.getValue());
                 atualizarLista();
                 selecionarPorId(criado.getId());
                 mostrar("'" + criado.getNome() + "' criado.", COR_SUCESSO);
             } else {
                 int id = servicoSelecionado.getId();
                 controller.editarServico(id, campoTipo.getValue(), campoNome.getText(), campoCategoria.getText(),
-                        campoDescricao.getText(), preco.get(), campoAtivo.isSelected());
+                        campoDescricao.getText(), preco.get(), campoCobranca.getValue(), campoAtivo.isSelected());
                 String nome = campoNome.getText().trim();
                 atualizarLista();
                 selecionarPorId(id);
@@ -150,6 +153,18 @@ public class GestaoServicosViewController {
                 return null;
             }
         });
+        campoCobranca.setItems(FXCollections.observableArrayList(TipoCobranca.values()));
+        campoCobranca.setConverter(new StringConverter<TipoCobranca>() {
+            @Override
+            public String toString(TipoCobranca cobranca) {
+                return cobranca == null ? "" : cobranca.getNome();
+            }
+
+            @Override
+            public TipoCobranca fromString(String texto) {
+                return null;
+            }
+        });
     }
 
     private void atualizarLista() {
@@ -177,6 +192,7 @@ public class GestaoServicosViewController {
         campoCategoria.clear();
         campoDescricao.clear();
         campoPreco.clear();
+        campoCobranca.setValue(TipoCobranca.POR_UNIDADE);
         campoAtivo.setSelected(true);
         campoAtivo.setDisable(true);
         labelModo.setText("Novo serviço ou extra");
@@ -189,6 +205,7 @@ public class GestaoServicosViewController {
         campoCategoria.setText(servico.getCategoria());
         campoDescricao.setText(servico.getDescricao());
         campoPreco.setText(servico.getValor().toPlainString().replace('.', ','));
+        campoCobranca.setValue(servico.getCobranca());
         campoAtivo.setSelected(servico.isAtivo());
         campoAtivo.setDisable(false);
         labelModo.setText("A editar: " + servico.getNome());
@@ -204,6 +221,7 @@ public class GestaoServicosViewController {
         String estado = servico.isAtivo() ? "" : "  |  Inativo";
         String descricao = servico.getDescricao().isBlank() ? "" : "\n" + servico.getDescricao();
         return servico.getNome() + "  |  " + servico.getTipo().getNome() + categoria + "\n"
-                + Utils.formatarPreco(servico.getValor()) + estado + descricao;
+                + Utils.formatarPreco(servico.getValor()) + " " + servico.getCobranca().getNome().toLowerCase()
+                + estado + descricao;
     }
 }

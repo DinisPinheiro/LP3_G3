@@ -32,6 +32,7 @@
         <columns>
             <TableColumn fx:id="colunaArtigo" text="Artigo" minWidth="220"/>
             <TableColumn fx:id="colunaQuantidade" text="Em stock" minWidth="70"/>
+            <TableColumn fx:id="colunaDisponivel" text="Disponível" minWidth="70"/>
             <TableColumn fx:id="colunaUnidade" text="Unidade" minWidth="60"/>
             <TableColumn fx:id="colunaFornecedor" text="Fornecedor" minWidth="140"/>
         </columns>

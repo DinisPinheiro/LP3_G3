@@ -50,9 +50,12 @@
             <Label text="Preço (€) *" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
             <TextField fx:id="campoPreco" promptText="ex.: 8,50" maxWidth="Infinity"
                        GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-            <Label text="Estado" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-            <CheckBox fx:id="campoAtivo" text="Ativo (disponível)"
+            <Label text="Cobrança *" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+            <ComboBox fx:id="campoCobranca" promptText="Por unidade ou por noite" maxWidth="Infinity"
                       GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+            <Label text="Estado" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
+            <CheckBox fx:id="campoAtivo" text="Ativo (disponível)"
+                      GridPane.rowIndex="6" GridPane.columnIndex="1"/>
         </GridPane>
 
         <HBox spacing="8">
