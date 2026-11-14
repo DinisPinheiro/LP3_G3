@@ -56,6 +56,33 @@
 
         <Label text="3. Quartos disponíveis (escolha um)" style="-fx-font-weight: bold;"/>
         <ListView fx:id="listaQuartos" prefHeight="100"/>
+
+        <Label text="4. Serviços, extras e produtos (opcional)" style="-fx-font-weight: bold;"/>
+        <GridPane hgap="10" vgap="8">
+            <columnConstraints>
+                <ColumnConstraints minWidth="150"/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints minWidth="70" maxWidth="70"/>
+                <ColumnConstraints/>
+            </columnConstraints>
+            <Label text="Serviço ou extra" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+            <ComboBox fx:id="campoServico" promptText="Escolha um serviço ou extra" maxWidth="Infinity"
+                      GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+            <TextField fx:id="campoQuantidadeServico" promptText="Qtd."
+                       GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+            <Button text="Adicionar" onAction="#onAdicionarServico"
+                    GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+            <Label text="Produto do stock" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+            <ComboBox fx:id="campoProduto" promptText="Escolha um produto" maxWidth="Infinity"
+                      GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+            <TextField fx:id="campoQuantidadeProduto" promptText="Qtd."
+                       GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+            <Button text="Adicionar" onAction="#onAdicionarProduto"
+                    GridPane.rowIndex="1" GridPane.columnIndex="3"/>
+        </GridPane>
+        <ListView fx:id="listaExtras" prefHeight="90"/>
+        <Button text="Remover linha selecionada" onAction="#onRemoverExtra"/>
+
         <Label fx:id="labelValor" style="-fx-font-weight: bold;" wrapText="true"/>
 
         <Button text="Criar reserva" defaultButton="true" onAction="#onCriar"/>

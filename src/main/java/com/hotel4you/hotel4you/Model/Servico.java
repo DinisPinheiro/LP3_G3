@@ -1,12 +1,14 @@
 package com.hotel4you.hotel4you.Model;
 
+import com.hotel4you.hotel4you.Model.enums.TipoCobranca;
 import com.hotel4you.hotel4you.Model.enums.TipoServico;
 
 import java.math.BigDecimal;
 
 /**
  * Serviço do hotel (alimentação, eventos culturais, piscina, spa, salas de conferência) ou extra de
- * quarto (bebidas, lavandaria), com o valor acrescentado ao cliente.
+ * quarto (bebidas, lavandaria), com o valor acrescentado ao cliente. O valor é cobrado por unidade
+ * ou por noite ({@link TipoCobranca}).
  * <p>
  * O gestor pode alterar os dados e o valor, e desativar o item (um item desativado deixa de ser
  * oferecido, mas continua guardado porque pode já ter sido usado em reservas).
@@ -20,10 +22,11 @@ public class Servico {
     private String categoria;
     private String descricao;
     private BigDecimal valor;
+    private TipoCobranca cobranca;
     private boolean ativo;
 
     /**
-     * Cria um extra ativo, sem descrição (construtor mantido por compatibilidade).
+     * Cria um extra ativo, sem descrição e cobrado por unidade (construtor mantido por compatibilidade).
      *
      * @param id        identificador (0 se ainda não foi guardado)
      * @param nome      nome do serviço
@@ -31,7 +34,7 @@ public class Servico {
      * @param valor     valor unitário, não negativo
      */
     public Servico(int id, String nome, String categoria, BigDecimal valor) {
-        this(id, TipoServico.EXTRA, nome, categoria, "", valor, true);
+        this(id, TipoServico.EXTRA, nome, categoria, "", valor, TipoCobranca.POR_UNIDADE, true);
     }
 
     /**
@@ -41,17 +44,20 @@ public class Servico {
      * @param categoria categoria (ex.: "Spa", "Bebidas"); pode ser vazia
      * @param descricao descrição; pode ser vazia
      * @param valor     valor unitário, não negativo
+     * @param cobranca  forma de cobrança: por unidade ou por noite
      * @param ativo     se o item está disponível
-     * @throws IllegalArgumentException se faltar o tipo ou o nome, ou se o valor for nulo ou negativo
+     * @throws IllegalArgumentException se faltar o tipo, o nome ou a forma de cobrança, ou se o valor
+     *                                  for nulo ou negativo
      */
     public Servico(int id, TipoServico tipo, String nome, String categoria, String descricao,
-                   BigDecimal valor, boolean ativo) {
+                   BigDecimal valor, TipoCobranca cobranca, boolean ativo) {
         this.id = id;
         setTipo(tipo);
         setNome(nome);
         setCategoria(categoria);
         setDescricao(descricao);
         setValor(valor);
+        setCobranca(cobranca);
         this.ativo = ativo;
     }
 
@@ -143,7 +149,8 @@ public class Servico {
     }
 
     /**
-     * Altera o valor. Os consumos já associados a reservas passam a usar o valor novo no total.
+     * Altera o valor. Só as reservas criadas a partir daqui usam o valor novo; as que já existem
+     * guardam o valor que o serviço tinha quando foram criadas ({@link ConsumoServico}).
      *
      * @param valor valor unitário, não negativo
      * @throws IllegalArgumentException se for nulo ou negativo
@@ -153,6 +160,24 @@ public class Servico {
             throw new IllegalArgumentException("O valor do serviço não pode ser negativo.");
         }
         this.valor = valor;
+    }
+
+    /**
+     * @return forma de cobrança: por unidade ou por noite
+     */
+    public TipoCobranca getCobranca() {
+        return cobranca;
+    }
+
+    /**
+     * @param cobranca forma de cobrança: por unidade ou por noite
+     * @throws IllegalArgumentException se for nula
+     */
+    public void setCobranca(TipoCobranca cobranca) {
+        if (cobranca == null) {
+            throw new IllegalArgumentException("A forma de cobrança (por unidade ou por noite) é obrigatória.");
+        }
+        this.cobranca = cobranca;
     }
 
     /**

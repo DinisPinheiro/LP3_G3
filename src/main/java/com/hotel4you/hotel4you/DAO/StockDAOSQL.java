@@ -15,6 +15,7 @@ import java.util.Optional;
 
 /**
  * {@link StockDAO} sobre as tabelas {@code dbo.Fornecedor}, {@code dbo.Artigo} e {@code dbo.MovimentoStock}.
+ * A quantidade usada em reservas vem da tabela {@code dbo.ReservaProduto} (S5-06).
  */
 public class StockDAOSQL implements StockDAO {
 
@@ -30,8 +31,17 @@ public class StockDAOSQL implements StockDAO {
             "UPDATE dbo.Artigo SET QuantidadeAtual = ?, IdFornecedor = ? WHERE IdArtigo = ?";
     private static final String SQL_INSERIR_MOVIMENTO =
             "INSERT INTO dbo.MovimentoStock (IdArtigo, IdUtilizador, Tipo, Quantidade, DataHora) VALUES (?, ?, ?, ?, ?)";
+    /**
+     * Quantidade do artigo {@code a} usada em reservas não canceladas (as canceladas não usam stock).
+     * Também é usada pelo {@link ReservaDAOSQL} para confirmar o stock ao guardar uma reserva.
+     */
+    static final String SQL_USADO_EM_RESERVAS =
+            "(SELECT ISNULL(SUM(rp.Quantidade), 0) FROM dbo.ReservaProduto rp "
+                    + "JOIN dbo.Reserva r ON r.IdReserva = rp.IdReserva "
+                    + "WHERE rp.IdArtigo = a.IdArtigo AND r.Estado <> 'CANCELADA')";
     private static final String SQL_LISTAR_ARTIGOS =
             "SELECT a.IdArtigo, a.Nome, a.Unidade, a.QuantidadeAtual, "
+                    + SQL_USADO_EM_RESERVAS + " AS UsadoEmReservas, "
                     + "f.IdFornecedor, f.Nome AS NomeFornecedor, f.Nif, f.Contacto "
                     + "FROM dbo.Artigo a LEFT JOIN dbo.Fornecedor f ON f.IdFornecedor = a.IdFornecedor "
                     + "ORDER BY a.Nome";
@@ -135,6 +145,7 @@ public class StockDAOSQL implements StockDAO {
     private static Artigo mapearArtigo(ResultSet rs) throws SQLException {
         Artigo artigo = new Artigo(rs.getInt("IdArtigo"), rs.getString("Nome"),
                 rs.getString("Unidade"), rs.getInt("QuantidadeAtual"));
+        artigo.setQuantidadeReservada(rs.getInt("UsadoEmReservas"));
         int idFornecedor = rs.getInt("IdFornecedor");
         if (!rs.wasNull()) {
             artigo.setFornecedor(new Fornecedor(idFornecedor, rs.getString("NomeFornecedor"),
