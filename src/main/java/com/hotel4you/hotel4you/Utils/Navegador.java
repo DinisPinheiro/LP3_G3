@@ -3,6 +3,7 @@ package com.hotel4you.hotel4you.Utils;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 
@@ -19,10 +20,15 @@ import java.util.Objects;
 public final class Navegador {
 
     private static final String PASTA_FXML = "/com/hotel4you/hotel4you/";
-    private static final double LARGURA = 800;
-    private static final double ALTURA = 500;
+    private static final double LARGURA = 1000;
+    private static final double ALTURA = 600;
+
+    private static final String ECRA_LOGIN = "LoginView.fxml";
+    private static final String ECRA_MENU = "MenuPrincipalView.fxml";
 
     private static Stage janela;
+    private static Pane areaConteudo;
+    private static Runnable aoVoltarAoInicio;
     private static Callback<Class<?>, Object> fabrica;
 
     private Navegador() {
@@ -40,7 +46,23 @@ public final class Navegador {
     }
 
     /**
-     * Mostra um ecrã.
+     * Regista a área de conteúdo do layout principal (menu fixo). Enquanto estiver registada,
+     * os ecrãs de funcionalidades abrem nessa área em vez de substituírem a janela inteira,
+     * e pedir o menu principal apenas volta ao ecrã inicial do layout.
+     *
+     * @param area            área onde os ecrãs são mostrados
+     * @param voltarAoInicio  chamado quando se pede o menu principal com o layout já aberto
+     */
+    public static void registarLayout(Pane area, Runnable voltarAoInicio) {
+        areaConteudo = Objects.requireNonNull(area);
+        aoVoltarAoInicio = Objects.requireNonNull(voltarAoInicio);
+    }
+
+    /**
+     * Mostra um ecrã (ficheiro FXML).
+     * <p>
+     * O login e o layout principal ocupam a janela; todos os outros ecrãs abrem na área de
+     * conteúdo do layout, se este estiver ativo.
      *
      * @param ficheiroFxml nome do ficheiro em {@code resources/com/hotel4you/hotel4you/} (ex.: "LoginView.fxml")
      * @param titulo       título da janela
@@ -50,6 +72,27 @@ public final class Navegador {
         if (janela == null) {
             throw new IllegalStateException("O Navegador não foi iniciado.");
         }
+        if (ECRA_LOGIN.equals(ficheiroFxml)) {
+            areaConteudo = null;
+            aoVoltarAoInicio = null;
+        } else if (areaConteudo != null) {
+            if (ECRA_MENU.equals(ficheiroFxml)) {
+                aoVoltarAoInicio.run();
+            } else {
+                areaConteudo.getChildren().setAll(carregar(ficheiroFxml));
+            }
+            return;
+        }
+        Parent raiz = carregar(ficheiroFxml);
+        if (janela.getScene() == null) {
+            janela.setScene(new Scene(raiz, LARGURA, ALTURA));
+        } else {
+            janela.getScene().setRoot(raiz);
+        }
+        janela.setTitle(titulo);
+    }
+
+    private static Parent carregar(String ficheiroFxml) {
         URL url = Navegador.class.getResource(PASTA_FXML + ficheiroFxml);
         if (url == null) {
             throw new IllegalStateException("Ecrã não encontrado: " + ficheiroFxml);
@@ -57,13 +100,7 @@ public final class Navegador {
         try {
             FXMLLoader loader = new FXMLLoader(url);
             loader.setControllerFactory(fabrica);
-            Parent raiz = loader.load();
-            if (janela.getScene() == null) {
-                janela.setScene(new Scene(raiz, LARGURA, ALTURA));
-            } else {
-                janela.getScene().setRoot(raiz);
-            }
-            janela.setTitle(titulo);
+            return loader.load();
         } catch (IOException e) {
             throw new IllegalStateException("Erro ao carregar o ecrã " + ficheiroFxml, e);
         }
