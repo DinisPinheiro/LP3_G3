@@ -27,7 +27,7 @@
     <Label fx:id="labelMensagem" wrapText="true"/>
     <Label fx:id="labelCabecalho" wrapText="true" style="-fx-font-weight: bold;"/>
 
-    <TableView fx:id="tabelaLinhas" VBox.vgrow="ALWAYS" prefHeight="180">
+    <TableView fx:id="tabelaLinhas" VBox.vgrow="ALWAYS" prefHeight="200">
         <columnResizePolicy>
             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
         </columnResizePolicy>
@@ -35,9 +35,18 @@
             <TableColumn fx:id="colunaNumero" text="Linha" minWidth="45"/>
             <TableColumn fx:id="colunaCodigo" text="Código" minWidth="80"/>
             <TableColumn fx:id="colunaDescricao" text="Artigo" minWidth="220"/>
-            <TableColumn fx:id="colunaQuantidade" text="Quantidade" minWidth="90"/>
+            <TableColumn fx:id="colunaQuantidade" text="Quantidade" minWidth="80"/>
+            <TableColumn fx:id="colunaCaixas" text="Caixas" minWidth="55"/>
+            <TableColumn fx:id="colunaUnidades" text="Unidades" minWidth="65"/>
+            <TableColumn fx:id="colunaPreco" text="Preço unitário" minWidth="95"/>
+            <TableColumn fx:id="colunaTaxa" text="Taxa" minWidth="45"/>
+            <TableColumn fx:id="colunaSemTaxa" text="Sem taxa" minWidth="85"/>
+            <TableColumn fx:id="colunaValorTaxa" text="Valor da taxa" minWidth="85"/>
+            <TableColumn fx:id="colunaTotalLinha" text="Total da linha" minWidth="95"/>
         </columns>
     </TableView>
+
+    <Label fx:id="labelTotais" wrapText="true" style="-fx-font-weight: bold;"/>
 
     <TextArea fx:id="areaErros" editable="false" wrapText="true" prefRowCount="5" visible="false" managed="false"/>
 

@@ -51,8 +51,9 @@ class ReservaApagarTest {
 
     @Test
     void reservaLidaDaBaseDeDadosSemMomentoDeCheckInPodeSerApagada() {
-        Reserva lida = new Reserva(2, cliente, quarto, entrada, saida, EstadoReserva.PENDENTE, null,
-                null, null, List.of());
+        Reserva lida = new Reserva(2, cliente, quarto, entrada, saida,
+                quarto.getPrecoBase(), quarto.getSuplementoVista(), EstadoReserva.PENDENTE, null,
+                null, null, List.of(), List.of());
 
         assertTrue(lida.podeSerApagada());
     }
@@ -76,8 +77,9 @@ class ReservaApagarTest {
 
     @Test
     void reservaLidaDaBaseDeDadosComMomentoDeCheckInNaoPodeSerApagada() {
-        Reserva lida = new Reserva(3, cliente, quarto, entrada, saida, EstadoReserva.CHECK_IN,
-                new CartaoMagnetico(5, 1001, false, true), agora, null, List.of());
+        Reserva lida = new Reserva(3, cliente, quarto, entrada, saida,
+                quarto.getPrecoBase(), quarto.getSuplementoVista(), EstadoReserva.CHECK_IN,
+                new CartaoMagnetico(5, 1001, false, true), agora, null, List.of(), List.of());
 
         assertFalse(lida.podeSerApagada());
     }
@@ -85,8 +87,9 @@ class ReservaApagarTest {
     @Test
     void aRegraDependeDoCheckInTerSidoFeitoENaoSoDoEstado() {
         // Reserva que já teve check-in e depois foi marcada com outro estado: continua protegida.
-        Reserva lida = new Reserva(4, cliente, quarto, entrada, saida, EstadoReserva.CANCELADA, null,
-                agora, null, List.of());
+        Reserva lida = new Reserva(4, cliente, quarto, entrada, saida,
+                quarto.getPrecoBase(), quarto.getSuplementoVista(), EstadoReserva.CANCELADA, null,
+                agora, null, List.of(), List.of());
 
         assertFalse(lida.podeSerApagada());
     }

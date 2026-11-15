@@ -192,4 +192,15 @@
 			<CurrencyValue CurrencyType="EUR">3431.70</CurrencyValue>
 		</LineBaseAmount>
 	</Line>
+	<OrderSummary>
+		<TotalLinesAmount>
+			<CurrencyValue CurrencyType="EUR">14138.00</CurrencyValue>
+		</TotalLinesAmount>
+		<TotalTaxAmount>
+			<CurrencyValue CurrencyType="EUR">3251.75</CurrencyValue>
+		</TotalTaxAmount>
+		<OrderTotalAmount>
+			<CurrencyValue CurrencyType="EUR">17389.75</CurrencyValue>
+		</OrderTotalAmount>
+	</OrderSummary>
 </Order>
