@@ -17,6 +17,8 @@
     </padding>
 
     <Label text="Stock do hotel" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <Label text="Em stock: o que o hotel tem. Disponível: o que sobra para novas reservas (stock menos o usado em reservas)."
+           wrapText="true" style="-fx-text-fill: #555555;"/>
 
     <HBox spacing="8">
         <Button text="Entrada de stock (XML do fornecedor)" onAction="#onEntradaXml"/>
@@ -34,6 +36,8 @@
             <TableColumn fx:id="colunaQuantidade" text="Em stock" minWidth="70"/>
             <TableColumn fx:id="colunaDisponivel" text="Disponível" minWidth="70"/>
             <TableColumn fx:id="colunaUnidade" text="Unidade" minWidth="60"/>
+            <TableColumn fx:id="colunaPreco" text="Preço unitário" minWidth="110"/>
+            <TableColumn fx:id="colunaTaxa" text="Taxa" minWidth="50"/>
             <TableColumn fx:id="colunaFornecedor" text="Fornecedor" minWidth="140"/>
         </columns>
     </TableView>

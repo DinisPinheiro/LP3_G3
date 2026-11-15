@@ -126,4 +126,19 @@ public final class Utils {
     public static String formatarPreco(BigDecimal valor) {
         return NumberFormat.getCurrencyInstance(PORTUGAL).format(valor);
     }
+
+    /**
+     * Formata um valor monetário com a sua moeda: em euros no formato português ("80,00 €"),
+     * nas outras moedas com o código a seguir ao valor (ex.: "80,00 USD").
+     *
+     * @param valor valor a formatar
+     * @param moeda código da moeda (ex.: "EUR")
+     * @return o valor formatado
+     */
+    public static String formatarMontante(BigDecimal valor, String moeda) {
+        if (moeda == null || moeda.isBlank() || "EUR".equalsIgnoreCase(moeda)) {
+            return formatarPreco(valor);
+        }
+        return NumberFormat.getNumberInstance(PORTUGAL).format(valor) + " " + moeda;
+    }
 }

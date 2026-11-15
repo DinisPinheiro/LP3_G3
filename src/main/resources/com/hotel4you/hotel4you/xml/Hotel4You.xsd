@@ -217,7 +217,31 @@
 						</xs:sequence>
 					</xs:complexType>
 				</xs:element>
+				<!-- S5-04: totais da encomenda (opcional). Se vier, o programa compara-o com os valores calculados. -->
+				<xs:element minOccurs="0" name="OrderSummary">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="TotalLinesAmount" type="CurrencyAmountType"/>
+							<xs:element name="TotalTaxAmount" type="CurrencyAmountType"/>
+							<xs:element name="OrderTotalAmount" type="CurrencyAmountType"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
 			</xs:sequence>
 		</xs:complexType>
 	</xs:element>
+	<!-- Valor monetário: <CurrencyValue CurrencyType="EUR">12.34</CurrencyValue> -->
+	<xs:complexType name="CurrencyAmountType">
+		<xs:sequence>
+			<xs:element name="CurrencyValue">
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:decimal">
+							<xs:attribute name="CurrencyType" type="xs:string" use="required"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
 </xs:schema>

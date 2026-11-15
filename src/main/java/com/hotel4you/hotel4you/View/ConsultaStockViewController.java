@@ -3,6 +3,7 @@ package com.hotel4you.hotel4you.View;
 import com.hotel4you.hotel4you.Controller.GestaoStockController;
 import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Utils.Navegador;
+import com.hotel4you.hotel4you.Utils.Utils;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -32,6 +33,10 @@ public class ConsultaStockViewController {
     @FXML
     private TableColumn<Artigo, String> colunaUnidade;
     @FXML
+    private TableColumn<Artigo, String> colunaPreco;
+    @FXML
+    private TableColumn<Artigo, String> colunaTaxa;
+    @FXML
     private TableColumn<Artigo, String> colunaFornecedor;
     @FXML
     private Label labelMensagem;
@@ -51,6 +56,10 @@ public class ConsultaStockViewController {
         // Stock disponível: o stock do hotel menos o que já está usado em reservas (S5-06).
         colunaDisponivel.setCellValueFactory(c -> texto(String.valueOf(c.getValue().getQuantidadeDisponivel())));
         colunaUnidade.setCellValueFactory(c -> texto(c.getValue().getUnidade()));
+        // Último preço unitário (sem taxa) e taxa de imposto, vindos da última entrada por XML (S5-04).
+        colunaPreco.setCellValueFactory(c -> texto(formatarPreco(c.getValue())));
+        colunaTaxa.setCellValueFactory(c -> texto(c.getValue().getTaxaPercentagem() == null
+                ? "" : c.getValue().getTaxaPercentagem() + "%"));
         colunaFornecedor.setCellValueFactory(c -> texto(c.getValue().getFornecedor() == null
                 ? "" : c.getValue().getFornecedor().getNome()));
         tabelaStock.setPlaceholder(new Label("Ainda não há artigos em stock."));
@@ -79,6 +88,15 @@ public class ConsultaStockViewController {
     @FXML
     private void onVoltar() {
         Navegador.mudarPara("MenuPrincipalView.fxml", "Hotel4You");
+    }
+
+    /** Por exemplo "2,51 € / cx"; vazio nos artigos que ainda não têm preço. */
+    private static String formatarPreco(Artigo artigo) {
+        if (artigo.getPrecoUnitario() == null) {
+            return "";
+        }
+        String preco = Utils.formatarPreco(artigo.getPrecoUnitario());
+        return artigo.getUnidadePreco().isEmpty() ? preco : preco + " / " + artigo.getUnidadePreco();
     }
 
     private static SimpleStringProperty texto(String valor) {

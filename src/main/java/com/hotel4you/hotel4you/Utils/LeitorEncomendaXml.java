@@ -7,6 +7,7 @@ import com.hotel4you.hotel4you.Model.encomenda.LinhaEncomenda;
 import com.hotel4you.hotel4you.Model.encomenda.Montante;
 import com.hotel4you.hotel4you.Model.encomenda.PrecoUnitario;
 import com.hotel4you.hotel4you.Model.encomenda.Quantidade;
+import com.hotel4you.hotel4you.Model.encomenda.TotaisEncomenda;
 import com.hotel4you.hotel4you.Model.enums.UnidadeMedida;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -31,7 +32,7 @@ import java.util.List;
  * ({@link EncomendaFornecedor}).
  * <p>
  * O ficheiro é sempre validado primeiro com o {@link ValidadorXml}; só um XML válido é lido.
- * Esta classe não guarda nada na base de dados (esta sprint não há entrada em stock).
+ * Esta classe não guarda nada na base de dados: só converte o XML em objetos.
  */
 public final class LeitorEncomendaXml {
 
@@ -82,7 +83,20 @@ public final class LeitorEncomendaXml {
                 texto(cabecalho, "OrderNumber"),
                 converterData(filho(filho(cabecalho, "OrderDate"), "Date")),
                 converterFornecedor(filho(cabecalho, "SupplierParty")),
-                linhas);
+                linhas,
+                converterResumo(filhos(ordem, "OrderSummary")));
+    }
+
+    /** Lê os totais do elemento opcional {@code OrderSummary}; devolve {@code null} se o XML não os tiver. */
+    private static TotaisEncomenda converterResumo(List<Element> resumos) {
+        if (resumos.isEmpty()) {
+            return null;
+        }
+        Element resumo = resumos.get(0);
+        Montante linhas = converterMontante(filho(resumo, "TotalLinesAmount"));
+        Montante taxas = converterMontante(filho(resumo, "TotalTaxAmount"));
+        Montante total = converterMontante(filho(resumo, "OrderTotalAmount"));
+        return new TotaisEncomenda(linhas.valor(), taxas.valor(), total.valor(), total.moeda());
     }
 
     private static LocalDate converterData(Element data) {
