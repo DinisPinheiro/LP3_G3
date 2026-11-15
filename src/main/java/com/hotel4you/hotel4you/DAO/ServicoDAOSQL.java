@@ -2,6 +2,7 @@ package com.hotel4you.hotel4you.DAO;
 
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.Model.Servico;
+import com.hotel4you.hotel4you.Model.enums.TipoCobranca;
 import com.hotel4you.hotel4you.Model.enums.TipoServico;
 
 import java.sql.Connection;
@@ -14,19 +15,21 @@ import java.util.Optional;
 
 /**
  * {@link ServicoDAO} sobre a tabela {@code dbo.Servico}
- * (IdServico, Nome UNIQUE, Categoria, Descricao, Tipo, Valor, Ativo).
+ * (IdServico, Nome UNIQUE, Categoria, Descricao, Tipo, Valor, Cobranca, Ativo).
  * <p>
- * As colunas Descricao, Tipo e Ativo são criadas por {@code DATABASE/EsquemaDB_S4_servicos_extras.sql}.
+ * As colunas Descricao, Tipo e Ativo são criadas por {@code DATABASE/EsquemaDB_S4_servicos_extras.sql};
+ * a coluna Cobranca (por unidade ou por noite) por {@code DATABASE/EsquemaDB_S5_servicos_produtos_reserva.sql}.
  * <p>
  */
 public class ServicoDAOSQL implements ServicoDAO {
 
-    private static final String COLUNAS = "IdServico, Nome, Categoria, Descricao, Tipo, Valor, Ativo";
+    private static final String COLUNAS = "IdServico, Nome, Categoria, Descricao, Tipo, Valor, Cobranca, Ativo";
     private static final String ORDEM = " ORDER BY Tipo, Categoria, Nome, IdServico";
 
     @Override
     public Servico inserir(Servico servico) {
-        String sql = "INSERT INTO dbo.Servico (Nome, Categoria, Descricao, Tipo, Valor, Ativo) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO dbo.Servico (Nome, Categoria, Descricao, Tipo, Valor, Cobranca, Ativo) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection()) {
             int id = SqlUtil.inserirComId(conn, sql, ps -> preencher(ps, servico));
             servico.setId(id);
@@ -41,12 +44,12 @@ public class ServicoDAOSQL implements ServicoDAO {
 
     @Override
     public void atualizar(Servico servico) {
-        String sql = "UPDATE dbo.Servico SET Nome = ?, Categoria = ?, Descricao = ?, Tipo = ?, Valor = ?, Ativo = ? "
-                + "WHERE IdServico = ?";
+        String sql = "UPDATE dbo.Servico SET Nome = ?, Categoria = ?, Descricao = ?, Tipo = ?, Valor = ?, "
+                + "Cobranca = ?, Ativo = ? WHERE IdServico = ?";
         try (Connection conn = DBConnection.getConnection()) {
             int linhas = SqlUtil.executar(conn, sql, ps -> {
                 preencher(ps, servico);
-                ps.setInt(7, servico.getId());
+                ps.setInt(8, servico.getId());
             });
             if (linhas == 0) {
                 throw new DAOException("O serviço com id " + servico.getId() + " não existe.");
@@ -118,11 +121,14 @@ public class ServicoDAOSQL implements ServicoDAO {
         ps.setString(3, servico.getDescricao());
         ps.setString(4, servico.getTipo().name());
         ps.setBigDecimal(5, servico.getValor());
-        ps.setBoolean(6, servico.isAtivo());
+        ps.setString(6, servico.getCobranca().name());
+        ps.setBoolean(7, servico.isAtivo());
     }
 
-    private static Servico mapear(ResultSet rs) throws SQLException {
+    /** Cria o serviço a partir de uma linha com as colunas de {@code dbo.Servico} (também usado pelo ReservaDAOSQL). */
+    static Servico mapear(ResultSet rs) throws SQLException {
         return new Servico(rs.getInt("IdServico"), TipoServico.valueOf(rs.getString("Tipo")), rs.getString("Nome"),
-                rs.getString("Categoria"), rs.getString("Descricao"), rs.getBigDecimal("Valor"), rs.getBoolean("Ativo"));
+                rs.getString("Categoria"), rs.getString("Descricao"), rs.getBigDecimal("Valor"),
+                TipoCobranca.valueOf(rs.getString("Cobranca")), rs.getBoolean("Ativo"));
     }
 }

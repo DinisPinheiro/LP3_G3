@@ -4,6 +4,9 @@ import java.util.Objects;
 
 /**
  * Artigo em stock (toalhas, champô, lençóis, camas, ...). O stock nunca fica negativo.
+ * <p>
+ * O stock do hotel ({@link #getQuantidadeAtual()}) é separado do stock disponível
+ * ({@link #getQuantidadeDisponivel()}), que desconta o que já está usado em reservas (S5-06).
  */
 public class Artigo {
 
@@ -11,6 +14,8 @@ public class Artigo {
     private String nome;
     private String unidade;
     private int quantidadeAtual;
+    /** Quantidade usada em reservas não canceladas (calculada pelo DAO). */
+    private int quantidadeReservada;
     private Fornecedor fornecedor;
 
     /**
@@ -71,6 +76,35 @@ public class Artigo {
 
     public int getQuantidadeAtual() {
         return quantidadeAtual;
+    }
+
+    /**
+     * @return quantidade usada em reservas não canceladas
+     */
+    public int getQuantidadeReservada() {
+        return quantidadeReservada;
+    }
+
+    /**
+     * Indica quanto deste artigo está usado em reservas. Não altera o stock do hotel.
+     *
+     * @param quantidadeReservada quantidade usada em reservas não canceladas, não negativa
+     * @throws IllegalArgumentException se for negativa
+     */
+    public void setQuantidadeReservada(int quantidadeReservada) {
+        if (quantidadeReservada < 0) {
+            throw new IllegalArgumentException("A quantidade usada em reservas não pode ser negativa.");
+        }
+        this.quantidadeReservada = quantidadeReservada;
+    }
+
+    /**
+     * Stock disponível para novas reservas: o stock do hotel menos o que já está usado em reservas.
+     *
+     * @return quantidade disponível (nunca negativa)
+     */
+    public int getQuantidadeDisponivel() {
+        return Math.max(0, quantidadeAtual - quantidadeReservada);
     }
 
     /** @return o fornecedor da última entrada deste artigo, ou {@code null} se não tiver */

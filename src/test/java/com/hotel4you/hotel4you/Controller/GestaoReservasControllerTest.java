@@ -4,6 +4,8 @@ import com.hotel4you.hotel4you.DAO.ClienteDAO;
 import com.hotel4you.hotel4you.DAO.DAOException;
 import com.hotel4you.hotel4you.DAO.QuartoDAO;
 import com.hotel4you.hotel4you.DAO.ReservaDAOMemoria;
+import com.hotel4you.hotel4you.DAO.ServicoDAOMemoria;
+import com.hotel4you.hotel4you.DAO.StockDAOMemoria;
 import com.hotel4you.hotel4you.Model.CartaoMagnetico;
 import com.hotel4you.hotel4you.Model.Cliente;
 import com.hotel4you.hotel4you.Model.Quarto;
@@ -59,7 +61,8 @@ class GestaoReservasControllerTest {
         };
         sessao = new Sessao();
         sessao.iniciar(Utilizador.novo("rececao", "rececao123", "Ana Rececionista", Perfil.RECECIONISTA));
-        controller = new GestaoReservasController(reservaDAO, clienteDAO, quartoDAO, sessao);
+        controller = new GestaoReservasController(reservaDAO, clienteDAO, quartoDAO,
+                new ServicoDAOMemoria(), new StockDAOMemoria(), sessao);
 
         maria = clienteDAO.inserir(new Cliente(0, "Maria Silva", "PT123456", "910000000"));
         // 80 (preço base) + 20 (vista mar) = 100 por noite

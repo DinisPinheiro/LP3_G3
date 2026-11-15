@@ -10,8 +10,9 @@ import java.util.List;
  * check-in ({@code Reserva.podeSerApagada()}). Quem tem permissão para apagar
  * ({@code Utilizador.podeApagarReservas()}) é verificado pelo Controller.
  * <p>
- * Persistem-se cliente, quarto, datas, estado, valor total, momentos de check-in/check-out
- * e o cartão magnético entregue no check-in.
+ * Persistem-se cliente, quarto, datas, estado, valor total, momentos de check-in/check-out,
+ * o cartão magnético entregue no check-in, os preços em vigor na criação (preço base e vista)
+ * e os serviços e produtos escolhidos, com a quantidade.
  */
 public interface ReservaDAO extends DAO<Reserva> {
 
@@ -19,10 +20,12 @@ public interface ReservaDAO extends DAO<Reserva> {
      * {@inheritDoc}
      * <p>
      * A verificação de disponibilidade e a gravação são feitas na mesma transação, para duas
-     * reservas em simultâneo não ocuparem o mesmo quarto.
+     * reservas em simultâneo não ocuparem o mesmo quarto. Os serviços e os produtos da reserva
+     * são guardados na mesma transação, que também confirma se o stock dos produtos chega.
      *
      * @throws DAOException se o cliente ou o quarto não estiverem guardados, se o quarto já tiver
-     *                      uma reserva ativa nesse período ou se não for possível guardar
+     *                      uma reserva ativa nesse período, se não houver stock suficiente de um
+     *                      produto ou se não for possível guardar
      */
     @Override
     Reserva inserir(Reserva reserva);
@@ -41,6 +44,7 @@ public interface ReservaDAO extends DAO<Reserva> {
      * Regra de negócio validada aqui (e não no Controller): só se apaga uma reserva que nunca
      * teve check-in, ou seja, enquanto {@code Reserva.podeSerApagada()} for verdadeiro.
      * Uma reserva com check-in (ou já com check-out) fica guardada no histórico.
+     * Os serviços e os produtos da reserva são apagados com ela.
      *
      * @throws DAOException se a reserva não existir, se já teve check-in ou se não for possível apagar
      */

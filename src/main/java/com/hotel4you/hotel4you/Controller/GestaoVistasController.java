@@ -15,8 +15,9 @@ import java.util.Objects;
  * <p>
  * Só o gestor acede. O valor guardado aqui é somado ao preço base por noite de todos os quartos com essa
  * vista ({@link com.hotel4you.hotel4you.Model.Quarto#precoNoite()}), por isso reflete-se logo na
- * disponibilidade de quartos e no total das reservas, sem alterar a base de dados à mão. As reservas
- * já criadas guardam o total que tinham até serem atualizadas.
+ * disponibilidade de quartos e no total das reservas novas, sem alterar a base de dados à mão.
+ * As reservas já criadas não mudam: guardam o valor da vista que estava em vigor quando foram feitas
+ * (S5-09, {@link com.hotel4you.hotel4you.Model.Reserva#getValorVistaNoite()}).
  * <p>
  */
 public class GestaoVistasController {

@@ -3,6 +3,7 @@ package com.hotel4you.hotel4you.Controller;
 import com.hotel4you.hotel4you.DAO.ServicoDAO;
 import com.hotel4you.hotel4you.Model.Servico;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
+import com.hotel4you.hotel4you.Model.enums.TipoCobranca;
 import com.hotel4you.hotel4you.Model.enums.TipoServico;
 import com.hotel4you.hotel4you.Utils.Utils;
 
@@ -15,9 +16,10 @@ import java.util.Objects;
  * Configuração dos serviços do hotel e dos extras de quarto (S4-05).
  * <p>
  * O gestor cria, edita (incluindo o preço) e desativa serviços e extras, sem mexer na base de dados.
- * O rececionista só os consulta (e só vê os ativos). Os consumos de uma reserva usam o valor
- * configurado aqui e são somados ao preço do alojamento no total da reserva
- * ({@link com.hotel4you.hotel4you.Model.Reserva#calcularTotal()}).
+ * O rececionista só os consulta (e só vê os ativos). Cada item é cobrado por unidade ou por noite
+ * (S5-09). Os serviços juntos a uma reserva são somados ao preço do alojamento no total
+ * ({@link com.hotel4you.hotel4you.Model.Reserva#calcularTotal()}) com o valor que tinham quando a
+ * reserva foi criada: alterar o preço aqui só se aplica às reservas seguintes.
  * <p>
  */
 public class GestaoServicosController {
@@ -69,20 +71,23 @@ public class GestaoServicosController {
      * @param categoria categoria (ex.: "Spa", "Bebidas"); pode ser vazia
      * @param descricao descrição; pode ser vazia
      * @param valor     preço acrescentado ao cliente, não negativo
+     * @param cobranca  forma de cobrança: por unidade ou por noite
      * @return o item guardado, já com identificador
      * @throws IllegalArgumentException se algum dado for inválido ou o nome já existir
      * @throws SecurityException        se o utilizador não for gestor
      * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
      */
-    public Servico criarServico(TipoServico tipo, String nome, String categoria, String descricao, BigDecimal valor) {
+    public Servico criarServico(TipoServico tipo, String nome, String categoria, String descricao,
+                                BigDecimal valor, TipoCobranca cobranca) {
         exigirGestor();
-        BigDecimal preco = validar(tipo, nome, categoria, descricao, valor);
+        BigDecimal preco = validar(tipo, nome, categoria, descricao, valor, cobranca);
         exigirNomeLivre(nome, 0);
-        return servicoDAO.inserir(new Servico(0, tipo, nome, categoria, descricao, preco, true));
+        return servicoDAO.inserir(new Servico(0, tipo, nome, categoria, descricao, preco, cobranca, true));
     }
 
     /**
-     * Edita um serviço ou extra (incluindo o preço) ou desativa-o.
+     * Edita um serviço ou extra (incluindo o preço) ou desativa-o. O preço novo só se aplica às
+     * reservas criadas a partir daqui.
      *
      * @param id        identificador do item
      * @param tipo      serviço do hotel ou extra de quarto
@@ -90,17 +95,18 @@ public class GestaoServicosController {
      * @param categoria categoria; pode ser vazia
      * @param descricao descrição; pode ser vazia
      * @param valor     preço acrescentado ao cliente, não negativo
+     * @param cobranca  forma de cobrança: por unidade ou por noite
      * @param ativo     {@code false} para desativar o item
      * @throws IllegalArgumentException se o item não existir, algum dado for inválido ou o nome já existir noutro item
      * @throws SecurityException        se o utilizador não for gestor
      * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
      */
     public void editarServico(int id, TipoServico tipo, String nome, String categoria, String descricao,
-                              BigDecimal valor, boolean ativo) {
+                              BigDecimal valor, TipoCobranca cobranca, boolean ativo) {
         exigirGestor();
         Servico servico = servicoDAO.procurarPorId(id)
                 .orElseThrow(() -> new IllegalArgumentException("O serviço ou extra selecionado não existe."));
-        BigDecimal preco = validar(tipo, nome, categoria, descricao, valor);
+        BigDecimal preco = validar(tipo, nome, categoria, descricao, valor, cobranca);
         exigirNomeLivre(nome, id);
 
         servico.setTipo(tipo);
@@ -108,13 +114,18 @@ public class GestaoServicosController {
         servico.setCategoria(categoria);
         servico.setDescricao(descricao);
         servico.setValor(preco);
+        servico.setCobranca(cobranca);
         servico.setAtivo(ativo);
         servicoDAO.atualizar(servico);
     }
 
-    private BigDecimal validar(TipoServico tipo, String nome, String categoria, String descricao, BigDecimal valor) {
+    private BigDecimal validar(TipoServico tipo, String nome, String categoria, String descricao,
+                               BigDecimal valor, TipoCobranca cobranca) {
         if (tipo == null) {
             throw new IllegalArgumentException("Escolha o tipo: serviço ou extra de quarto.");
+        }
+        if (cobranca == null) {
+            throw new IllegalArgumentException("Escolha a forma de cobrança: por unidade ou por noite.");
         }
         if (!Utils.estaPreenchido(nome)) {
             throw new IllegalArgumentException("Introduza o nome do serviço ou extra.");

@@ -25,7 +25,8 @@ public interface StockDAO {
     void registarEntrada(Fornecedor fornecedor, List<MovimentoStock> entradas);
 
     /**
-     * @return todos os artigos com o stock atual e o fornecedor, ordenados por nome
+     * @return todos os artigos com o stock atual, a quantidade usada em reservas não canceladas
+     *         (para o stock disponível) e o fornecedor, ordenados por nome
      * @throws DAOException se não for possível ler
      */
     List<Artigo> listarArtigos();

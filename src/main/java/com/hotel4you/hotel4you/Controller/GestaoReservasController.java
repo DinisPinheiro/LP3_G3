@@ -3,9 +3,15 @@ package com.hotel4you.hotel4you.Controller;
 import com.hotel4you.hotel4you.DAO.ClienteDAO;
 import com.hotel4you.hotel4you.DAO.QuartoDAO;
 import com.hotel4you.hotel4you.DAO.ReservaDAO;
+import com.hotel4you.hotel4you.DAO.ServicoDAO;
+import com.hotel4you.hotel4you.DAO.StockDAO;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.Cliente;
+import com.hotel4you.hotel4you.Model.ConsumoServico;
+import com.hotel4you.hotel4you.Model.ProdutoReserva;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.Reserva;
+import com.hotel4you.hotel4you.Model.Servico;
 import com.hotel4you.hotel4you.Model.enums.EstadoReserva;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import com.hotel4you.hotel4you.Model.enums.TipoQuarto;
@@ -16,8 +22,11 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -31,6 +40,10 @@ import java.util.stream.Collectors;
  * guardada com o cliente, o quarto, as datas, o valor total estimado e o estado
  * {@code PENDENTE} (reservado, à espera de check-in).
  * <p>
+ * Na criação podem juntar-se serviços, extras e produtos do stock, com a quantidade (S5-06). O total
+ * é calculado pelo model ({@link Reserva#calcularTotal()}) e os preços em vigor ficam guardados na
+ * reserva (S5-09).
+ * <p>
  */
 public class GestaoReservasController {
 
@@ -39,19 +52,25 @@ public class GestaoReservasController {
     private final ReservaDAO reservaDAO;
     private final ClienteDAO clienteDAO;
     private final QuartoDAO quartoDAO;
+    private final ServicoDAO servicoDAO;
+    private final StockDAO stockDAO;
     private final Sessao sessao;
 
     /**
      * @param reservaDAO onde as reservas são guardadas
      * @param clienteDAO onde os clientes estão guardados
      * @param quartoDAO  onde os quartos estão guardados
+     * @param servicoDAO onde os serviços e extras estão guardados
+     * @param stockDAO   onde os produtos do stock estão guardados
      * @param sessao     sessão com o utilizador autenticado
      */
-    public GestaoReservasController(ReservaDAO reservaDAO, ClienteDAO clienteDAO,
-                                    QuartoDAO quartoDAO, Sessao sessao) {
+    public GestaoReservasController(ReservaDAO reservaDAO, ClienteDAO clienteDAO, QuartoDAO quartoDAO,
+                                    ServicoDAO servicoDAO, StockDAO stockDAO, Sessao sessao) {
         this.reservaDAO = Objects.requireNonNull(reservaDAO);
         this.clienteDAO = Objects.requireNonNull(clienteDAO);
         this.quartoDAO = Objects.requireNonNull(quartoDAO);
+        this.servicoDAO = Objects.requireNonNull(servicoDAO);
+        this.stockDAO = Objects.requireNonNull(stockDAO);
         this.sessao = Objects.requireNonNull(sessao);
     }
 
@@ -74,7 +93,34 @@ public class GestaoReservasController {
     }
 
     /**
-     * Calcula o valor total estimado de uma estadia: número de noites × preço por noite do quarto.
+     * Consulta os serviços e extras que podem ser juntos a uma reserva (só os ativos).
+     *
+     * @return os serviços e extras ativos, com o valor e a forma de cobrança em vigor
+     * @throws SecurityException se o utilizador não for rececionista nem gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler
+     */
+    public List<Servico> consultarServicosDisponiveis() {
+        exigirRececao();
+        return servicoDAO.listarAtivos();
+    }
+
+    /**
+     * Consulta os produtos do stock que podem ser juntos a uma reserva: os que ainda têm stock
+     * disponível (stock do hotel menos o que já está usado noutras reservas).
+     *
+     * @return os produtos com stock disponível, ordenados por nome
+     * @throws SecurityException se o utilizador não for rececionista nem gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler
+     */
+    public List<Artigo> consultarProdutosDisponiveis() {
+        exigirRececao();
+        return stockDAO.listarArtigos().stream()
+                .filter(artigo -> artigo.getQuantidadeDisponivel() > 0)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Calcula o valor total estimado de uma estadia sem serviços nem extras.
      *
      * @param quarto  quarto escolhido
      * @param entrada primeira noite
@@ -83,31 +129,70 @@ public class GestaoReservasController {
      * @throws IllegalArgumentException se o quarto for nulo ou as datas forem inválidas
      */
     public BigDecimal estimarValor(Quarto quarto, LocalDate entrada, LocalDate saida) {
+        return estimarValor(quarto, entrada, saida, List.of());
+    }
+
+    /**
+     * Calcula o valor total estimado de uma estadia: preço base do quarto, vista e serviços e extras
+     * escolhidos. A conta é feita pelo model ({@link Reserva#calcularTotal(BigDecimal, long, List)}).
+     *
+     * @param quarto   quarto escolhido
+     * @param entrada  primeira noite
+     * @param saida    dia de saída
+     * @param servicos serviços e extras escolhidos, com a quantidade
+     * @return o valor total estimado, com duas casas decimais
+     * @throws IllegalArgumentException se o quarto for nulo ou as datas forem inválidas
+     */
+    public BigDecimal estimarValor(Quarto quarto, LocalDate entrada, LocalDate saida, List<ConsumoServico> servicos) {
         if (quarto == null) {
             throw new IllegalArgumentException("Escolha um quarto.");
         }
         validarDatas(entrada, saida);
         long noites = ChronoUnit.DAYS.between(entrada, saida);
-        return quarto.precoNoite().multiply(BigDecimal.valueOf(noites)).setScale(2, RoundingMode.HALF_UP);
+        return Reserva.calcularTotal(quarto.precoNoite(), noites, servicos).setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
-     * Cria uma reserva para um cliente num quarto disponível. A reserva fica no estado
-     * {@code PENDENTE} (reservado, pendente de check-in) e é guardada na base de dados com o
-     * valor total estimado.
+     * Cria uma reserva sem serviços nem produtos (ver
+     * {@link #criarReserva(Cliente, Quarto, LocalDate, LocalDate, List, List)}).
      *
      * @param cliente cliente que reserva (tem de estar registado)
      * @param quarto  quarto pretendido (tem de estar ativo e livre no período)
      * @param entrada primeira noite
      * @param saida   dia de saída (depois da entrada)
      * @return a reserva guardada, já com identificador
-     * @throws IllegalArgumentException se faltar o cliente ou o quarto, se as datas forem inválidas,
-     *                                  se o cliente não estiver registado ou se o quarto estiver inativo
-     *                                  ou já reservado no período
+     * @throws IllegalArgumentException se algum dado for inválido
      * @throws SecurityException        se o utilizador não for rececionista nem gestor
      * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
      */
     public Reserva criarReserva(Cliente cliente, Quarto quarto, LocalDate entrada, LocalDate saida) {
+        return criarReserva(cliente, quarto, entrada, saida, List.of(), List.of());
+    }
+
+    /**
+     * Cria uma reserva para um cliente num quarto disponível, com os serviços, extras e produtos
+     * escolhidos. A reserva fica no estado {@code PENDENTE} (reservado, pendente de check-in) e é
+     * guardada na base de dados com o valor total estimado.
+     * <p>
+     * Os preços em vigor neste momento (preço base do quarto, vista e serviços) ficam guardados na
+     * reserva. Os produtos escolhidos passam a contar como usados e reduzem o stock disponível.
+     *
+     * @param cliente  cliente que reserva (tem de estar registado)
+     * @param quarto   quarto pretendido (tem de estar ativo e livre no período)
+     * @param entrada  primeira noite
+     * @param saida    dia de saída (depois da entrada)
+     * @param servicos serviços e extras escolhidos, com a quantidade (têm de estar ativos)
+     * @param produtos produtos do stock escolhidos, com a quantidade (tem de haver stock disponível)
+     * @return a reserva guardada, já com identificador
+     * @throws IllegalArgumentException se faltar o cliente ou o quarto, se as datas forem inválidas,
+     *                                  se o cliente não estiver registado, se o quarto estiver inativo
+     *                                  ou já reservado no período, se um serviço já não estiver
+     *                                  disponível ou se não houver stock suficiente de um produto
+     * @throws SecurityException        se o utilizador não for rececionista nem gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
+     */
+    public Reserva criarReserva(Cliente cliente, Quarto quarto, LocalDate entrada, LocalDate saida,
+                                List<ConsumoServico> servicos, List<ProdutoReserva> produtos) {
         exigirRececao();
         if (cliente == null) {
             throw new IllegalArgumentException("Escolha um cliente.");
@@ -127,9 +212,50 @@ public class GestaoReservasController {
             throw new IllegalArgumentException("O " + quartoGuardado + " não está disponível entre "
                     + entrada.format(FORMATO_DATA) + " e " + saida.format(FORMATO_DATA) + ".");
         }
-        // Reserva nova: nasce com o estado PENDENTE. O DAO volta a confirmar a disponibilidade
-        // dentro da transação e calcula e guarda o valor total.
-        return reservaDAO.inserir(new Reserva(0, clienteGuardado, quartoGuardado, entrada, saida));
+        // Reserva nova: nasce com o estado PENDENTE e fica com os preços em vigor agora. O DAO volta
+        // a confirmar a disponibilidade e o stock dentro da transação e guarda o valor total.
+        return reservaDAO.inserir(new Reserva(0, clienteGuardado, quartoGuardado, entrada, saida,
+                comValoresEmVigor(servicos), comStockDisponivel(produtos)));
+    }
+
+    /** Volta a ler cada serviço, para a reserva guardar o valor em vigor e não aceitar serviços desativados. */
+    private List<ConsumoServico> comValoresEmVigor(List<ConsumoServico> servicos) {
+        List<ConsumoServico> atuais = new ArrayList<>();
+        for (ConsumoServico escolhido : servicos) {
+            Servico servico = servicoDAO.procurarPorId(escolhido.getServico().getId())
+                    .filter(Servico::isAtivo)
+                    .orElseThrow(() -> new IllegalArgumentException("O serviço ou extra '"
+                            + escolhido.getServico().getNome() + "' já não está disponível."));
+            atuais.add(new ConsumoServico(servico, escolhido.getQuantidade(), LocalDate.now()));
+        }
+        return atuais;
+    }
+
+    /** Volta a ler o stock e confirma que há quantidade disponível para cada produto escolhido. */
+    private List<ProdutoReserva> comStockDisponivel(List<ProdutoReserva> produtos) {
+        if (produtos.isEmpty()) {
+            return List.of();
+        }
+        Map<Integer, Artigo> stock = new HashMap<>();
+        for (Artigo artigo : stockDAO.listarArtigos()) {
+            stock.put(artigo.getId(), artigo);
+        }
+        Map<Integer, Integer> pedido = new HashMap<>();
+        List<ProdutoReserva> atuais = new ArrayList<>();
+        for (ProdutoReserva escolhido : produtos) {
+            Artigo artigo = stock.get(escolhido.getArtigo().getId());
+            if (artigo == null) {
+                throw new IllegalArgumentException("O produto '" + escolhido.getArtigo().getNome()
+                        + "' já não existe em stock.");
+            }
+            int total = pedido.merge(artigo.getId(), escolhido.getQuantidade(), Integer::sum);
+            if (total > artigo.getQuantidadeDisponivel()) {
+                throw new IllegalArgumentException("Stock insuficiente de '" + artigo.getNome() + "': há "
+                        + artigo.getQuantidadeDisponivel() + " disponível(eis) e foram pedidos " + total + ".");
+            }
+            atuais.add(new ProdutoReserva(artigo, escolhido.getQuantidade()));
+        }
+        return atuais;
     }
 
     /**

@@ -28,6 +28,8 @@ public class ConsultaStockViewController {
     @FXML
     private TableColumn<Artigo, String> colunaQuantidade;
     @FXML
+    private TableColumn<Artigo, String> colunaDisponivel;
+    @FXML
     private TableColumn<Artigo, String> colunaUnidade;
     @FXML
     private TableColumn<Artigo, String> colunaFornecedor;
@@ -46,6 +48,8 @@ public class ConsultaStockViewController {
     private void initialize() {
         colunaArtigo.setCellValueFactory(c -> texto(c.getValue().getNome()));
         colunaQuantidade.setCellValueFactory(c -> texto(String.valueOf(c.getValue().getQuantidadeAtual())));
+        // Stock disponível: o stock do hotel menos o que já está usado em reservas (S5-06).
+        colunaDisponivel.setCellValueFactory(c -> texto(String.valueOf(c.getValue().getQuantidadeDisponivel())));
         colunaUnidade.setCellValueFactory(c -> texto(c.getValue().getUnidade()));
         colunaFornecedor.setCellValueFactory(c -> texto(c.getValue().getFornecedor() == null
                 ? "" : c.getValue().getFornecedor().getNome()));

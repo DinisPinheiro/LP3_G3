@@ -21,7 +21,8 @@ public interface SuplementoVistaDAO {
 
     /**
      * Guarda o novo valor de uma vista. A partir daqui o preço por noite dos quartos com essa vista,
-     * a disponibilidade e o total das reservas novas usam este valor.
+     * a disponibilidade e o total das reservas novas usam este valor. As reservas já criadas ficam
+     * com o valor que guardaram na criação.
      *
      * @param vista vista a alterar
      * @param valor novo valor a somar ao preço base por noite, não negativo

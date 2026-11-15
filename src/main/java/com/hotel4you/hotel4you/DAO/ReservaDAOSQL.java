@@ -1,11 +1,15 @@
 package com.hotel4you.hotel4you.DAO;
 
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.CartaoMagnetico;
 import com.hotel4you.hotel4you.Model.Cliente;
+import com.hotel4you.hotel4you.Model.ConsumoServico;
+import com.hotel4you.hotel4you.Model.ProdutoReserva;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.Reserva;
 import com.hotel4you.hotel4you.Model.enums.EstadoReserva;
+import com.hotel4you.hotel4you.Model.enums.TipoCobranca;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,18 +31,47 @@ import java.util.Optional;
 /**
  * {@link ReservaDAO} sobre a tabela {@code dbo.Reserva}. O cliente, o quarto e o cartão de cada
  * reserva são lidos através do {@link ClienteDAO}, do {@link QuartoDAO} e do {@link CartaoDAO}.
+ * <p>
+ * Os serviços e extras da reserva ficam em {@code dbo.ConsumoServico} e os produtos do stock em
+ * {@code dbo.ReservaProduto} (S5-06). Os preços em vigor na criação ficam guardados em
+ * {@code dbo.Reserva} (PrecoBaseNoite, ValorVistaNoite) e em {@code dbo.ConsumoServico}
+ * (ValorUnitario, Cobranca), para não mudarem quando o gestor altera os valores (S5-09).
+ * Estas colunas e tabelas são criadas por {@code DATABASE/EsquemaDB_S5_servicos_produtos_reserva.sql}.
  */
 public class ReservaDAOSQL implements ReservaDAO {
 
     private static final String COLUNAS =
-            "IdReserva, IdCliente, IdQuarto, DataEntrada, DataSaida, Estado, DataCheckIn, DataCheckOut, IdCartao";
+            "IdReserva, IdCliente, IdQuarto, DataEntrada, DataSaida, Estado, DataCheckIn, DataCheckOut, IdCartao, "
+                    + "PrecoBaseNoite, ValorVistaNoite";
     private static final String ESTADOS_ATIVOS = "('PENDENTE', 'CHECK_IN')";
     private static final String SQL_SOBREPOSICAO = "SELECT COUNT(*) FROM dbo.Reserva WHERE IdQuarto = ? AND Estado IN "
             + ESTADOS_ATIVOS + " AND DataEntrada < ? AND DataSaida > ?";
+    private static final String SQL_INSERIR_SERVICO = "INSERT INTO dbo.ConsumoServico "
+            + "(IdReserva, IdServico, Quantidade, Data, ValorUnitario, Cobranca) VALUES (?, ?, ?, ?, ?, ?)";
+    private static final String SQL_INSERIR_PRODUTO =
+            "INSERT INTO dbo.ReservaProduto (IdReserva, IdArtigo, Quantidade) VALUES (?, ?, ?)";
+    /** Primeiro artigo da reserva cujo stock do hotel não chega para tudo o que está usado em reservas. */
+    private static final String SQL_ARTIGO_SEM_STOCK = "SELECT TOP 1 a.Nome FROM dbo.Artigo a "
+            + "WHERE a.IdArtigo IN (SELECT IdArtigo FROM dbo.ReservaProduto WHERE IdReserva = ?) "
+            + "AND a.QuantidadeAtual < " + StockDAOSQL.SQL_USADO_EM_RESERVAS;
+    private static final String SQL_SERVICOS_DA_RESERVA = "SELECT cs.Quantidade, cs.Data, "
+            + "cs.ValorUnitario AS ValorGuardado, cs.Cobranca AS CobrancaGuardada, "
+            + "s.IdServico, s.Nome, s.Categoria, s.Descricao, s.Tipo, s.Valor, s.Cobranca, s.Ativo "
+            + "FROM dbo.ConsumoServico cs JOIN dbo.Servico s ON s.IdServico = cs.IdServico "
+            + "WHERE cs.IdReserva = ? ORDER BY cs.IdConsumo";
+    private static final String SQL_PRODUTOS_DA_RESERVA = "SELECT rp.Quantidade, "
+            + "a.IdArtigo, a.Nome, a.Unidade, a.QuantidadeAtual "
+            + "FROM dbo.ReservaProduto rp JOIN dbo.Artigo a ON a.IdArtigo = rp.IdArtigo "
+            + "WHERE rp.IdReserva = ? ORDER BY rp.IdReservaProduto";
 
-    /** Linha lida da base de dados, antes de se juntar o cliente e o quarto. */
+    /**
+     * Linha lida da base de dados, antes de se juntar o cliente e o quarto. Os preços vêm a
+     * {@code null} nas reservas guardadas antes de existirem as colunas de preço.
+     */
     private record Linha(int id, int idCliente, int idQuarto, LocalDate entrada, LocalDate saida,
-                         EstadoReserva estado, LocalDateTime checkIn, LocalDateTime checkOut, Integer idCartao) {
+                         EstadoReserva estado, LocalDateTime checkIn, LocalDateTime checkOut, Integer idCartao,
+                         BigDecimal precoBase, BigDecimal valorVista,
+                         List<ConsumoServico> servicos, List<ProdutoReserva> produtos) {
     }
 
     private final ClienteDAO clienteDAO;
@@ -62,7 +95,7 @@ public class ReservaDAOSQL implements ReservaDAO {
             throw new DAOException("O cliente e o quarto da reserva têm de estar guardados.");
         }
         String sql = "INSERT INTO dbo.Reserva (IdCliente, IdQuarto, DataEntrada, DataSaida, Estado, ValorTotal, "
-                + "DataCheckIn, DataCheckOut) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                + "DataCheckIn, DataCheckOut, PrecoBaseNoite, ValorVistaNoite) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection()) {
             conn.setAutoCommit(false);
             conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
@@ -82,7 +115,17 @@ public class ReservaDAOSQL implements ReservaDAO {
                     ps.setBigDecimal(6, valorTotal(reserva));
                     SqlUtil.definirDataHora(ps, 7, reserva.getDataCheckIn());
                     SqlUtil.definirDataHora(ps, 8, reserva.getDataCheckOut());
+                    ps.setBigDecimal(9, reserva.getPrecoBaseNoite());
+                    ps.setBigDecimal(10, reserva.getValorVistaNoite());
                 });
+                gravarServicos(conn, id, reserva.getConsumos());
+                gravarProdutos(conn, id, reserva.getProdutos());
+                // Com os produtos já gravados, confirma dentro da transação que o stock chega.
+                String semStock = procurarArtigoSemStock(conn, id);
+                if (semStock != null) {
+                    conn.rollback();
+                    throw new DAOException("Não há stock disponível suficiente de '" + semStock + "'.");
+                }
                 conn.commit();
                 reserva.setId(id);
                 return reserva;
@@ -134,17 +177,28 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
         // "DataCheckIn IS NULL" repete a regra na própria instrução: se o check-in for feito
         // entre a leitura acima e o DELETE, a reserva não é apagada.
+        // Os serviços e os produtos da reserva são apagados com ela, na mesma transação.
         try (Connection conn = DBConnection.getConnection()) {
-            int linhas = SqlUtil.executar(conn,
-                    "DELETE FROM dbo.Reserva WHERE IdReserva = ? AND DataCheckIn IS NULL", ps -> ps.setInt(1, id));
-            if (linhas == 0) {
-                throw new DAOException("A reserva n.º " + id + " já teve check-in ou deixou de existir "
-                        + "e não pode ser apagada.");
+            conn.setAutoCommit(false);
+            try {
+                SqlUtil.executar(conn, "DELETE FROM dbo.ConsumoServico WHERE IdReserva = ?", ps -> ps.setInt(1, id));
+                SqlUtil.executar(conn, "DELETE FROM dbo.ReservaProduto WHERE IdReserva = ?", ps -> ps.setInt(1, id));
+                int linhas = SqlUtil.executar(conn,
+                        "DELETE FROM dbo.Reserva WHERE IdReserva = ? AND DataCheckIn IS NULL", ps -> ps.setInt(1, id));
+                if (linhas == 0) {
+                    conn.rollback();
+                    throw new DAOException("A reserva n.º " + id + " já teve check-in ou deixou de existir "
+                            + "e não pode ser apagada.");
+                }
+                conn.commit();
+            } catch (SQLException e) {
+                SqlUtil.reverter(conn, e);
+                if (SqlUtil.violaChaveEstrangeira(e)) {
+                    throw new DAOException("A reserva tem registos associados (reclamações) e não pode ser removida.", e);
+                }
+                throw new DAOException("Não foi possível remover a reserva.", e);
             }
         } catch (SQLException e) {
-            if (SqlUtil.violaChaveEstrangeira(e)) {
-                throw new DAOException("A reserva tem registos associados (consumos, reclamações) e não pode ser removida.", e);
-            }
             throw new DAOException("Não foi possível remover a reserva.", e);
         }
     }
@@ -193,6 +247,41 @@ public class ReservaDAOSQL implements ReservaDAO {
         return reserva.calcularTotal().setScale(2, RoundingMode.HALF_UP);
     }
 
+    private static void gravarServicos(Connection conn, int idReserva, List<ConsumoServico> servicos)
+            throws SQLException {
+        for (ConsumoServico servico : servicos) {
+            SqlUtil.executar(conn, SQL_INSERIR_SERVICO, ps -> {
+                ps.setInt(1, idReserva);
+                ps.setInt(2, servico.getServico().getId());
+                ps.setInt(3, servico.getQuantidade());
+                ps.setDate(4, Date.valueOf(servico.getData()));
+                ps.setBigDecimal(5, servico.getValorUnitario());
+                ps.setString(6, servico.getCobranca().name());
+            });
+        }
+    }
+
+    private static void gravarProdutos(Connection conn, int idReserva, List<ProdutoReserva> produtos)
+            throws SQLException {
+        for (ProdutoReserva produto : produtos) {
+            SqlUtil.executar(conn, SQL_INSERIR_PRODUTO, ps -> {
+                ps.setInt(1, idReserva);
+                ps.setInt(2, produto.getArtigo().getId());
+                ps.setInt(3, produto.getQuantidade());
+            });
+        }
+    }
+
+    /** @return o nome de um artigo da reserva sem stock suficiente, ou {@code null} se o stock chega */
+    private static String procurarArtigoSemStock(Connection conn, int idReserva) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(SQL_ARTIGO_SEM_STOCK)) {
+            ps.setInt(1, idReserva);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("Nome") : null;
+            }
+        }
+    }
+
     private List<Reserva> listar(String sql, SqlUtil.Preparador p) {
         List<Linha> linhas = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
@@ -206,13 +295,47 @@ public class ReservaDAOSQL implements ReservaDAO {
                             rs.getDate("DataEntrada").toLocalDate(), rs.getDate("DataSaida").toLocalDate(),
                             EstadoReserva.valueOf(rs.getString("Estado")),
                             SqlUtil.lerDataHora(rs, "DataCheckIn"), SqlUtil.lerDataHora(rs, "DataCheckOut"),
-                            semCartao ? null : idCartao));
+                            semCartao ? null : idCartao,
+                            rs.getBigDecimal("PrecoBaseNoite"), rs.getBigDecimal("ValorVistaNoite"),
+                            new ArrayList<>(), new ArrayList<>()));
                 }
+            }
+            for (Linha linha : linhas) {
+                carregarServicos(conn, linha);
+                carregarProdutos(conn, linha);
             }
         } catch (SQLException e) {
             throw new DAOException("Não foi possível consultar as reservas.", e);
         }
         return montar(linhas);
+    }
+
+    /** Lê os serviços e extras da reserva, com o valor e a forma de cobrança guardados na criação. */
+    private static void carregarServicos(Connection conn, Linha linha) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(SQL_SERVICOS_DA_RESERVA)) {
+            ps.setInt(1, linha.id());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    linha.servicos().add(new ConsumoServico(ServicoDAOSQL.mapear(rs), rs.getInt("Quantidade"),
+                            rs.getDate("Data").toLocalDate(), rs.getBigDecimal("ValorGuardado"),
+                            TipoCobranca.valueOf(rs.getString("CobrancaGuardada"))));
+                }
+            }
+        }
+    }
+
+    /** Lê os produtos do stock usados pela reserva. */
+    private static void carregarProdutos(Connection conn, Linha linha) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(SQL_PRODUTOS_DA_RESERVA)) {
+            ps.setInt(1, linha.id());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Artigo artigo = new Artigo(rs.getInt("IdArtigo"), rs.getString("Nome"),
+                            rs.getString("Unidade"), rs.getInt("QuantidadeAtual"));
+                    linha.produtos().add(new ProdutoReserva(artigo, rs.getInt("Quantidade")));
+                }
+            }
+        }
     }
 
     /** Junta a cada linha o cliente, o quarto e o cartão (cada um é lido uma só vez). */
@@ -229,8 +352,11 @@ public class ReservaDAOSQL implements ReservaDAO {
             CartaoMagnetico cartao = l.idCartao() == null ? null : cartoes.computeIfAbsent(l.idCartao(),
                     id -> cartaoDAO.procurarPorId(id)
                             .orElseThrow(() -> new DAOException("O cartão " + id + " da reserva " + l.id() + " não existe.")));
-            reservas.add(new Reserva(l.id(), cliente, quarto, l.entrada(), l.saida(), l.estado(), cartao,
-                    l.checkIn(), l.checkOut(), List.of()));
+            // Reserva guardada antes de existirem as colunas de preço: usa os preços atuais do quarto.
+            BigDecimal precoBase = l.precoBase() != null ? l.precoBase() : quarto.getPrecoBase();
+            BigDecimal valorVista = l.valorVista() != null ? l.valorVista() : quarto.getSuplementoVista();
+            reservas.add(new Reserva(l.id(), cliente, quarto, l.entrada(), l.saida(), precoBase, valorVista,
+                    l.estado(), cartao, l.checkIn(), l.checkOut(), l.servicos(), l.produtos()));
         }
         return reservas;
     }
