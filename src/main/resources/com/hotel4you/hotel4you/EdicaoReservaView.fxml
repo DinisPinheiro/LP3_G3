@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.hotel4you.hotel4you.View.EdicaoReservaViewController"
+      spacing="10">
+
+    <padding>
+        <Insets top="15" right="15" bottom="15" left="15"/>
+    </padding>
+
+    <Label text="Edição e Detalhes da Reserva"
+           style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+
+    <HBox spacing="10">
+
+        <VBox spacing="8" prefWidth="350">
+
+            <Label text="Reservas"/>
+
+            <ListView fx:id="listaReservas"
+                      prefHeight="350"
+                      VBox.vgrow="ALWAYS"/>
+
+            <Button text="Atualizar reservas"
+                    onAction="#atualizarReservas"/>
+
+        </VBox>
+
+        <VBox spacing="8" HBox.hgrow="ALWAYS">
+
+            <Label text="Detalhes da reserva"
+                   style="-fx-font-weight: bold;"/>
+
+            <Label fx:id="labelHospede"
+                   text="Hóspede:"/>
+
+            <Label fx:id="labelQuarto"
+                   text="Quarto:"/>
+
+            <Label fx:id="labelDatas"
+                   text="Datas:"/>
+
+            <Label fx:id="labelEstado"
+                   text="Estado:"/>
+
+            <Label text="Serviços e extras:"/>
+
+            <ListView fx:id="listaServicos"
+                      prefHeight="120"/>
+
+            <Label text="Produtos associados:"/>
+
+            <ListView fx:id="listaProdutos"
+                      prefHeight="70"/>
+
+            <Label fx:id="labelTotal"
+                   text="Valor total: 0 €"
+                   style="-fx-font-weight: bold;"/>
+
+            <HBox spacing="8">
+
+                <ComboBox fx:id="campoServico"
+                          promptText="Escolher serviço"
+                          prefWidth="230"/>
+
+                <TextField fx:id="campoQuantidade"
+                           promptText="Qtd."
+                           prefWidth="60"/>
+
+            </HBox>
+
+            <HBox spacing="8">
+
+                <Button fx:id="botaoAdicionar"
+                        text="Adicionar serviço"
+                        onAction="#onAdicionarServico"/>
+
+                <Button fx:id="botaoRemover"
+                        text="Remover selecionado"
+                        onAction="#onRemoverServico"/>
+
+            </HBox>
+
+        </VBox>
+
+    </HBox>
+
+    <Label fx:id="labelMensagem"
+           wrapText="true"/>
+
+    <Button text="Voltar ao menu"
+            onAction="#onVoltar"/>
+
+</VBox>

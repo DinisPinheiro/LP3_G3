@@ -44,8 +44,6 @@ public class Main extends Application {
         CartaoDAO cartaoDAO = new CartaoDAOSQL();
         ReservaDAO reservaDAO = new ReservaDAOSQL(clienteDAO, quartoDAO, cartaoDAO);
         StockDAO stockDAO = new StockDAOSQL();
-
-        // ---- 2. Controllers (regras de negócio) -------------------------------------------------
         Sessao sessao = new Sessao();
 
         // Utilizadores e menu
@@ -66,6 +64,12 @@ public class Main extends Application {
         // Reservas
         GestaoReservasController gestaoReservasController =
                 new GestaoReservasController(reservaDAO, clienteDAO, quartoDAO, servicoDAO, stockDAO, sessao);
+
+        // Edição e detalhes de reservas
+        EdicaoReservaController edicaoReservaController =
+                new EdicaoReservaController(reservaDAO, servicoDAO, sessao);
+
+        // Check-in e check-out
         CheckInCheckOutController checkInCheckOutController =
                 new CheckInCheckOutController(reservaDAO, cartaoDAO, sessao);
 
@@ -106,6 +110,13 @@ public class Main extends Application {
             if (tipo == GestaoReservasViewController.class) {
                 return new GestaoReservasViewController(gestaoReservasController, gestaoClientesController);
             }
+
+            // Editar e consultar reservas
+            if (tipo == EdicaoReservaViewController.class) {
+                return new EdicaoReservaViewController(edicaoReservaController);
+            }
+
+            // Consultar disponibilidade
             if (tipo == ConsultaDisponibilidadeViewController.class) {
                 return new ConsultaDisponibilidadeViewController(gestaoReservasController);
             }

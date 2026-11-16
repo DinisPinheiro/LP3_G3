@@ -167,6 +167,74 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
     }
 
+    /**
+     * Guarda os serviços atualizados e o novo valor total.
+     */
+    @Override
+    public void atualizarServicos(Reserva reserva) {
+
+        // Verifica o estado da reserva.
+        if (!reserva.podeEditarServicos()) {
+            throw new IllegalStateException("Esta reserva não pode ser editada.");
+        }
+
+        try (Connection conn = DBConnection.getConnection()) {
+
+            // Inicia a transação.
+            conn.setAutoCommit(false);
+            try {
+                // 1. Verifica o estado atual na base de dados.
+                String sqlEstado = "SELECT Estado FROM dbo.Reserva WITH (UPDLOCK, HOLDLOCK) " + "WHERE IdReserva = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sqlEstado)) {
+                    ps.setInt(1, reserva.getId());
+
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new DAOException("A reserva não existe.");
+                        }
+                        String estado = rs.getString("Estado");
+                        if (!estado.equals("CHECK_IN")) {
+                            throw new DAOException("A reserva não está ativa.");
+                        }
+                    }
+                }
+
+                // 2. Remove os serviços antigos da reserva.
+                String sqlRemover = "DELETE FROM dbo.ConsumoServico " + "WHERE IdReserva = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sqlRemover)) {
+                    ps.setInt(1, reserva.getId());
+                    ps.executeUpdate();
+                }
+
+                // 3. Guarda os serviços da lista atualizada.
+                gravarServicos(conn, reserva.getId(), reserva.getConsumos());
+
+                // 4. Atualiza o valor total da reserva.
+                String sqlTotal = "UPDATE dbo.Reserva " + "SET ValorTotal = ? " + "WHERE IdReserva = ? AND Estado = 'CHECK_IN'";
+                try (PreparedStatement ps = conn.prepareStatement(sqlTotal)) {
+                    ps.setBigDecimal(1, valorTotal(reserva));
+                    ps.setInt(2, reserva.getId());
+                    int linhas = ps.executeUpdate();
+                    if (linhas != 1) {throw new DAOException("Não foi possível atualizar a reserva.");
+                    }
+                }
+
+                // 5. Confirma todas as alterações.
+                conn.commit();
+
+            } catch (SQLException | RuntimeException e) {
+                // Se alguma operação falhar,
+                // cancela as alterações na base de dados.
+                conn.rollback();
+
+                throw e;
+            }
+
+        } catch (SQLException e) {
+            throw new DAOException("Erro ao atualizar os serviços da reserva.", e);
+        }
+    }
+
     @Override
     public void remover(int id) {
         Reserva reserva = procurarPorId(id)

@@ -39,6 +39,13 @@ public interface ReservaDAO extends DAO<Reserva> {
     void atualizar(Reserva reserva);
 
     /**
+     * Atualiza os serviços e o valor total de uma reserva.
+     *
+     * @param reserva reserva com os serviços atualizados
+     */
+    void atualizarServicos(Reserva reserva);
+
+    /**
      * {@inheritDoc}
      * <p>
      * Regra de negócio validada aqui (e não no Controller): só se apaga uma reserva que nunca

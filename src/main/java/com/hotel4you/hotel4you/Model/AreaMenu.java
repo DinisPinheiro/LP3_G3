@@ -5,7 +5,6 @@ import static com.hotel4you.hotel4you.Model.OpcaoMenu.*;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -19,7 +18,7 @@ public enum AreaMenu {
 
     CLIENTES("Registar e consultar clientes", "Clientes", REGISTAR_CLIENTE),
     DISPONIBILIDADE("Consultar disponibilidade de quarto", "Disponibilidade de quartos", CONSULTAR_DISPONIBILIDADE),
-    RESERVAS("Reservas", "Reservas", CRIAR_RESERVA, CANCELAR_RESERVA, APAGAR_RESERVAS, CHECK_IN, CHECK_OUT),
+    RESERVAS("Reservas", "Reservas", CRIAR_RESERVA, EDITAR_RESERVA, CANCELAR_RESERVA, APAGAR_RESERVAS, CHECK_IN, CHECK_OUT),
     SERVICOS("Serviços e extras", "Serviços e extras", SERVICOS_E_EXTRAS, SERVICOS_QUARTO),
     STOCK("Stock", "Stock", GERIR_STOCK),
     FORNECEDORES("Fornecedores", "Fornecedores", ENVIAR_ENTREGA_XML),
