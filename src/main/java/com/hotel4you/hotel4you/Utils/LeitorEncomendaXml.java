@@ -7,6 +7,7 @@ import com.hotel4you.hotel4you.Model.encomenda.LinhaEncomenda;
 import com.hotel4you.hotel4you.Model.encomenda.Montante;
 import com.hotel4you.hotel4you.Model.encomenda.PrecoUnitario;
 import com.hotel4you.hotel4you.Model.encomenda.Quantidade;
+import com.hotel4you.hotel4you.Model.encomenda.TotaisEncomenda;
 import com.hotel4you.hotel4you.Model.enums.UnidadeMedida;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -16,6 +17,7 @@ import org.xml.sax.SAXException;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.validation.Schema;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -31,7 +33,7 @@ import java.util.List;
  * ({@link EncomendaFornecedor}).
  * <p>
  * O ficheiro é sempre validado primeiro com o {@link ValidadorXml}; só um XML válido é lido.
- * Esta classe não guarda nada na base de dados (esta sprint não há entrada em stock).
+ * Esta classe não guarda nada na base de dados: só converte o XML em objetos.
  */
 public final class LeitorEncomendaXml {
 
@@ -41,7 +43,7 @@ public final class LeitorEncomendaXml {
     }
 
     /**
-     * Valida e lê um ficheiro XML de encomenda.
+     * Valida (com o XSD da aplicação) e lê um ficheiro XML de encomenda.
      *
      * @param ficheiro caminho do ficheiro XML
      * @return a encomenda com todos os dados do ficheiro
@@ -49,13 +51,33 @@ public final class LeitorEncomendaXml {
      * @throws XmlInvalidoException  se o XML não cumprir o XSD (traz a linha e o motivo de cada erro)
      */
     public static EncomendaFornecedor ler(Path ficheiro) throws IOException {
-        byte[] conteudo = Files.readAllBytes(ficheiro);
+        return ler(Files.readAllBytes(ficheiro), ValidadorXml.schemaPadrao());
+    }
 
-        ResultadoValidacao resultado = ValidadorXml.validar(new ByteArrayInputStream(conteudo));
+    /**
+     * Valida um XML de encomenda contra o XSD indicado e, se for válido, lê os seus dados.
+     *
+     * @param conteudo bytes do ficheiro XML
+     * @param schema   XSD contra o qual validar (o da aplicação ou o que o gestor importou, S5-05)
+     * @return a encomenda com todos os dados do ficheiro
+     * @throws IOException           se o conteúdo não puder ser lido
+     * @throws XmlInvalidoException  se o XML não cumprir o XSD ou, mesmo cumprindo-o, não tiver a
+     *                               estrutura de encomenda que a aplicação sabe ler
+     */
+    public static EncomendaFornecedor ler(byte[] conteudo, Schema schema) throws IOException {
+        ResultadoValidacao resultado = ValidadorXml.validar(new ByteArrayInputStream(conteudo), schema);
         if (!resultado.valido()) {
             throw new XmlInvalidoException(resultado.erros());
         }
-        return converter(construirDocumento(conteudo).getDocumentElement());
+        try {
+            return converter(construirDocumento(conteudo).getDocumentElement());
+        } catch (IllegalStateException | NumberFormatException e) {
+            // Um XSD importado pelo gestor pode aceitar ficheiros com outra estrutura: aqui falta algo
+            // que a aplicação precisa para dar entrada em stock.
+            throw new XmlInvalidoException(List.of(new ErroXml(0, 0,
+                    "O ficheiro cumpre o XSD, mas não tem a estrutura de encomenda que a aplicação lê: "
+                            + e.getMessage())));
+        }
     }
 
     private static Document construirDocumento(byte[] conteudo) throws IOException {
@@ -82,7 +104,20 @@ public final class LeitorEncomendaXml {
                 texto(cabecalho, "OrderNumber"),
                 converterData(filho(filho(cabecalho, "OrderDate"), "Date")),
                 converterFornecedor(filho(cabecalho, "SupplierParty")),
-                linhas);
+                linhas,
+                converterResumo(filhos(ordem, "OrderSummary")));
+    }
+
+    /** Lê os totais do elemento opcional {@code OrderSummary}; devolve {@code null} se o XML não os tiver. */
+    private static TotaisEncomenda converterResumo(List<Element> resumos) {
+        if (resumos.isEmpty()) {
+            return null;
+        }
+        Element resumo = resumos.get(0);
+        Montante linhas = converterMontante(filho(resumo, "TotalLinesAmount"));
+        Montante taxas = converterMontante(filho(resumo, "TotalTaxAmount"));
+        Montante total = converterMontante(filho(resumo, "OrderTotalAmount"));
+        return new TotaisEncomenda(linhas.valor(), taxas.valor(), total.valor(), total.moeda());
     }
 
     private static LocalDate converterData(Element data) {

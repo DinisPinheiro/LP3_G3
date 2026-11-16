@@ -31,6 +31,7 @@ public enum OpcaoMenu {
     SERVICOS_QUARTO("Serviços de quarto e extras", RECECIONISTA, GESTOR),
     SERVICOS_E_EXTRAS("Serviços e extras", RECECIONISTA, GESTOR),
     GERIR_STOCK("Gerir stock", RECECIONISTA, GESTOR),
+    APROVAR_ENTREGAS("Aprovar entregas dos fornecedores", RECECIONISTA, GESTOR),
 
     // Só gestor
     GERIR_FUNCIONARIOS("Gerir funcionários", GESTOR),
@@ -40,6 +41,8 @@ public enum OpcaoMenu {
     LISTAGEM_POR_QUARTO("Passagens de cartões num quarto", GESTOR),
     CONFIGURAR_QUARTOS("Configurar quartos", GESTOR),
     EDITAR_VISTAS("Valores das vistas especiais", GESTOR),
+    GERIR_FORNECEDORES("Gerir fornecedores", GESTOR),
+    IMPORTAR_XSD("Importar XSD", GESTOR),
 
     // Empresa de restauração
     COZINHA_RESTAURANTE("Cozinha e restaurante", EMPRESA_RESTAURACAO),

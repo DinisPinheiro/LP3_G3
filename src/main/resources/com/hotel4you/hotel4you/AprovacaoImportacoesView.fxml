@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.hotel4you.hotel4you.View.AprovacaoImportacoesViewController"
+      spacing="8">
+    <padding>
+        <Insets top="14" right="18" bottom="14" left="18"/>
+    </padding>
+
+    <Label text="Aprovação de entregas dos fornecedores" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+
+    <HBox spacing="8">
+        <Label text="Mostrar:"/>
+        <ComboBox fx:id="comboFiltro" prefWidth="160"/>
+        <Button text="Atualizar" onAction="#onAtualizar"/>
+    </HBox>
+
+    <Label fx:id="labelMensagem" wrapText="true"/>
+
+    <TableView fx:id="tabelaImportacoes" VBox.vgrow="ALWAYS" prefHeight="170">
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+        <columns>
+            <TableColumn fx:id="colunaFornecedor" text="Fornecedor" minWidth="130"/>
+            <TableColumn fx:id="colunaFicheiro" text="Ficheiro" minWidth="130"/>
+            <TableColumn fx:id="colunaEncomenda" text="Encomenda" minWidth="80"/>
+            <TableColumn fx:id="colunaEnviadoEm" text="Enviado em" minWidth="110"/>
+            <TableColumn fx:id="colunaEstado" text="Estado" minWidth="80"/>
+            <TableColumn fx:id="colunaDecididoEm" text="Decidido em" minWidth="110"/>
+        </columns>
+    </TableView>
+
+    <Label fx:id="labelCabecalho" wrapText="true" style="-fx-font-weight: bold;"/>
+    <Label fx:id="labelTotais" wrapText="true"/>
+    <TableView fx:id="tabelaLinhas" VBox.vgrow="ALWAYS" prefHeight="130">
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+        <columns>
+            <TableColumn fx:id="colunaNumero" text="Linha" minWidth="45"/>
+            <TableColumn fx:id="colunaCodigo" text="Código" minWidth="80"/>
+            <TableColumn fx:id="colunaDescricao" text="Artigo" minWidth="220"/>
+            <TableColumn fx:id="colunaQuantidade" text="Quantidade" minWidth="90"/>
+            <TableColumn fx:id="colunaCaixas" text="Caixas" minWidth="55"/>
+            <TableColumn fx:id="colunaUnidades" text="Unidades" minWidth="65"/>
+            <TableColumn fx:id="colunaPreco" text="Preço unitário" minWidth="100"/>
+            <TableColumn fx:id="colunaTaxa" text="Taxa" minWidth="50"/>
+            <TableColumn fx:id="colunaSemTaxa" text="Sem taxa" minWidth="80"/>
+            <TableColumn fx:id="colunaValorTaxa" text="Valor da taxa" minWidth="80"/>
+            <TableColumn fx:id="colunaTotalLinha" text="Total da linha" minWidth="90"/>
+        </columns>
+    </TableView>
+
+    <TextArea fx:id="areaErros" editable="false" wrapText="true" prefRowCount="4" visible="false" managed="false"/>
+
+    <HBox spacing="8">
+        <Button fx:id="botaoAprovar" text="Aprovar (dá entrada em stock)" disable="true" onAction="#onAprovar"/>
+        <Button fx:id="botaoRejeitar" text="Rejeitar" disable="true" onAction="#onRejeitar"/>
+    </HBox>
+</VBox>

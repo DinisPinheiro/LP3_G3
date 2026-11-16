@@ -1,5 +1,6 @@
 package com.hotel4you.hotel4you.Model;
 
+import java.math.BigDecimal;
 import java.util.Objects;
 
 /**
@@ -17,6 +18,12 @@ public class Artigo {
     /** Quantidade usada em reservas não canceladas (calculada pelo DAO). */
     private int quantidadeReservada;
     private Fornecedor fornecedor;
+    /** Preço unitário da última entrada (sem imposto), ou {@code null} se ainda não se sabe. */
+    private BigDecimal precoUnitario;
+    /** Unidade a que o preço se refere (ex.: "cx"). */
+    private String unidadePreco;
+    /** Taxa de imposto da última entrada, em percentagem (ex.: 23), ou {@code null}. */
+    private Integer taxaPercentagem;
 
     /**
      * @param id              identificador (0 se ainda não foi guardado)
@@ -115,6 +122,41 @@ public class Artigo {
     /** @param fornecedor fornecedor da última entrada deste artigo; pode ser {@code null} */
     public void setFornecedor(Fornecedor fornecedor) {
         this.fornecedor = fornecedor;
+    }
+
+    /** @return o preço unitário (sem imposto) da última entrada, ou {@code null} se não se sabe */
+    public BigDecimal getPrecoUnitario() {
+        return precoUnitario;
+    }
+
+    /** @return a unidade a que o preço se refere (ex.: "cx"), ou vazio se não há preço */
+    public String getUnidadePreco() {
+        return unidadePreco == null ? "" : unidadePreco;
+    }
+
+    /** @return a taxa de imposto da última entrada em percentagem (ex.: 23), ou {@code null} se não se sabe */
+    public Integer getTaxaPercentagem() {
+        return taxaPercentagem;
+    }
+
+    /**
+     * Guarda o preço e a taxa da última entrada deste artigo. Não altera o stock.
+     *
+     * @param preco         preço unitário sem imposto, não negativo ({@code null} limpa o preço)
+     * @param unidadePreco  unidade a que o preço se refere
+     * @param taxaPercentagem taxa de imposto entre 0 e 100; pode ser {@code null}
+     * @throws IllegalArgumentException se o preço for negativo ou a taxa estiver fora de 0 a 100
+     */
+    public void setUltimoPreco(BigDecimal preco, String unidadePreco, Integer taxaPercentagem) {
+        if (preco != null && preco.signum() < 0) {
+            throw new IllegalArgumentException("O preço unitário não pode ser negativo.");
+        }
+        if (taxaPercentagem != null && (taxaPercentagem < 0 || taxaPercentagem > 100)) {
+            throw new IllegalArgumentException("A taxa de imposto tem de estar entre 0 e 100.");
+        }
+        this.precoUnitario = preco;
+        this.unidadePreco = unidadePreco == null ? null : unidadePreco.trim();
+        this.taxaPercentagem = taxaPercentagem;
     }
 
     @Override
