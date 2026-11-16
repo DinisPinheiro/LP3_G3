@@ -39,6 +39,13 @@ public interface ReservaDAO extends DAO<Reserva> {
     void atualizar(Reserva reserva);
 
     /**
+     * Atualiza os serviços e o valor total de uma reserva.
+     *
+     * @param reserva reserva com os serviços atualizados
+     */
+    void atualizarServicos(Reserva reserva);
+
+    /**
      * {@inheritDoc}
      * <p>
      * Regra de negócio validada aqui (e não no Controller): só se apaga uma reserva que nunca
@@ -66,4 +73,9 @@ public interface ReservaDAO extends DAO<Reserva> {
      * @throws DAOException se não for possível ler
      */
     boolean existeSobreposicao(int idQuarto, LocalDate dataEntrada, LocalDate dataSaida);
+    // Consulta paginada das reservas nos estados escolhidos.
+    List<Reserva> listarPorEstados(List<com.hotel4you.hotel4you.Model.enums.EstadoReserva> estados, int pagina, int tamanhoPagina);
+    // Número de reservas nos estados escolhidos.
+    int contarPorEstados(List<com.hotel4you.hotel4you.Model.enums.EstadoReserva> estados);
+
 }

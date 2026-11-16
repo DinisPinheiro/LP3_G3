@@ -48,8 +48,6 @@ public class Main extends Application {
         FornecedorDAO fornecedorDAO = new FornecedorDAOSQL();
         ImportacaoDAO importacaoDAO = new ImportacaoDAOSQL();
         XsdDAO xsdDAO = new XsdDAOSQL();
-
-        // ---- 2. Controllers (regras de negócio) -------------------------------------------------
         Sessao sessao = new Sessao();
 
         // Utilizadores e menu
@@ -70,6 +68,12 @@ public class Main extends Application {
         // Reservas
         GestaoReservasController gestaoReservasController =
                 new GestaoReservasController(reservaDAO, clienteDAO, quartoDAO, servicoDAO, stockDAO, sessao);
+
+        // Edição e detalhes de reservas
+        EdicaoReservaController edicaoReservaController =
+                new EdicaoReservaController(reservaDAO, servicoDAO, sessao);
+
+        // Check-in e check-out
         CheckInCheckOutController checkInCheckOutController =
                 new CheckInCheckOutController(reservaDAO, cartaoDAO, sessao);
 
@@ -119,6 +123,20 @@ public class Main extends Application {
             if (tipo == GestaoReservasViewController.class) {
                 return new GestaoReservasViewController(gestaoReservasController, gestaoClientesController);
             }
+
+            // Editar e consultar reservas
+            if (tipo == EdicaoReservaViewController.class) {
+                return new EdicaoReservaViewController(edicaoReservaController);
+            }
+
+            if (tipo == ReservasAtivasViewController.class) {
+                return new ReservasAtivasViewController(gestaoReservasController);
+            }
+            if (tipo == HistoricoReservasViewController.class) {
+                return new HistoricoReservasViewController(gestaoReservasController);
+            }
+
+            // Consultar disponibilidade
             if (tipo == ConsultaDisponibilidadeViewController.class) {
                 return new ConsultaDisponibilidadeViewController(gestaoReservasController);
             }

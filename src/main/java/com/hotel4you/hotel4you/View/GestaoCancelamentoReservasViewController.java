@@ -17,16 +17,9 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * ViewController do ecrã de cancelamento e eliminação de reservas
- * ({@code GestaoCancelamentoReservasView.fxml}).
- * <p>
- * Escolher uma reserva na lista e carregar em "Cancelar reserva" (rececionista e gestor) ou em
- * "Apagar registo" (só o gestor, e só se o check-in não foi efetuado). Só lê a escolha e mostra
- * mensagens; as regras e as permissões estão no {@link GestaoReservasController}.
- * <p>
- */
 public class GestaoCancelamentoReservasViewController {
 
     private static final String COR_ERRO = "-fx-text-fill: #b03a2e;";
@@ -35,6 +28,10 @@ public class GestaoCancelamentoReservasViewController {
     private static final DateTimeFormatter FORMATO_DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final GestaoReservasController controller;
+
+    // Paginação
+    private int pagina = 1;
+    private final int TAMANHO_PAGINA = 10;
 
     @FXML
     private TextField campoPesquisa;
@@ -46,35 +43,52 @@ public class GestaoCancelamentoReservasViewController {
     private Label labelPermissoes;
     @FXML
     private Label labelMensagem;
+    @FXML
+    private Button botaoAnterior;
+    @FXML
+    private Button botaoSeguinte;
+    @FXML
+    private Label labelPagina;
 
-    /**
-     * @param controller controller que cancela, apaga e consulta reservas
-     */
     public GestaoCancelamentoReservasViewController(GestaoReservasController controller) {
         this.controller = controller;
     }
 
-    /** Chamado pelo JavaFX depois de os campos {@code @FXML} serem preenchidos. */
     @FXML
     private void initialize() {
         listaReservas.setCellFactory(lista -> new ListCell<Reserva>() {
             @Override
             protected void updateItem(Reserva reserva, boolean vazio) {
                 super.updateItem(reserva, vazio);
-                setText(vazio || reserva == null ? null : descrever(reserva));
-            }
-        });
-        campoPesquisa.textProperty().addListener((observavel, antigo, novo) -> atualizarLista());
+                        if (vazio || reserva == null) {setText(null);
+                        }
+
+                        else {
+                            setText(descrever(reserva));
+                        }
+                    }
+                });
+
+        // Quando pesquisa, volta à primeira página.
+        campoPesquisa.textProperty().addListener((observavel, antigo, novo) -> {
+                    pagina = 1;
+                    atualizarLista();
+                });
+
         boolean gestor = controller.podeApagarReservas();
         botaoApagar.setDisable(!gestor);
-        labelPermissoes.setText(gestor
-                ? "Como gestor, pode cancelar reservas e apagar o registo das que ainda não tiveram check-in."
-                : "O rececionista pode cancelar reservas a pedido do cliente. "
-                  + "Só o gestor pode apagar o registo (o histórico fica guardado).");
+
+        if (gestor) {
+            labelPermissoes.setText("Como gestor, pode cancelar reservas e apagar " + "o registo das que ainda não tiveram check-in.");
+
+        } else {
+            labelPermissoes.setText("O rececionista pode cancelar reservas a pedido " + "do cliente. Só o gestor pode apagar o registo " + "(o histórico fica guardado).");
+        }
+
         atualizarLista();
     }
 
-    /** Chamado pelo botão "Cancelar reserva". */
+    // Cancelar reserva
     @FXML
     private void onCancelar() {
         Reserva reserva = listaReservas.getSelectionModel().getSelectedItem();
@@ -82,25 +96,28 @@ public class GestaoCancelamentoReservasViewController {
             mostrar("Escolha uma reserva na lista.", COR_ERRO);
             return;
         }
-        if (!confirmar("Cancelar a reserva n.º " + reserva.getId() + " de " + reserva.getCliente().getNome()
-                + " (" + reserva.getQuarto() + ")?")) {
+        boolean confirmado = confirmar("Cancelar a reserva n.º " + reserva.getId() + " de " + reserva.getCliente().getNome() + " (" + reserva.getQuarto() + ")?");
+
+        if (!confirmado) {
             mostrar("Cancelamento anulado.", COR_NEUTRA);
             return;
         }
         try {
             controller.cancelarReserva(reserva.getId());
-            mostrar("Reserva n.º " + reserva.getId() + " cancelada. O " + reserva.getQuarto()
-                    + " ficou disponível entre " + reserva.getDataEntrada().format(FORMATO_DATA) + " e "
-                    + reserva.getDataSaida().format(FORMATO_DATA) + ".", COR_SUCESSO);
+            mostrar("Reserva n.º " + reserva.getId() + " cancelada. O " + reserva.getQuarto() + " ficou disponível entre " + reserva.getDataEntrada().format(FORMATO_DATA) + " e " + reserva.getDataSaida().format(FORMATO_DATA) + ".", COR_SUCESSO);
             atualizarLista();
-        } catch (IllegalArgumentException | SecurityException e) {
+        }
+
+        catch (IllegalArgumentException | SecurityException e) {
             mostrar(e.getMessage(), COR_ERRO);
-        } catch (RuntimeException e) {
+        }
+
+        catch (RuntimeException e) {
             mostrar("Não foi possível cancelar a reserva: " + e.getMessage(), COR_ERRO);
         }
     }
 
-    /** Chamado pelo botão "Apagar registo" (só o gestor). */
+    // Apagar reserva
     @FXML
     private void onApagar() {
         Reserva reserva = listaReservas.getSelectionModel().getSelectedItem();
@@ -108,8 +125,10 @@ public class GestaoCancelamentoReservasViewController {
             mostrar("Escolha uma reserva na lista.", COR_ERRO);
             return;
         }
-        if (!confirmar("Apagar o registo da reserva n.º " + reserva.getId() + " de "
-                + reserva.getCliente().getNome() + "? Esta ação não se pode desfazer.")) {
+
+        boolean confirmado = confirmar("Apagar o registo da reserva n.º " + reserva.getId() + " de " + reserva.getCliente().getNome() + "? Esta ação não se pode desfazer.");
+
+        if (!confirmado) {
             mostrar("Eliminação anulada.", COR_NEUTRA);
             return;
         }
@@ -117,35 +136,90 @@ public class GestaoCancelamentoReservasViewController {
             controller.apagarReserva(reserva.getId());
             mostrar("Registo da reserva n.º " + reserva.getId() + " apagado.", COR_SUCESSO);
             atualizarLista();
-        } catch (IllegalArgumentException | SecurityException e) {
+        }
+
+        catch (IllegalArgumentException | SecurityException e) {
             mostrar(e.getMessage(), COR_ERRO);
-        } catch (RuntimeException e) {
+        }
+
+        catch (RuntimeException e) {
             mostrar("Não foi possível apagar a reserva: " + e.getMessage(), COR_ERRO);
         }
     }
 
-    /** Chamado pelo botão "Voltar ao menu". */
+    // Voltar ao menu
     @FXML
     private void onVoltar() {
         Navegador.mudarPara("MenuPrincipalView.fxml", "Hotel4You");
     }
 
-    /** Mostra uma caixa de confirmação com os botões "Sim" e "Não". */
+    // Caixa de confirmação
     private boolean confirmar(String texto) {
         ButtonType sim = new ButtonType("Sim", ButtonBar.ButtonData.YES);
         ButtonType nao = new ButtonType("Não", ButtonBar.ButtonData.NO);
         Alert alerta = new Alert(Alert.AlertType.CONFIRMATION, texto, sim, nao);
         alerta.setTitle("Hotel4You");
         alerta.setHeaderText(null);
+
         return alerta.showAndWait().filter(botao -> botao == sim).isPresent();
     }
 
+    // Atualiza a lista com paginação
     private void atualizarLista() {
         try {
-            listaReservas.setItems(FXCollections.observableArrayList(
-                    controller.consultarReservas(campoPesquisa.getText())));
-        } catch (RuntimeException e) {
+
+            List<Reserva> reservas = controller.consultarReservas(campoPesquisa.getText());
+
+            int totalReservas = reservas.size();
+            int totalPaginas = (totalReservas + TAMANHO_PAGINA - 1) / TAMANHO_PAGINA;
+
+            if (totalPaginas == 0) {
+                totalPaginas = 1;
+            }
+
+            if (pagina > totalPaginas) {
+                pagina = totalPaginas;
+            }
+
+            int inicio = (pagina - 1) * TAMANHO_PAGINA;
+            int fim = inicio + TAMANHO_PAGINA;
+            if (fim > totalReservas) {
+                fim = totalReservas;
+            }
+
+            List<Reserva> reservasPagina = new ArrayList<>();
+
+            for (int i = inicio; i < fim; i++) {
+                reservasPagina.add(reservas.get(i));
+            }
+
+            listaReservas.setItems(FXCollections.observableArrayList(reservasPagina));
+            labelPagina.setText("Página " + pagina + " de " + totalPaginas + " (" + totalReservas + " reservas)");
+            botaoAnterior.setDisable(pagina <= 1);
+            botaoSeguinte.setDisable(pagina >= totalPaginas);
+        }
+
+        catch (RuntimeException e) {
             mostrar(e.getMessage(), COR_ERRO);
+        }
+    }
+
+    // Página anterior
+    @FXML
+    private void anterior() {
+
+        if (pagina > 1) {
+            pagina--;
+            atualizarLista();
+        }
+    }
+
+    // Página seguinte
+    @FXML
+    private void seguinte() {
+        if (!botaoSeguinte.isDisabled()) {
+            pagina++;
+            atualizarLista();
         }
     }
 
@@ -155,19 +229,21 @@ public class GestaoCancelamentoReservasViewController {
     }
 
     private static String descrever(Reserva reserva) {
-        return "N.º " + reserva.getId() + "  |  " + reserva.getCliente().getNome() + "  |  " + reserva.getQuarto()
-                + "  |  " + reserva.getDataEntrada().format(FORMATO_DATA) + " a "
-                + reserva.getDataSaida().format(FORMATO_DATA)
-                + "  |  " + Utils.formatarPreco(reserva.calcularTotal())
-                + "  |  " + descreverEstado(reserva.getEstado());
+        return "N.º " + reserva.getId() + "  |  " + reserva.getCliente().getNome() + "  |  " + reserva.getQuarto() + "  |  " + reserva.getDataEntrada().format(FORMATO_DATA) + " a " + reserva.getDataSaida().format(FORMATO_DATA) + "  |  " + Utils.formatarPreco(reserva.calcularTotal()) + "  |  " + descreverEstado(reserva.getEstado());
     }
 
     private static String descreverEstado(EstadoReserva estado) {
-        return switch (estado) {
-            case PENDENTE -> "Reservado (pendente de check-in)";
-            case CHECK_IN -> "Check-in efetuado";
-            case CHECK_OUT -> "Check-out efetuado";
-            case CANCELADA -> "Cancelada";
-        };
+        switch (estado) {
+            case PENDENTE:
+                return "Reservado (pendente de check-in)";
+            case CHECK_IN:
+                return "Check-in efetuado";
+            case CHECK_OUT:
+                return "Check-out efetuado";
+            case CANCELADA:
+                return "Cancelada";
+            default:
+                return "";
+        }
     }
 }

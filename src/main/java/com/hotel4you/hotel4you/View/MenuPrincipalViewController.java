@@ -48,6 +48,12 @@ public class MenuPrincipalViewController {
                 "Hotel4You - Disponibilidade de quartos", "Disponibilidade de quartos"));
         DESTINOS.put(OpcaoMenu.CRIAR_RESERVA,
                 new Destino("GestaoReservasView.fxml", "Hotel4You - Criar reserva", "Criar reserva"));
+        DESTINOS.put(OpcaoMenu.EDITAR_RESERVA,
+                new Destino("EdicaoReservaView.fxml", "Hotel4You - Edição e detalhes da reserva", "Editar e consultar reservas"));
+        DESTINOS.put(OpcaoMenu.RESERVAS_ATIVAS,
+                new Destino("ReservasAtivasView.fxml", "Hotel4You - Reservas ativas", "Reservas ativas"));
+        DESTINOS.put(OpcaoMenu.HISTORICO_RESERVAS,
+                new Destino("HistoricoReservasView.fxml", "Hotel4You - Histórico", "Histórico de reservas"));
         DESTINOS.put(OpcaoMenu.CANCELAR_RESERVA, CANCELAR_APAGAR);
         DESTINOS.put(OpcaoMenu.APAGAR_RESERVAS, CANCELAR_APAGAR);
         DESTINOS.put(OpcaoMenu.CHECK_IN, CHECK_IN_OUT);

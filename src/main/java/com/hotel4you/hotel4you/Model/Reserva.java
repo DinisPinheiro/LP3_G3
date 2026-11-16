@@ -140,7 +140,7 @@ public class Reserva {
      */
     public void fazerCheckIn(CartaoMagnetico cartao, LocalDateTime quando) {
         if (estado != EstadoReserva.PENDENTE) {
-            throw new IllegalStateException("Só é possível fazer check-in de reservas pendentes (estado: " + estado + ").");
+            throw new IllegalStateException("Só é possível fazer check-in de reservas pendentes " + "(estado: " + estado + ").");
         }
         Objects.requireNonNull(cartao, "O cartão é obrigatório.");
         if (cartao.isMestre()) {
@@ -171,7 +171,7 @@ public class Reserva {
      */
     public void fazerCheckOut(LocalDateTime quando) {
         if (estado != EstadoReserva.CHECK_IN) {
-            throw new IllegalStateException("Só é possível fazer check-out após o check-in (estado: " + estado + ").");
+            throw new IllegalStateException("Só é possível fazer check-out após o check-in " + "(estado: " + estado + ").");
         }
         this.dataCheckOut = Objects.requireNonNull(quando);
         this.estado = EstadoReserva.CHECK_OUT;
@@ -187,7 +187,7 @@ public class Reserva {
      */
     public void cancelar() {
         if (estado != EstadoReserva.PENDENTE) {
-            throw new IllegalStateException("Só é possível cancelar reservas pendentes (estado: " + estado + ").");
+            throw new IllegalStateException("Só é possível cancelar reservas pendentes " + "(estado: " + estado + ").");
         }
         this.estado = EstadoReserva.CANCELADA;
     }
@@ -210,12 +210,72 @@ public class Reserva {
      */
     public void adicionarConsumo(ConsumoServico consumo) {
         if (estado != EstadoReserva.CHECK_IN) {
-            throw new IllegalStateException("Só se registam consumos durante a estadia (estado: " + estado + ").");
+            throw new IllegalStateException("Só se registam consumos durante a estadia " + "(estado: " + estado + ").");
         }
         consumos.add(Objects.requireNonNull(consumo, "O consumo é obrigatório."));
     }
 
-    /** @return número de noites da estadia */
+    // EDIÇÃO DE SERVIÇOS DA RESERVA
+    /**
+     * Verifica se os serviços da reserva podem ser editados.
+     *
+     * Apenas reservas com check-in efetuado podem ser editadas.
+     * Reservas pendentes, canceladas ou com check-out
+     * não podem ser editadas nesta funcionalidade.
+     *
+     * @return true se a reserva estiver em CHECK_IN
+     */
+    public boolean podeEditarServicos() {
+
+        if (estado == EstadoReserva.CHECK_IN) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Acrescenta um serviço a uma reserva ativa.
+     *
+     * @param consumo serviço que será acrescentado
+     */
+    public void adicionarServicoEdicao(ConsumoServico consumo) {
+
+        // Verifica se a reserva pode ser editada.
+        if (!podeEditarServicos()) {
+            throw new IllegalStateException("Não é possível editar os serviços desta reserva.");
+        }
+
+        // Verifica se foi escolhido um serviço.
+        if (consumo == null) {
+            throw new IllegalArgumentException("Tem de selecionar um serviço.");
+        }
+
+        // Adiciona o serviço à lista.
+        consumos.add(consumo);
+    }
+
+    /**
+     * Remove um serviço de uma reserva ativa.
+     *
+     * @param indice posição do serviço na lista
+     */
+    public void removerServicoEdicao(int indice) {
+        // Verifica se a reserva pode ser editada.
+        if (!podeEditarServicos()) {
+            throw new IllegalStateException("Não é possível editar os serviços desta reserva.");
+        }
+
+        // Verifica se a posição é válida.
+        if (indice < 0 || indice >= consumos.size()) {
+            throw new IllegalArgumentException("O serviço selecionado não existe.");
+        }
+        consumos.remove(indice);
+    }
+
+    /**
+     * Devolve o número de noites da reserva.
+     */
     public long getNoites() {
         return ChronoUnit.DAYS.between(dataEntrada, dataSaida);
     }
@@ -309,7 +369,6 @@ public class Reserva {
         return estado;
     }
 
-    /** @return cartão entregue no check-in, ou {@code null} se ainda não houve */
     public CartaoMagnetico getCartao() {
         return cartao;
     }
@@ -322,12 +381,10 @@ public class Reserva {
         return dataCheckOut;
     }
 
-    /** @return preço base do quarto por noite, guardado quando a reserva foi criada */
     public BigDecimal getPrecoBaseNoite() {
         return precoBaseNoite;
     }
 
-    /** @return valor da vista por noite, guardado quando a reserva foi criada */
     public BigDecimal getValorVistaNoite() {
         return valorVistaNoite;
     }

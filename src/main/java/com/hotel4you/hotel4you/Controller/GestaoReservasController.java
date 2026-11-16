@@ -367,7 +367,72 @@ public class GestaoReservasController {
     }
 
     private void exigirRececao() {
-        Permissoes.exigirPerfil(sessao, "Apenas o rececionista ou o gestor podem gerir reservas.",
-                Perfil.RECECIONISTA, Perfil.GESTOR);
+        Permissoes.exigirPerfil(sessao, "Apenas o rececionista ou o gestor podem gerir reservas.", Perfil.RECECIONISTA, Perfil.GESTOR);
+    }
+
+    // Listagem filtrada e paginada. O histórico fica separado das reservas ativas.
+    public List<Reserva> listarReservasFiltradas(boolean historico, EstadoReserva filtro, int pagina) {
+        exigirRececao();
+        return reservaDAO.listarPorEstados(estadosDoFiltro(historico, filtro), pagina, 10);
+    }
+
+    public int contarReservasFiltradas(boolean historico, EstadoReserva filtro) {
+        exigirRececao();
+        return reservaDAO.contarPorEstados(estadosDoFiltro(historico, filtro));
+    }
+
+
+
+    private List<EstadoReserva> estadosDoFiltro(boolean historico, EstadoReserva filtro) {
+        if (historico) {
+
+            if (filtro == null) {
+                return List.of(EstadoReserva.CHECK_OUT, EstadoReserva.CANCELADA);
+            }
+
+            return List.of(filtro);
+        }
+
+        // Reservas ativas
+        if (filtro == null) {
+            return List.of(EstadoReserva.PENDENTE, EstadoReserva.CHECK_IN);
+        }
+
+        if (filtro != EstadoReserva.PENDENTE && filtro != EstadoReserva.CHECK_IN) {
+            throw new IllegalArgumentException("Estado inválido para reservas ativas.");
+        }
+
+        return List.of(filtro);
+    }
+
+
+
+
+    // Determina os estados que aparecem no histórico.
+    private List<EstadoReserva> estadosHistorico(EstadoReserva estado, boolean filtroAplicado) {
+        // Sem filtro: apenas reservas terminadas.
+        if (!filtroAplicado) {
+            return List.of(EstadoReserva.CHECK_OUT, EstadoReserva.CANCELADA);
+        }
+
+        // Filtro "Todos": os quatro estados.
+        if (estado == null) {
+            return List.of(EstadoReserva.PENDENTE, EstadoReserva.CHECK_IN, EstadoReserva.CHECK_OUT, EstadoReserva.CANCELADA);
+        }
+
+        // Um estado específico.
+        return List.of(estado);
+    }
+
+    // Lista as reservas do histórico com paginação.
+    public List<Reserva> listarHistoricoComFiltro(EstadoReserva estado, boolean filtroAplicado, int pagina) {
+        exigirRececao();
+        return reservaDAO.listarPorEstados(estadosHistorico(estado, filtroAplicado), pagina, 10);
+    }
+
+    // Conta as reservas do histórico.
+    public int contarHistoricoComFiltro(EstadoReserva estado, boolean filtroAplicado) {
+        exigirRececao();
+        return reservaDAO.contarPorEstados(estadosHistorico(estado, filtroAplicado));
     }
 }

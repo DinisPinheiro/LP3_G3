@@ -23,6 +23,14 @@
     <TextField fx:id="campoPesquisa" promptText="Pesquisar por nome do cliente, n.º do quarto ou n.º da reserva"/>
     <ListView fx:id="listaReservas" VBox.vgrow="ALWAYS" prefHeight="220"/>
 
+    <!-- Paginação -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Button fx:id="botaoAnterior" text="Anterior" onAction="#anterior"/>
+        <Label fx:id="labelPagina" text="Página 1"/>
+        <Button fx:id="botaoSeguinte" text="Seguinte" onAction="#seguinte"/>
+    </HBox>
+
+    <!-- Operações -->
     <HBox spacing="8">
         <Button text="Fazer check-in" onAction="#onCheckIn"/>
         <Button text="Fazer check-out" onAction="#onCheckOut"/>

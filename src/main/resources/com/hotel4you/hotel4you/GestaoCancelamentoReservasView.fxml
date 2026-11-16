@@ -12,21 +12,60 @@
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.hotel4you.hotel4you.View.GestaoCancelamentoReservasViewController"
       spacing="10">
+
     <padding>
-        <Insets top="18" right="18" bottom="18" left="18"/>
+        <Insets top="18"
+                right="18"
+                bottom="18"
+                left="18"/>
     </padding>
 
-    <Label text="Cancelar e apagar reservas" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
-    <Label fx:id="labelPermissoes" wrapText="true" style="-fx-text-fill: #555555;"/>
+    <Label text="Cancelar e apagar reservas"
+           style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
 
-    <TextField fx:id="campoPesquisa" promptText="Pesquisar por nome do cliente, n.º do quarto ou n.º da reserva"/>
-    <ListView fx:id="listaReservas" VBox.vgrow="ALWAYS" prefHeight="220"/>
+    <Label fx:id="labelPermissoes"
+           wrapText="true"
+           style="-fx-text-fill: #555555;"/>
 
-    <HBox spacing="8">
-        <Button text="Cancelar reserva" onAction="#onCancelar"/>
-        <Button fx:id="botaoApagar" text="Apagar registo" onAction="#onApagar"/>
-        <Button text="Voltar ao menu" onAction="#onVoltar"/>
+    <TextField fx:id="campoPesquisa"
+               promptText="Pesquisar por nome do cliente, n.º do quarto ou n.º da reserva"/>
+
+    <ListView fx:id="listaReservas"
+              VBox.vgrow="ALWAYS"
+              prefHeight="220"/>
+
+    <!-- Paginação -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+
+        <Button fx:id="botaoAnterior"
+                text="Anterior"
+                onAction="#anterior"/>
+
+        <Label fx:id="labelPagina"
+               text="Página 1"/>
+
+        <Button fx:id="botaoSeguinte"
+                text="Seguinte"
+                onAction="#seguinte"/>
+
     </HBox>
 
-    <Label fx:id="labelMensagem" wrapText="true"/>
+    <!-- Operações -->
+    <HBox spacing="8">
+
+        <Button text="Cancelar reserva"
+                onAction="#onCancelar"/>
+
+        <Button fx:id="botaoApagar"
+                text="Apagar registo"
+                onAction="#onApagar"/>
+
+        <Button text="Voltar ao menu"
+                onAction="#onVoltar"/>
+
+    </HBox>
+
+    <Label fx:id="labelMensagem"
+           wrapText="true"/>
+
 </VBox>
