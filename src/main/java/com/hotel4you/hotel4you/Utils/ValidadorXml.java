@@ -22,7 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Valida ficheiros XML de encomendas de fornecedores contra o XSD {@code Hotel4You.xsd}.
+ * Valida ficheiros XML de encomendas de fornecedores contra um XSD: por omissão o {@code Hotel4You.xsd}
+ * que vem com a aplicação, ou o XSD que o gestor importou (S5-05), recebido por parâmetro.
  * <p>
  * Devolve todos os erros encontrados, cada um com a linha e o motivo. Não lê os dados nem
  * mostra nada no ecrã: quem a usa decide o que fazer com o resultado. Usa apenas o que já vem
@@ -62,6 +63,18 @@ public final class ValidadorXml {
      * @throws IOException se o conteúdo não puder ser lido
      */
     public static ResultadoValidacao validar(InputStream xml) throws IOException {
+        return validar(xml, schemaPadrao());
+    }
+
+    /**
+     * Valida um XML contra o XSD indicado.
+     *
+     * @param xml    conteúdo do XML (não é fechado por este método)
+     * @param schema esquema contra o qual validar, ver {@link #carregarSchema(InputStream)}
+     * @return o resultado, com a lista de erros (vazia se o XML for válido)
+     * @throws IOException se o conteúdo não puder ser lido
+     */
+    public static ResultadoValidacao validar(InputStream xml, Schema schema) throws IOException {
         RecolhaDeErros recolha = new RecolhaDeErros();
         try {
             SAXParserFactory fabrica = SAXParserFactory.newInstance();
@@ -70,7 +83,7 @@ public final class ValidadorXml {
             fabrica.setFeature(RECUSAR_DOCTYPE, true);
             XMLReader leitor = fabrica.newSAXParser().getXMLReader();
 
-            Validator validador = obterSchema().newValidator();
+            Validator validador = schema.newValidator();
             validador.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
             validador.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             validador.setErrorHandler(recolha);
@@ -86,22 +99,45 @@ public final class ValidadorXml {
         return new ResultadoValidacao(recolha.erros);
     }
 
-    private static synchronized Schema obterSchema() {
+    /**
+     * @return o esquema do {@code Hotel4You.xsd} que vem com a aplicação (carregado uma só vez)
+     * @throws IllegalStateException se o XSD da aplicação não existir ou for inválido
+     */
+    public static synchronized Schema schemaPadrao() {
         if (schema == null) {
             try (InputStream xsd = ValidadorXml.class.getResourceAsStream(CAMINHO_XSD)) {
                 if (xsd == null) {
                     throw new IllegalStateException("XSD não encontrado nos recursos: " + CAMINHO_XSD);
                 }
-                SchemaFactory fabrica = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-                fabrica.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-                fabrica.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-                fabrica.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-                schema = fabrica.newSchema(new StreamSource(xsd));
-            } catch (IOException | SAXException e) {
+                schema = carregarSchema(xsd);
+            } catch (IOException | XsdInvalidoException e) {
                 throw new IllegalStateException("Não foi possível carregar o XSD do fornecedor.", e);
             }
         }
         return schema;
+    }
+
+    /**
+     * Lê e compila um ficheiro XSD, para o poder usar na validação (S5-05). Falha se o ficheiro não
+     * for um esquema XML válido. Não são abertos recursos externos (por exemplo, outros XSD por URL).
+     *
+     * @param xsd conteúdo do XSD (não é fechado por este método)
+     * @return o esquema pronto a usar em {@link #validar(InputStream, Schema)}
+     * @throws XsdInvalidoException se o ficheiro não for um XSD válido (a mensagem indica o motivo)
+     */
+    public static Schema carregarSchema(InputStream xsd) {
+        try {
+            SchemaFactory fabrica = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+            fabrica.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            fabrica.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            fabrica.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            return fabrica.newSchema(new StreamSource(xsd));
+        } catch (SAXParseException e) {
+            ErroXml erro = new ErroXml(e.getLineNumber(), e.getColumnNumber(), e.getMessage());
+            throw new XsdInvalidoException("O ficheiro XSD é inválido. " + erro, e);
+        } catch (SAXException e) {
+            throw new XsdInvalidoException("O ficheiro XSD é inválido. " + e.getMessage(), e);
+        }
     }
 
     /** Guarda todos os erros em vez de parar no primeiro. */

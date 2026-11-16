@@ -56,6 +56,14 @@ public class MenuPrincipalViewController {
                 new Destino("GestaoServicosView.fxml", "Hotel4You - Serviços e extras", "Serviços e extras"));
         DESTINOS.put(OpcaoMenu.GERIR_STOCK,
                 new Destino("ConsultaStockView.fxml", "Hotel4You - Stock", "Stock"));
+        DESTINOS.put(OpcaoMenu.APROVAR_ENTREGAS, new Destino("AprovacaoImportacoesView.fxml",
+                "Hotel4You - Aprovar entregas", "Aprovar entregas"));
+        DESTINOS.put(OpcaoMenu.ENVIAR_ENTREGA_XML, new Destino("ImportacaoFornecedorView.fxml",
+                "Hotel4You - Enviar entrega", "Enviar entrega (XML)"));
+        DESTINOS.put(OpcaoMenu.GERIR_FORNECEDORES, new Destino("GestaoFornecedoresView.fxml",
+                "Hotel4You - Fornecedores", "Gerir fornecedores"));
+        DESTINOS.put(OpcaoMenu.IMPORTAR_XSD, new Destino("ImportacaoXsdView.fxml",
+                "Hotel4You - XSD", "Importar XSD"));
         DESTINOS.put(OpcaoMenu.GERIR_FUNCIONARIOS, new Destino(
                 "GestaoFuncionariosView.fxml", "Hotel4You - Gestão de funcionários", "Funcionários"));
         DESTINOS.put(OpcaoMenu.CONFIGURAR_QUARTOS,
