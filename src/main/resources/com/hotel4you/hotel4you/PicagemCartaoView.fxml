@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.hotel4you.hotel4you.View.PicagemCartaoViewController"
+      spacing="12">
+
+    <padding>
+        <Insets top="18" right="18"
+                bottom="18" left="18"/>
+    </padding>
+
+    <Label text="Picagem de cartão"
+           style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+
+    <Label text="Número do cartão:"/>
+
+    <TextField fx:id="campoCartao"
+               promptText="Ex.: 1001"/>
+
+    <Label text="Local:"/>
+
+    <ComboBox fx:id="campoLocal"
+              prefWidth="240"/>
+
+    <Label text="Número do quarto (obrigatório para entrada no quarto):"/>
+
+    <TextField fx:id="campoQuarto"
+               promptText="Ex.: 202"/>
+
+    <Button text="Registar passagem"
+            onAction="#registar"/>
+
+    <Label fx:id="labelMensagem"
+           wrapText="true"/>
+
+    <Button text="Voltar"
+            onAction="#voltar"/>
+
+</VBox>

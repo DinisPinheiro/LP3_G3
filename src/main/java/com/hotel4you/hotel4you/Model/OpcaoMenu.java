@@ -34,6 +34,7 @@ public enum OpcaoMenu {
     SERVICOS_E_EXTRAS("Serviços e extras", RECECIONISTA, GESTOR),
     GERIR_STOCK("Gerir stock", RECECIONISTA, GESTOR),
     APROVAR_ENTREGAS("Aprovar entregas dos fornecedores", RECECIONISTA, GESTOR),
+    PICAGEM_CARTAO("Picagem de cartão", RECECIONISTA, GESTOR, EMPRESA_RESTAURACAO),
 
     // Só gestor
     GERIR_FUNCIONARIOS("Gerir funcionários", GESTOR),
