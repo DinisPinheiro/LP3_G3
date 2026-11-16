@@ -26,9 +26,6 @@
                       prefHeight="350"
                       VBox.vgrow="ALWAYS"/>
 
-            <Button text="Atualizar reservas"
-                    onAction="#atualizarReservas"/>
-
         </VBox>
 
         <VBox spacing="8" HBox.hgrow="ALWAYS">

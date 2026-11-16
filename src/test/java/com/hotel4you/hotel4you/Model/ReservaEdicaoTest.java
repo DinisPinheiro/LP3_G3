@@ -56,7 +56,7 @@ class ReservaEdicaoTest {
     @Test
     void reservaComCheckInPermiteAdicionarServico() {
 
-        CartaoMagnetico cartao = new CartaoMagnetico("12345", false);
+        CartaoMagnetico cartao = new CartaoMagnetico(12345, false);
         reserva.fazerCheckIn(cartao, LocalDateTime.of(2026, 12, 1, 14, 0));
         assertTrue(reserva.podeEditarServicos());
         BigDecimal totalAnterior = reserva.calcularTotal();
@@ -71,7 +71,7 @@ class ReservaEdicaoTest {
     @Test
     void removerServicoAtualizaTotal() {
 
-        CartaoMagnetico cartao = new CartaoMagnetico("12345", false);
+        CartaoMagnetico cartao = new CartaoMagnetico(12345, false);
         reserva.fazerCheckIn(cartao);
         BigDecimal totalInicial = reserva.calcularTotal();
         reserva.adicionarServicoEdicao(criarConsumo());
@@ -98,7 +98,7 @@ class ReservaEdicaoTest {
     @Test
     void reservaComCheckOutNaoPermiteEditar() {
 
-        CartaoMagnetico cartao = new CartaoMagnetico("12345", false);
+        CartaoMagnetico cartao = new CartaoMagnetico(12345, false);
         reserva.fazerCheckIn(cartao);
         reserva.fazerCheckOut();
         assertFalse(reserva.podeEditarServicos());
@@ -111,7 +111,7 @@ class ReservaEdicaoTest {
     @Test
     void naoPermiteRemoverServicoInexistente() {
 
-        CartaoMagnetico cartao = new CartaoMagnetico("12345", false);
+        CartaoMagnetico cartao = new CartaoMagnetico(12345, false);
         reserva.fazerCheckIn(cartao);
         assertThrows(IllegalArgumentException.class, () -> reserva.removerServicoEdicao(0));
     }

@@ -25,6 +25,8 @@ public enum OpcaoMenu {
     CONSULTAR_DISPONIBILIDADE("Consultar disponibilidade de quartos", RECECIONISTA, GESTOR),
     CRIAR_RESERVA("Criar reserva", RECECIONISTA, GESTOR),
     EDITAR_RESERVA("Editar e consultar reservas", RECECIONISTA, GESTOR),
+    RESERVAS_ATIVAS("Reservas ativas", RECECIONISTA, GESTOR),
+    HISTORICO_RESERVAS("Histórico de reservas", RECECIONISTA, GESTOR),
     CANCELAR_RESERVA("Cancelar reserva", RECECIONISTA, GESTOR),
     CHECK_IN("Check-in", RECECIONISTA, GESTOR),
     CHECK_OUT("Check-out", RECECIONISTA, GESTOR),

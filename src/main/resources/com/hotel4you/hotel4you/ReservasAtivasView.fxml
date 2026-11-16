@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.hotel4you.hotel4you.View.ReservasAtivasViewController" spacing="12">
+    <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
+    <Label text="Reservas ativas" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <HBox spacing="10">
+        <Label text="Estado:"/>
+        <ComboBox fx:id="filtroEstado" prefWidth="200"/>
+    </HBox>
+    <ListView fx:id="listaReservas" prefHeight="350" VBox.vgrow="ALWAYS"/>
+    <HBox spacing="12">
+        <Button fx:id="botaoAnterior" text="Anterior" onAction="#anterior"/>
+        <Label fx:id="labelPagina" text="Página 1"/>
+        <Button fx:id="botaoSeguinte" text="Seguinte" onAction="#seguinte"/>
+    </HBox>
+    <Label fx:id="labelMensagem" wrapText="true"/>
+    <Button text="Voltar" onAction="#voltar"/>
+</VBox>

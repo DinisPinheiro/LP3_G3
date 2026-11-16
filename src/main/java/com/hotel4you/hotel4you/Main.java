@@ -129,6 +129,13 @@ public class Main extends Application {
                 return new EdicaoReservaViewController(edicaoReservaController);
             }
 
+            if (tipo == ReservasAtivasViewController.class) {
+                return new ReservasAtivasViewController(gestaoReservasController);
+            }
+            if (tipo == HistoricoReservasViewController.class) {
+                return new HistoricoReservasViewController(gestaoReservasController);
+            }
+
             // Consultar disponibilidade
             if (tipo == ConsultaDisponibilidadeViewController.class) {
                 return new ConsultaDisponibilidadeViewController(gestaoReservasController);

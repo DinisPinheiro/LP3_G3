@@ -428,4 +428,62 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
         return reservas;
     }
+
+    @Override
+    public List<Reserva> listarPorEstados(List<EstadoReserva> estados, int pagina, int tamanhoPagina) {
+        validarPaginacao(estados, pagina, tamanhoPagina);
+        String marcas = String.join(", ", java.util.Collections.nCopies(estados.size(), "?"));
+        String sql = "SELECT " + COLUNAS + " FROM dbo.Reserva WHERE Estado IN (" + marcas + ") " + "ORDER BY DataEntrada DESC, IdReserva DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+        return listar(sql, ps -> {
+            int indice = 1;
+            for (EstadoReserva estado : estados) {
+                ps.setString(indice, estado.name());
+                indice++;
+            }
+            ps.setInt(indice, (pagina - 1) * tamanhoPagina);
+            ps.setInt(indice + 1, tamanhoPagina);
+        });
+    }
+
+    @Override
+    public int contarPorEstados(List<EstadoReserva> estados) {
+        validarPaginacao(estados, 1, 1);
+        String marcas = String.join(", ", java.util.Collections.nCopies(estados.size(), "?"));
+        String sql = "SELECT COUNT(*) FROM dbo.Reserva WHERE Estado IN (" + marcas + ")";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            int indice = 1;
+            for (EstadoReserva estado : estados) {
+                ps.setString(indice, estado.name());
+                indice++;
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+                return 0;
+            }
+        } catch (SQLException e) {
+            throw new DAOException("Não foi possível contar as reservas.", e);
+        }
+    }
+
+    // Não se usa estados.contains(null): numa lista criada com List.of(...) isso lança NullPointerException.
+    private static boolean temEstadoNulo(List<EstadoReserva> estados) {
+        for (EstadoReserva estado : estados) {
+            if (estado == null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void validarPaginacao(List<EstadoReserva> estados, int pagina, int tamanhoPagina) {
+        if (estados == null || estados.isEmpty() || temEstadoNulo(estados)) {
+            throw new IllegalArgumentException("Escolha um estado válido.");
+        }
+        if (pagina < 1 || tamanhoPagina < 1 || tamanhoPagina > 100
+                || ((long) pagina - 1) * tamanhoPagina > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Paginação inválida.");
+        }
+    }
+
 }

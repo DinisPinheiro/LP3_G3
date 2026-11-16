@@ -73,4 +73,9 @@ public interface ReservaDAO extends DAO<Reserva> {
      * @throws DAOException se não for possível ler
      */
     boolean existeSobreposicao(int idQuarto, LocalDate dataEntrada, LocalDate dataSaida);
+    // Consulta paginada das reservas nos estados escolhidos.
+    List<Reserva> listarPorEstados(List<com.hotel4you.hotel4you.Model.enums.EstadoReserva> estados, int pagina, int tamanhoPagina);
+    // Número de reservas nos estados escolhidos.
+    int contarPorEstados(List<com.hotel4you.hotel4you.Model.enums.EstadoReserva> estados);
+
 }

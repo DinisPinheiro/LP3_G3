@@ -176,4 +176,51 @@ public class ReservaDAOMemoria implements ReservaDAO {
 
         return false;
     }
+
+    @Override
+    public List<Reserva> listarPorEstados(List<EstadoReserva> estados, int pagina, int tamanhoPagina) {
+        validarPaginacao(estados, pagina, tamanhoPagina);
+        List<Reserva> resultado = new ArrayList<>();
+        for (Reserva reserva : reservas.values()) {
+            if (estados.contains(reserva.getEstado())) resultado.add(reserva);
+        }
+        resultado.sort((a, b) -> {
+            int datas = b.getDataEntrada().compareTo(a.getDataEntrada());
+            if (datas != 0) return datas;
+            return Integer.compare(b.getId(), a.getId());
+        });
+        long inicio = ((long) pagina - 1) * tamanhoPagina;
+        if (inicio >= resultado.size()) return new ArrayList<>();
+        int fim = (int) Math.min(inicio + tamanhoPagina, resultado.size());
+        return new ArrayList<>(resultado.subList((int) inicio, fim));
+    }
+
+    @Override
+    public int contarPorEstados(List<EstadoReserva> estados) {
+        validarPaginacao(estados, 1, 1);
+        int total = 0;
+        for (Reserva reserva : reservas.values()) {
+            if (estados.contains(reserva.getEstado())) total++;
+        }
+        return total;
+    }
+
+    // Não se usa estados.contains(null): numa lista criada com List.of(...) isso lança NullPointerException.
+    private static boolean temEstadoNulo(List<EstadoReserva> estados) {
+        for (EstadoReserva estado : estados) {
+            if (estado == null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void validarPaginacao(List<EstadoReserva> estados, int pagina, int tamanhoPagina) {
+        if (estados == null || estados.isEmpty() || temEstadoNulo(estados))
+            throw new IllegalArgumentException("Escolha um estado válido.");
+        if (pagina < 1 || tamanhoPagina < 1 || tamanhoPagina > 100
+                || ((long) pagina - 1) * tamanhoPagina > Integer.MAX_VALUE)
+            throw new IllegalArgumentException("Paginação inválida.");
+    }
+
 }
