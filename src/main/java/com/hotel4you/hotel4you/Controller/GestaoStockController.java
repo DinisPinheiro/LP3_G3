@@ -131,7 +131,7 @@ public class GestaoStockController {
      * Verifica os valores da encomenda que o XSD aceita mas que a base de dados não: preços negativos, taxas
      * acima de 100, textos longos demais, e se os totais se conseguem calcular. Não guarda nada.
      */
-    private static void validarValores(EncomendaFornecedor encomenda) {
+    static void validarValores(EncomendaFornecedor encomenda) {
         limitar(encomenda.numero(), MAX_NUMERO_ENCOMENDA, "O número da encomenda");
         for (LinhaEncomenda linha : encomenda.linhas()) {
             String prefixo = "Linha " + linha.numero() + ": ";
