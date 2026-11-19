@@ -154,23 +154,43 @@ public class QuartoDAOSQL implements QuartoDAO {
         return encontrados.isEmpty() ? Optional.empty() : Optional.of(encontrados.get(0));
     }
 
+    /**
+     * Lê um quarto (com o valor da vista e os equipamentos) com uma ligação que já está aberta (não a fecha).
+     * Usado pelo {@link ReservaDAOSQL} para ler o quarto de cada reserva na mesma ligação, em vez de abrir
+     * uma ligação por quarto (S6-01).
+     *
+     * @param conn ligação aberta
+     * @param id   identificador do quarto
+     * @return o quarto, ou vazio se não existir
+     * @throws SQLException se a consulta falhar
+     */
+    static Optional<Quarto> lerPorId(Connection conn, int id) throws SQLException {
+        List<Quarto> encontrados = listar(conn, SELECT + " WHERE q.IdQuarto = ?", ps -> ps.setInt(1, id));
+        return encontrados.isEmpty() ? Optional.empty() : Optional.of(encontrados.get(0));
+    }
+
     private List<Quarto> listar(String sql, SqlUtil.Preparador p) {
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DBConnection.getConnection()) {
+            return listar(conn, sql, p);
+        } catch (SQLException e) {
+            throw new DAOException("Não foi possível consultar os quartos.", e);
+        }
+    }
+
+    private static List<Quarto> listar(Connection conn, String sql, SqlUtil.Preparador p) throws SQLException {
+        List<Quarto> lista = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             p.preparar(ps);
-            List<Quarto> lista = new ArrayList<>();
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     lista.add(mapear(rs));
                 }
             }
-            for (Quarto quarto : lista) {
-                carregarEquipamentos(conn, quarto);
-            }
-            return lista;
-        } catch (SQLException e) {
-            throw new DAOException("Não foi possível consultar os quartos.", e);
         }
+        for (Quarto quarto : lista) {
+            carregarEquipamentos(conn, quarto);
+        }
+        return lista;
     }
 
     private static Quarto mapear(ResultSet rs) throws SQLException {

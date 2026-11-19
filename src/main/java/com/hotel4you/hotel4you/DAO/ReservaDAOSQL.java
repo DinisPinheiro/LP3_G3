@@ -25,12 +25,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
  * {@link ReservaDAO} sobre a tabela {@code dbo.Reserva}. O cliente, o quarto e o cartão de cada
- * reserva são lidos através do {@link ClienteDAO}, do {@link QuartoDAO} e do {@link CartaoDAO}.
+ * reserva são lidos na mesma ligação da consulta das reservas (com o {@link ClienteDAOSQL}, o
+ * {@link QuartoDAOSQL} e o {@link CartaoDAOSQL}), para que cada consulta abra uma só ligação (S6-01).
  * <p>
  * Os serviços e extras da reserva ficam em {@code dbo.ConsumoServico} e os produtos do stock em
  * {@code dbo.ReservaProduto} (S5-06). Os preços em vigor na criação ficam guardados em
@@ -74,19 +74,10 @@ public class ReservaDAOSQL implements ReservaDAO {
                          List<ConsumoServico> servicos, List<ProdutoReserva> produtos) {
     }
 
-    private final ClienteDAO clienteDAO;
-    private final QuartoDAO quartoDAO;
-    private final CartaoDAO cartaoDAO;
-
-    /**
-     * @param clienteDAO DAO usado para ler o cliente de cada reserva
-     * @param quartoDAO  DAO usado para ler o quarto de cada reserva
-     * @param cartaoDAO  DAO usado para ler o cartão entregue no check-in
-     */
-    public ReservaDAOSQL(ClienteDAO clienteDAO, QuartoDAO quartoDAO, CartaoDAO cartaoDAO) {
-        this.clienteDAO = Objects.requireNonNull(clienteDAO);
-        this.quartoDAO = Objects.requireNonNull(quartoDAO);
-        this.cartaoDAO = Objects.requireNonNull(cartaoDAO);
+    /** Lê um registo (cliente, quarto ou cartão) pelo id, com uma ligação já aberta. */
+    @FunctionalInterface
+    private interface Leitor<T> {
+        Optional<T> ler(Connection conn, int id) throws SQLException;
     }
 
     @Override
@@ -350,6 +341,11 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
     }
 
+    /**
+     * Lê as reservas e tudo o que elas têm (serviços, produtos, cliente, quarto e cartão) numa só ligação.
+     * Antes da S6-01 o cliente, o quarto e o cartão eram lidos com uma ligação nova cada um, o que numa
+     * página de 10 reservas chegava a abrir mais de 20 ligações ao servidor.
+     */
     private List<Reserva> listar(String sql, SqlUtil.Preparador p) {
         List<Linha> linhas = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
@@ -372,10 +368,10 @@ public class ReservaDAOSQL implements ReservaDAO {
                 carregarServicos(conn, linha);
                 carregarProdutos(conn, linha);
             }
+            return montar(conn, linhas);
         } catch (SQLException e) {
             throw new DAOException("Não foi possível consultar as reservas.", e);
         }
-        return montar(linhas);
     }
 
     /** Lê os serviços e extras da reserva, com o valor e a forma de cobrança guardados na criação. */
@@ -406,20 +402,23 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
     }
 
-    /** Junta a cada linha o cliente, o quarto e o cartão (cada um é lido uma só vez). */
-    private List<Reserva> montar(List<Linha> linhas) {
+    /**
+     * Junta a cada linha o cliente, o quarto e o cartão, lidos com a ligação {@code conn}
+     * (cada um é lido uma só vez, mesmo que apareça em várias reservas).
+     */
+    private static List<Reserva> montar(Connection conn, List<Linha> linhas) throws SQLException {
         Map<Integer, Cliente> clientes = new HashMap<>();
         Map<Integer, Quarto> quartos = new HashMap<>();
         Map<Integer, CartaoMagnetico> cartoes = new HashMap<>();
         List<Reserva> reservas = new ArrayList<>();
         for (Linha l : linhas) {
-            Cliente cliente = clientes.computeIfAbsent(l.idCliente(), id -> clienteDAO.procurarPorId(id)
-                    .orElseThrow(() -> new DAOException("O cliente " + id + " da reserva " + l.id() + " não existe.")));
-            Quarto quarto = quartos.computeIfAbsent(l.idQuarto(), id -> quartoDAO.procurarPorId(id)
-                    .orElseThrow(() -> new DAOException("O quarto " + id + " da reserva " + l.id() + " não existe.")));
-            CartaoMagnetico cartao = l.idCartao() == null ? null : cartoes.computeIfAbsent(l.idCartao(),
-                    id -> cartaoDAO.procurarPorId(id)
-                            .orElseThrow(() -> new DAOException("O cartão " + id + " da reserva " + l.id() + " não existe.")));
+            Cliente cliente = lerUmaVez(conn, clientes, l.idCliente(), ClienteDAOSQL::lerPorId,
+                    "O cliente " + l.idCliente() + " da reserva " + l.id() + " não existe.");
+            Quarto quarto = lerUmaVez(conn, quartos, l.idQuarto(), QuartoDAOSQL::lerPorId,
+                    "O quarto " + l.idQuarto() + " da reserva " + l.id() + " não existe.");
+            CartaoMagnetico cartao = l.idCartao() == null ? null
+                    : lerUmaVez(conn, cartoes, l.idCartao(), CartaoDAOSQL::lerPorId,
+                    "O cartão " + l.idCartao() + " da reserva " + l.id() + " não existe.");
             // Reserva guardada antes de existirem as colunas de preço: usa os preços atuais do quarto.
             BigDecimal precoBase = l.precoBase() != null ? l.precoBase() : quarto.getPrecoBase();
             BigDecimal valorVista = l.valorVista() != null ? l.valorVista() : quarto.getSuplementoVista();
@@ -427,6 +426,17 @@ public class ReservaDAOSQL implements ReservaDAO {
                     l.estado(), cartao, l.checkIn(), l.checkOut(), l.servicos(), l.produtos()));
         }
         return reservas;
+    }
+
+    /** Devolve o registo já lido com este id ou lê-o agora (e guarda-o em {@code lidos}). */
+    private static <T> T lerUmaVez(Connection conn, Map<Integer, T> lidos, int id, Leitor<T> leitor,
+                                   String erroSeNaoExistir) throws SQLException {
+        T registo = lidos.get(id);
+        if (registo == null) {
+            registo = leitor.ler(conn, id).orElseThrow(() -> new DAOException(erroSeNaoExistir));
+            lidos.put(id, registo);
+        }
+        return registo;
     }
 
     @Override
@@ -486,4 +496,4 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
     }
 
-}
+}

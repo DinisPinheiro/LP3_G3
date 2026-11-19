@@ -5,6 +5,7 @@ import com.hotel4you.hotel4you.Controller.*;
 import com.hotel4you.hotel4you.DAO.*;
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.Utils.Navegador;
+import com.hotel4you.hotel4you.Utils.SegundoPlano;
 import com.hotel4you.hotel4you.View.*;
 
 import javafx.application.Application;
@@ -16,6 +17,9 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) {
+
+        // Qualquer erro que nenhum ecrã tratou aparece numa janela, em vez de a aplicação parecer parada (S6-01).
+        Thread.setDefaultUncaughtExceptionHandler((thread, erro) -> mostrarErroNaoTratado(erro));
 
         // ---- 1. DAO (acesso à base de dados) ------------------
 
@@ -34,12 +38,8 @@ public class Main extends Application {
 
         CartaoDAO cartaoDAO = new CartaoDAOSQL();
 
-        ReservaDAO reservaDAO =
-                new ReservaDAOSQL(
-                        clienteDAO,
-                        quartoDAO,
-                        cartaoDAO
-                );
+        // Lê o cliente, o quarto e o cartão de cada reserva na mesma ligação (S6-01).
+        ReservaDAO reservaDAO = new ReservaDAOSQL();
 
         // DAO das passagens de cartões
         PassagemDAO passagemDAO = new PassagemDAOSQL();
@@ -377,31 +377,60 @@ public class Main extends Application {
     }
 
 
-    // Verifica a ligação à base de dados.
+    // Verifica a ligação à base de dados em segundo plano, para a janela de login abrir logo (S6-01).
+    // Se não houver ligação, avisa o utilizador; a aplicação continua aberta.
     private void avisarSeNaoHouverLigacao() {
 
-        try {
+        SegundoPlano.executar(
+                "Verificar ligação à base de dados",
+                () -> {
+                    DBConnection.verificarLigacao();
+                    return null;
+                },
+                semErro -> { },
+                erro -> mostrarAlerta(
+                        "Sem ligação à base de dados",
+                        erro.getMessage()
+                )
+        );
+    }
 
-            DBConnection.verificarLigacao();
 
-        } catch (DAOException e) {
+    // Mostra numa janela um erro que nenhum ecrã tratou. Se a causa for a base de dados,
+    // mostra a mensagem do DAO (ex.: "Não foi possível ligar à base de dados...").
+    private static void mostrarErroNaoTratado(Throwable erro) {
 
-            Platform.runLater(() -> {
+        erro.printStackTrace();
 
-                Alert alerta = new Alert(
-                        Alert.AlertType.ERROR,
-                        e.getMessage()
-                );
+        for (Throwable causa = erro; causa != null; causa = causa.getCause()) {
 
-                alerta.setTitle("Hotel4You");
+            if (causa instanceof DAOException || causa instanceof AcessoDadosException) {
 
-                alerta.setHeaderText(
-                        "Sem ligação à base de dados"
-                );
-
-                alerta.show();
-            });
+                mostrarAlerta("Erro no acesso à base de dados", causa.getMessage());
+                return;
+            }
         }
+
+        mostrarAlerta("Ocorreu um erro inesperado", "Tente novamente. Detalhe: " + erro);
+    }
+
+
+    // Mostra uma janela de erro (sempre na thread do JavaFX).
+    private static void mostrarAlerta(String cabecalho, String mensagem) {
+
+        Platform.runLater(() -> {
+
+            Alert alerta = new Alert(
+                    Alert.AlertType.ERROR,
+                    mensagem
+            );
+
+            alerta.setTitle("Hotel4You");
+
+            alerta.setHeaderText(cabecalho);
+
+            alerta.show();
+        });
     }
 
 
