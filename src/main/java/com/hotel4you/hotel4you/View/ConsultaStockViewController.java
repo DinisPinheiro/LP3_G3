@@ -3,6 +3,7 @@ package com.hotel4you.hotel4you.View;
 import com.hotel4you.hotel4you.Controller.GestaoStockController;
 import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Utils.Navegador;
+import com.hotel4you.hotel4you.Utils.SegundoPlano;
 import com.hotel4you.hotel4you.Utils.Utils;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -15,6 +16,7 @@ import javafx.scene.control.TableView;
  * ViewController do ecrã de consulta do stock ({@code ConsultaStockView.fxml}, S4-04).
  * <p>
  * Só mostra o que o {@link GestaoStockController} devolve; daqui vai-se para a entrada de stock por XML.
+ * A consulta corre em segundo plano (S6-01), para o ecrã não bloquear enquanto espera pela base de dados.
  */
 public class ConsultaStockViewController {
 
@@ -69,13 +71,17 @@ public class ConsultaStockViewController {
     /** Chamado pelo botão "Atualizar" e ao abrir o ecrã. */
     @FXML
     private void onAtualizar() {
-        try {
-            tabelaStock.setItems(FXCollections.observableArrayList(controller.consultarStock()));
-            labelMensagem.setText("");
-        } catch (RuntimeException e) {
-            labelMensagem.setText(e.getMessage());
-            labelMensagem.setStyle(COR_ERRO);
-        }
+        labelMensagem.setStyle("");
+        labelMensagem.setText("A carregar...");
+        SegundoPlano.executar("Stock do hotel", controller::consultarStock,
+                artigos -> {
+                    tabelaStock.setItems(FXCollections.observableArrayList(artigos));
+                    labelMensagem.setText("");
+                },
+                erro -> {
+                    labelMensagem.setText(erro.getMessage());
+                    labelMensagem.setStyle(COR_ERRO);
+                });
     }
 
     /** Chamado pelo botão "Entrada de stock (XML do fornecedor)". */

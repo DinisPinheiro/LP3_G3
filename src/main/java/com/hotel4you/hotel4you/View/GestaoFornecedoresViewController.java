@@ -2,6 +2,7 @@ package com.hotel4you.hotel4you.View;
 
 import com.hotel4you.hotel4you.Controller.GestaoFornecedoresController;
 import com.hotel4you.hotel4you.Model.Fornecedor;
+import com.hotel4you.hotel4you.Utils.SegundoPlano;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -16,7 +17,8 @@ import javafx.scene.control.TextField;
  * ({@code GestaoFornecedoresView.fxml}, S5-02).
  * <p>
  * Só lê os campos e mostra o resultado; as validações e a criação estão no
- * {@link GestaoFornecedoresController}.
+ * {@link GestaoFornecedoresController}. A lista e a criação correm em segundo plano (S6-01), para o
+ * ecrã não bloquear enquanto espera pela base de dados.
  */
 public class GestaoFornecedoresViewController {
 
@@ -79,24 +81,30 @@ public class GestaoFornecedoresViewController {
     /** Chamado pelo botão "Criar fornecedor". */
     @FXML
     private void onCriar() {
-        try {
-            Fornecedor criado = controller.criarFornecedor(campoCodigo.getText(), campoNome.getText(),
-                    campoMorada.getText(), campoCodigoPostal.getText(), campoCidade.getText(),
-                    campoUsername.getText(), campoPassword.getText());
-            limparCampos();
-            atualizarLista();
-            mostrar("Fornecedor '" + criado.getNome() + "' criado. Já pode entrar com a sua conta.", COR_SUCESSO);
-        } catch (RuntimeException e) {
-            mostrar(e.getMessage(), COR_ERRO);
-        }
+        // Os campos são lidos aqui, na thread do JavaFX; só a gravação corre em segundo plano.
+        String codigo = campoCodigo.getText();
+        String nome = campoNome.getText();
+        String morada = campoMorada.getText();
+        String codigoPostal = campoCodigoPostal.getText();
+        String cidade = campoCidade.getText();
+        String username = campoUsername.getText();
+        String password = campoPassword.getText();
+        mostrar("A criar o fornecedor...", "");
+        SegundoPlano.executar("Criar fornecedor",
+                () -> controller.criarFornecedor(codigo, nome, morada, codigoPostal, cidade, username, password),
+                criado -> {
+                    limparCampos();
+                    atualizarLista();
+                    mostrar("Fornecedor '" + criado.getNome() + "' criado. Já pode entrar com a sua conta.",
+                            COR_SUCESSO);
+                },
+                erro -> mostrar(erro.getMessage(), COR_ERRO));
     }
 
     private void atualizarLista() {
-        try {
-            tabelaFornecedores.setItems(FXCollections.observableArrayList(controller.listarFornecedores()));
-        } catch (RuntimeException e) {
-            mostrar(e.getMessage(), COR_ERRO);
-        }
+        SegundoPlano.executar("Lista de fornecedores", controller::listarFornecedores,
+                fornecedores -> tabelaFornecedores.setItems(FXCollections.observableArrayList(fornecedores)),
+                erro -> mostrar(erro.getMessage(), COR_ERRO));
     }
 
     private void limparCampos() {

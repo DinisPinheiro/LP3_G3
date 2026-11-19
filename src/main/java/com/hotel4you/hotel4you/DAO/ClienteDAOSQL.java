@@ -168,15 +168,34 @@ public class ClienteDAOSQL implements ClienteDAO {
         return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("[", "\\[");
     }
 
+    /**
+     * Lê um cliente com uma ligação que já está aberta (não a fecha). Usado pelo {@link ReservaDAOSQL}
+     * para ler o cliente de cada reserva na mesma ligação, em vez de abrir uma ligação por cliente (S6-01).
+     *
+     * @param conn ligação aberta
+     * @param id   identificador do cliente
+     * @return o cliente, ou vazio se não existir
+     * @throws SQLException se a consulta falhar
+     */
+    static Optional<Cliente> lerPorId(Connection conn, int id) throws SQLException {
+        return procurarUm(conn, "SELECT " + COLUNAS + " FROM dbo.Cliente WHERE IdCliente = ?", ps -> ps.setInt(1, id));
+    }
+
     private Optional<Cliente> procurarUm(String sql, SqlUtil.Preparador p) {
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DBConnection.getConnection()) {
+            return procurarUm(conn, sql, p);
+        } catch (SQLException e) {
+            throw new DAOException("Não foi possível consultar o cliente.", e);
+        }
+    }
+
+    private static Optional<Cliente> procurarUm(Connection conn, String sql, SqlUtil.Preparador p)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             p.preparar(ps);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? Optional.of(mapear(rs)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new DAOException("Não foi possível consultar o cliente.", e);
         }
     }
 

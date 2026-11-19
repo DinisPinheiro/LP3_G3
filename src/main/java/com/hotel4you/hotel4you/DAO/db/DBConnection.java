@@ -12,10 +12,20 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.security.Security;
 
+/**
+ * Única classe que abre ligações à base de dados Hotel4You (SQL Server do ISEP).
+ * <p>
+ * Cada operação de um DAO pede uma ligação com {@link #getConnection()} e fecha-a no fim com
+ * try-with-resources. Como abrir uma ligação ao servidor do ISEP demora (rede + TLS + login), cada
+ * operação deve abrir uma só ligação e fazer nela todas as consultas de que precisa (S6-01).
+ * A configuração vem de {@code db.properties} (na raiz do projeto) ou de variáveis de ambiente
+ * {@code HOTEL4YOU_DB_*}; não há credenciais no código.
+ */
 public final class DBConnection {
 
     public static final String FICHEIRO_PREDEFINIDO = "db.properties";
@@ -27,6 +37,9 @@ public final class DBConnection {
     private static final Logger LOG = Logger.getLogger(DBConnection.class.getName());
 
     private static volatile Properties configuracao;
+
+    /** Ligações abertas desde o arranque (usado nas medições e nos testes da S6-01). */
+    private static final AtomicInteger TOTAL_LIGACOES = new AtomicInteger();
 
     static {
         // Servidor do ISEP antigo: só negoceia TLS 1.0/1.1, que o Java 17 desativa por omissão.
@@ -52,16 +65,27 @@ public final class DBConnection {
         String utilizador = valor(cfg, "user", null);
         String password = valor(cfg, "password", null);
         try {
-            if (utilizador == null) {
-                return DriverManager.getConnection(url);
-            }
-            return DriverManager.getConnection(url, utilizador, password == null ? "" : password);
+            Connection ligacao = utilizador == null
+                    ? DriverManager.getConnection(url)
+                    : DriverManager.getConnection(url, utilizador, password == null ? "" : password);
+            TOTAL_LIGACOES.incrementAndGet();
+            return ligacao;
         } catch (SQLException e) {
             LOG.log(Level.WARNING, "Falha ao ligar à base de dados", e);
-            throw new DAOException("Não foi possível ligar à base de dados Hotel4You. Confirme que o SQL Server "
-                    + "está a correr, que o script db/Hotel4You.sql foi executado e que o utilizador e a "
-                    + "palavra-chave em '" + FICHEIRO_PREDEFINIDO + "' estão corretos.", e);
+            throw new DAOException("Não foi possível ligar à base de dados Hotel4You. Confirme que tem ligação "
+                    + "à rede, que os scripts da pasta DATABASE foram executados e que o "
+                    + "utilizador e a palavra-chave em '" + FICHEIRO_PREDEFINIDO + "' estão corretos.", e);
         }
+    }
+
+    /**
+     * Número de ligações abertas desde o arranque da aplicação. Serve para medir quantas ligações
+     * uma operação abre (por exemplo, listar uma página de reservas deve abrir só uma).
+     *
+     * @return total de ligações abertas com sucesso por {@link #getConnection()}
+     */
+    public static int totalLigacoes() {
+        return TOTAL_LIGACOES.get();
     }
 
     /**
@@ -116,8 +140,8 @@ public final class DBConnection {
             return urlCompleta;
         }
         if (valor(cfg, "user", null) == null) {
-            throw new DAOException("Falta a configuração da base de dados. Verifique 'db.properties'" +
-                    "(na pasta raiz) e preencha db.user e db.password.");
+            throw new DAOException("Falta a configuração da base de dados. Verifique 'db.properties' "
+                    + "(na pasta raiz) e preencha db.user e db.password.");
         }
         return "jdbc:sqlserver://" + valor(cfg, "host", "localhost") + ":" + valor(cfg, "port", "1433")
                 + ";databaseName=" + valor(cfg, "name", "Hotel4You")

@@ -118,15 +118,35 @@ public class CartaoDAOSQL implements CartaoDAO {
         }
     }
 
+    /**
+     * Lê um cartão com uma ligação que já está aberta (não a fecha). Usado pelo {@link ReservaDAOSQL}
+     * para ler o cartão de cada reserva na mesma ligação, em vez de abrir uma ligação por cartão (S6-01).
+     *
+     * @param conn ligação aberta
+     * @param id   identificador do cartão
+     * @return o cartão, ou vazio se não existir
+     * @throws SQLException se a consulta falhar
+     */
+    static Optional<CartaoMagnetico> lerPorId(Connection conn, int id) throws SQLException {
+        return procurarUm(conn, "SELECT " + COLUNAS + " FROM dbo.CartaoMagnetico WHERE IdCartao = ?",
+                ps -> ps.setInt(1, id));
+    }
+
     private Optional<CartaoMagnetico> procurarUm(String sql, SqlUtil.Preparador p) {
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DBConnection.getConnection()) {
+            return procurarUm(conn, sql, p);
+        } catch (SQLException e) {
+            throw erro("Não foi possível consultar o cartão.", e);
+        }
+    }
+
+    private static Optional<CartaoMagnetico> procurarUm(Connection conn, String sql, SqlUtil.Preparador p)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             p.preparar(ps);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? Optional.of(mapear(rs)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw erro("Não foi possível consultar o cartão.", e);
         }
     }
 
