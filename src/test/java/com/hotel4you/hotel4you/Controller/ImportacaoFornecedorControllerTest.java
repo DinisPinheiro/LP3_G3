@@ -56,7 +56,7 @@ class ImportacaoFornecedorControllerTest {
     }
 
     private static Path recurso(String nome) throws Exception {
-        return Paths.get(ImportacaoFornecedorControllerTest.class.getResource("/xml/" + nome).toURI());
+        return Paths.get("src", "test", "resources", "xml", nome);
     }
 
     /** Cópia do XML de exemplo com outro código de fornecedor (como se fosse de outra empresa). */

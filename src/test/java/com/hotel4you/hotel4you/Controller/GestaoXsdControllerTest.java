@@ -50,7 +50,7 @@ class GestaoXsdControllerTest {
     }
 
     private static byte[] produtoHero() throws Exception {
-        return Files.readAllBytes(Paths.get(GestaoXsdControllerTest.class.getResource("/xml/ProductHero.xml").toURI()));
+        return Files.readAllBytes(Paths.get("src", "test", "resources", "xml", "ProductHero.xml"));
     }
 
     @Test

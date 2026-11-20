@@ -43,7 +43,7 @@ class GestaoStockControllerTest {
     }
 
     private static Path recurso(String nome) throws URISyntaxException {
-        return Paths.get(GestaoStockControllerTest.class.getResource("/xml/" + nome).toURI());
+        return Paths.get("src", "test", "resources", "xml", nome);
     }
 
     // ---- S4-03: validação do XML ---------------------------------------------------------------
