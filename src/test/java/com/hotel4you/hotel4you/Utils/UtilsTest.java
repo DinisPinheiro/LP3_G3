@@ -93,4 +93,25 @@ class UtilsTest {
     void formatarPrecoUsaVirgulaDecimal() {
         assertTrue(Utils.formatarPreco(new BigDecimal("80")).contains("80,00"));
     }
+
+    @Test
+    void formatarMontanteEmEurosUsaOFormatoPortugues() {
+        assertEquals(Utils.formatarPreco(new BigDecimal("80")), Utils.formatarMontante(new BigDecimal("80"), "EUR"));
+        assertEquals(Utils.formatarPreco(new BigDecimal("80")), Utils.formatarMontante(new BigDecimal("80"), "eur"));
+        assertTrue(Utils.formatarMontante(new BigDecimal("80"), "EUR").contains("80,00"));
+    }
+
+    @Test
+    void formatarMontanteSemMoedaAssumeEuros() {
+        assertEquals(Utils.formatarPreco(new BigDecimal("12.5")), Utils.formatarMontante(new BigDecimal("12.5"), null));
+        assertEquals(Utils.formatarPreco(new BigDecimal("12.5")), Utils.formatarMontante(new BigDecimal("12.5"), "  "));
+    }
+
+    @Test
+    void formatarMontanteNoutraMoedaPoeOCodigoDepoisDoValor() {
+        String texto = Utils.formatarMontante(new BigDecimal("80.5"), "USD");
+        assertTrue(texto.startsWith("80,5"), texto);
+        assertTrue(texto.endsWith(" USD"), texto);
+        assertFalse(texto.contains("€"));
+    }
 }

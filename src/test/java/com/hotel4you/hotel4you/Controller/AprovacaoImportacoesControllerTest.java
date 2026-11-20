@@ -59,7 +59,7 @@ class AprovacaoImportacoesControllerTest {
     }
 
     private static Path recurso(String nome) throws Exception {
-        return Paths.get(AprovacaoImportacoesControllerTest.class.getResource("/xml/" + nome).toURI());
+        return Paths.get("src", "test", "resources", "xml", nome);
     }
 
     /** O fornecedor envia o XML de exemplo; devolve o id da importação pendente. */

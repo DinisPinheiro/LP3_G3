@@ -43,7 +43,7 @@ class GestaoStockCompletoControllerTest {
     }
 
     private static Path recurso(String nome) throws URISyntaxException {
-        return Paths.get(GestaoStockCompletoControllerTest.class.getResource("/xml/" + nome).toURI());
+        return Paths.get("src", "test", "resources", "xml", nome);
     }
 
     /** O ProductHero.xml sem o {@code OrderSummary} (se tiver) e com o resumo indicado (se houver). */
