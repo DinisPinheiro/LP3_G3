@@ -6,6 +6,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -55,7 +56,11 @@ public final class SegundoPlano {
             }
         };
         tarefa.setOnSucceeded(evento -> aoTerminar.accept(tarefa.getValue()));
-        tarefa.setOnFailed(evento -> aoFalhar.accept(comoRuntime(tarefa.getException())));
+        tarefa.setOnFailed(evento -> {
+            // O ecrã só mostra uma mensagem curta; o erro completo (com a causa) fica na consola.
+            LOG.log(Level.WARNING, "Falhou - " + descricao, tarefa.getException());
+            aoFalhar.accept(comoRuntime(tarefa.getException()));
+        });
         EXECUTOR.execute(tarefa);
     }
 
