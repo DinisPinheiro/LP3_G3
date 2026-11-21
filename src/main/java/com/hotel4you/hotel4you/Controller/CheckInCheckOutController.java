@@ -1,14 +1,21 @@
 package com.hotel4you.hotel4you.Controller;
 
 import com.hotel4you.hotel4you.DAO.CartaoDAO;
+import com.hotel4you.hotel4you.DAO.DAOException;
 import com.hotel4you.hotel4you.DAO.ReservaDAO;
+import com.hotel4you.hotel4you.DAO.StockDAO;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.CartaoMagnetico;
+import com.hotel4you.hotel4you.Model.MovimentoStock;
 import com.hotel4you.hotel4you.Model.Reserva;
+import com.hotel4you.hotel4you.Model.Utilizador;
 import com.hotel4you.hotel4you.Model.enums.EstadoReserva;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -24,6 +31,9 @@ import java.util.Objects;
  * <p>
  * Só o rececionista e o gestor podem usar este controller.
  * <p>
+ * <b>Stock (S6-05):</b> no check-in os equipamentos do quarto ligados ao stock passam para a reserva e
+ * saem do stock disponível; no check-out voltam ao disponível, exceto os consumíveis, que saem do stock
+ * real. As regras estão no model ({@link Reserva} e {@link Artigo}); aqui só se lê o stock e se guarda.
  */
 public class CheckInCheckOutController {
 
@@ -31,6 +41,8 @@ public class CheckInCheckOutController {
 
     private final ReservaDAO reservaDAO;
     private final CartaoDAO cartaoDAO;
+    /** Stock do hotel; {@code null} para fazer check-in e check-out sem mexer no stock. */
+    private final StockDAO stockDAO;
     private final Sessao sessao;
 
     /**
@@ -39,8 +51,19 @@ public class CheckInCheckOutController {
      * @param sessao     sessão com o utilizador autenticado
      */
     public CheckInCheckOutController(ReservaDAO reservaDAO, CartaoDAO cartaoDAO, Sessao sessao) {
+        this(reservaDAO, cartaoDAO, null, sessao);
+    }
+
+    /**
+     * @param reservaDAO onde as reservas estão guardadas
+     * @param cartaoDAO  onde os cartões magnéticos são guardados
+     * @param stockDAO   stock do hotel, para a baixa no check-in e a reposição no check-out (S6-05)
+     * @param sessao     sessão com o utilizador autenticado
+     */
+    public CheckInCheckOutController(ReservaDAO reservaDAO, CartaoDAO cartaoDAO, StockDAO stockDAO, Sessao sessao) {
         this.reservaDAO = Objects.requireNonNull(reservaDAO);
         this.cartaoDAO = Objects.requireNonNull(cartaoDAO);
+        this.stockDAO = stockDAO;
         this.sessao = Objects.requireNonNull(sessao);
     }
 
@@ -50,7 +73,8 @@ public class CheckInCheckOutController {
      * @param idReserva identificador da reserva
      * @return o cartão atribuído (ativo, com número único)
      * @throws IllegalArgumentException se a reserva não existir, não estiver pendente, ainda não
-     *                                  tiver chegado o dia de entrada ou o período já tiver terminado
+     *                                  tiver chegado o dia de entrada, o período já tiver terminado ou
+     *                                  não houver stock disponível dos equipamentos do quarto
      * @throws SecurityException        se o utilizador não for rececionista nem gestor
      * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
      */
@@ -59,11 +83,20 @@ public class CheckInCheckOutController {
         Reserva reserva = procurarReserva(idReserva);
         validarEstadoParaCheckIn(reserva);
         validarDatasParaCheckIn(reserva);
+        List<Artigo> stock = stockDAO == null ? null : stockDAO.listarArtigos();
 
         CartaoMagnetico cartao = cartaoDAO.inserir(new CartaoMagnetico(cartaoDAO.proximoNumero(), false));
         try {
-            reserva.fazerCheckIn(cartao);
+            if (stock == null) {
+                reserva.fazerCheckIn(cartao);
+            } else {
+                // Os equipamentos do quarto passam para a reserva e saem do stock disponível (S6-05).
+                reserva.fazerCheckIn(cartao, LocalDateTime.now(), stock);
+            }
             reservaDAO.atualizar(reserva);
+        } catch (IllegalStateException e) {
+            removerCartaoSemErro(cartao);
+            throw new IllegalArgumentException(e.getMessage(), e);   // ex.: stock disponível insuficiente
         } catch (RuntimeException e) {
             removerCartaoSemErro(cartao);   // não deixa um cartão "perdido" se a reserva não foi guardada
             throw e;
@@ -86,12 +119,36 @@ public class CheckInCheckOutController {
         validarEstadoParaCheckOut(reserva);
 
         CartaoMagnetico cartao = reserva.getCartao();
-        reserva.fazerCheckOut();                // muda o estado, regista a saída e desativa o cartão
+        List<MovimentoStock> consumos = List.of();
+        if (stockDAO == null) {
+            reserva.fazerCheckOut();            // muda o estado, regista a saída e desativa o cartão
+        } else {
+            // Os produtos deixam de estar em uso; os consumíveis ficam como consumo (S6-05).
+            consumos = reserva.fazerCheckOut(LocalDateTime.now(), stockDAO.listarArtigos(), utilizadorAtual());
+        }
         if (cartao != null) {
             cartaoDAO.atualizar(cartao);        // primeiro o cartão: se falhar, a reserva continua em check-in
         }
         reservaDAO.atualizar(reserva);
+        registarConsumos(reserva, consumos);
         return reserva;
+    }
+
+    /** Desconta ao stock real os consumíveis gastos na estadia (já com o check-out guardado). */
+    private void registarConsumos(Reserva reserva, List<MovimentoStock> consumos) {
+        if (consumos.isEmpty()) {
+            return;
+        }
+        try {
+            stockDAO.registarSaidas(consumos);
+        } catch (DAOException e) {
+            throw new AcessoDadosException("O check-out da reserva n.º " + reserva.getId() + " foi feito, mas não foi "
+                    + "possível descontar do stock os produtos consumidos: " + e.getMessage(), e);
+        }
+    }
+
+    private Utilizador utilizadorAtual() {
+        return sessao.getUtilizadorAtual().orElseThrow(() -> new SecurityException("Inicie sessão."));
     }
 
     private static void validarEstadoParaCheckIn(Reserva reserva) {
@@ -152,4 +209,4 @@ public class CheckInCheckOutController {
         Permissoes.exigirPerfil(sessao, "Apenas o rececionista ou o gestor podem fazer check-in e check-out.",
                 Perfil.RECECIONISTA, Perfil.GESTOR);
     }
-}
+}

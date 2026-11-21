@@ -63,7 +63,18 @@
                           GridPane.rowIndex="6" GridPane.columnIndex="1"/>
             </GridPane>
 
-            <Label text="Equipamentos do quarto:"/>
+            <Label text="Equipamentos do quarto (produtos do stock):" style="-fx-font-weight: bold;"/>
+            <Label text="No check-in passam para a reserva e saem do stock disponível; no check-out voltam ao stock (os consumíveis saem do stock)."
+                   wrapText="true" style="-fx-text-fill: #555555;"/>
+            <HBox spacing="8">
+                <ComboBox fx:id="campoProdutoStock" promptText="Produto em stock" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+                <TextField fx:id="campoQuantidadeProduto" promptText="Qtd." prefWidth="60"/>
+                <Button text="Pôr no quarto" onAction="#onAdicionarProduto"/>
+                <Button text="Tirar do quarto" onAction="#onRemoverProduto"/>
+            </HBox>
+            <ListView fx:id="listaProdutosQuarto" prefHeight="110"/>
+
+            <Label text="Outras características do quarto (não usam stock):"/>
             <VBox fx:id="caixaEquipamentos" spacing="4"/>
             <HBox spacing="8">
                 <TextField fx:id="campoNovoEquipamento" promptText="Novo equipamento (ex.: Frigobar)"

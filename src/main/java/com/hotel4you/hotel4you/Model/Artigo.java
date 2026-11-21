@@ -8,6 +8,17 @@ import java.util.Objects;
  * <p>
  * O stock do hotel ({@link #getQuantidadeAtual()}) é separado do stock disponível
  * ({@link #getQuantidadeDisponivel()}), que desconta o que já está usado em reservas (S5-06).
+ * <p>
+ * S6-04 e S6-05: o stock real é o total que o hotel tem; o disponível desconta o que está em uso nas
+ * reservas pendentes e com check-in. As regras de baixa e reposição estão aqui:
+ * <ul>
+ *     <li>{@link #darBaixa(int)}: a reserva passa a usar o produto (sai do disponível, o real não muda);</li>
+ *     <li>{@link #devolver(int)}: a reserva deixa de usar o produto sem o gastar (volta ao disponível);</li>
+ *     <li>{@link #reporNoCheckOut(int)}: no check-out os produtos consumíveis (ex.: champô) saem
+ *     definitivamente do stock real; os outros (ex.: toalhas) voltam ao disponível.</li>
+ * </ul>
+ * A saída de stock com justificação (avarias, perdas) é um movimento {@code SAIDA} aplicado com
+ * {@link #aplicar(MovimentoStock)}.
  */
 public class Artigo {
 
@@ -15,8 +26,10 @@ public class Artigo {
     private String nome;
     private String unidade;
     private int quantidadeAtual;
-    /** Quantidade usada em reservas não canceladas (calculada pelo DAO). */
+    /** Quantidade em uso nas reservas pendentes e com check-in (calculada pelo DAO). */
     private int quantidadeReservada;
+    /** Produto que se gasta com o uso (ex.: champô): no check-out não volta ao stock (S6-04). */
+    private boolean consumivel;
     private Fornecedor fornecedor;
     /** Preço unitário da última entrada (sem imposto), ou {@code null} se ainda não se sabe. */
     private BigDecimal precoUnitario;
@@ -86,16 +99,16 @@ public class Artigo {
     }
 
     /**
-     * @return quantidade usada em reservas não canceladas
+     * @return quantidade em uso nas reservas pendentes e com check-in
      */
     public int getQuantidadeReservada() {
         return quantidadeReservada;
     }
 
     /**
-     * Indica quanto deste artigo está usado em reservas. Não altera o stock do hotel.
+     * Indica quanto deste artigo está em uso em reservas. Não altera o stock do hotel.
      *
-     * @param quantidadeReservada quantidade usada em reservas não canceladas, não negativa
+     * @param quantidadeReservada quantidade em uso nas reservas pendentes e com check-in, não negativa
      * @throws IllegalArgumentException se for negativa
      */
     public void setQuantidadeReservada(int quantidadeReservada) {
@@ -112,6 +125,67 @@ public class Artigo {
      */
     public int getQuantidadeDisponivel() {
         return Math.max(0, quantidadeAtual - quantidadeReservada);
+    }
+
+    /** @return {@code true} se o produto se gasta com o uso (no check-out não volta ao stock) */
+    public boolean isConsumivel() {
+        return consumivel;
+    }
+
+    /** @param consumivel {@code true} se o produto se gasta com o uso (ex.: champô, sabonete) */
+    public void setConsumivel(boolean consumivel) {
+        this.consumivel = consumivel;
+    }
+
+    /**
+     * Uma reserva passa a usar este produto: sai do stock disponível, mas o stock real não muda
+     * (o produto continua a ser do hotel). Usado no check-in e quando se aumenta a quantidade na reserva.
+     *
+     * @param quantidade quantidade a usar, pelo menos 1
+     * @throws IllegalArgumentException se a quantidade for inferior a 1
+     * @throws IllegalStateException    se o stock disponível não chegar
+     */
+    public void darBaixa(int quantidade) {
+        exigirPositiva(quantidade);
+        if (quantidade > getQuantidadeDisponivel()) {
+            throw new IllegalStateException("Stock disponível insuficiente de '" + nome + "': há "
+                    + getQuantidadeDisponivel() + " " + unidade + " disponível(eis) e são precisos " + quantidade + ".");
+        }
+        quantidadeReservada += quantidade;
+    }
+
+    /**
+     * Uma reserva deixa de usar este produto sem o gastar (por exemplo, a quantidade baixou na edição
+     * da reserva): volta ao stock disponível. O stock real não muda.
+     *
+     * @param quantidade quantidade devolvida, pelo menos 1
+     * @throws IllegalArgumentException se for inferior a 1 ou maior do que a quantidade em uso
+     */
+    public void devolver(int quantidade) {
+        exigirPositiva(quantidade);
+        if (quantidade > quantidadeReservada) {
+            throw new IllegalArgumentException("Só há " + quantidadeReservada + " de '" + nome
+                    + "' em uso; não se podem devolver " + quantidade + ".");
+        }
+        quantidadeReservada -= quantidade;
+    }
+
+    /**
+     * Reposição no check-out: a reserva deixa de usar o produto. Um produto consumível foi gasto e sai
+     * definitivamente do stock real; um não consumível volta ao stock disponível.
+     *
+     * @param quantidade quantidade que a reserva usava, pelo menos 1
+     * @return {@code true} se o produto foi gasto (consumível), {@code false} se voltou ao stock
+     * @throws IllegalArgumentException se a quantidade for inferior a 1
+     */
+    public boolean reporNoCheckOut(int quantidade) {
+        exigirPositiva(quantidade);
+        quantidadeReservada = Math.max(0, quantidadeReservada - quantidade);
+        if (!consumivel) {
+            return false;
+        }
+        quantidadeAtual = Math.max(0, quantidadeAtual - quantidade);
+        return true;
     }
 
     /** @return o fornecedor da última entrada deste artigo, ou {@code null} se não tiver */
@@ -157,6 +231,12 @@ public class Artigo {
         this.precoUnitario = preco;
         this.unidadePreco = unidadePreco == null ? null : unidadePreco.trim();
         this.taxaPercentagem = taxaPercentagem;
+    }
+
+    private static void exigirPositiva(int quantidade) {
+        if (quantidade < 1) {
+            throw new IllegalArgumentException("A quantidade deve ser pelo menos 1.");
+        }
     }
 
     @Override

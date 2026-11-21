@@ -5,6 +5,7 @@ import com.hotel4you.hotel4you.Model.Fornecedor;
 import com.hotel4you.hotel4you.Model.MovimentoStock;
 import com.hotel4you.hotel4you.Model.encomenda.EncomendaFornecedor;
 import com.hotel4you.hotel4you.Model.encomenda.LinhaEncomenda;
+import com.hotel4you.hotel4you.Model.enums.TipoMovimento;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,6 +16,7 @@ import java.util.Map;
  * {@link StockDAO} em memória, <b>só para testes unitários</b>. Respeita o contrato do DAO real:
  * o fornecedor é único pelo identificador, o artigo pelo nome, e a entrada guarda-se toda ou nada.
  * Com encomenda, guarda-a e atualiza o último preço e taxa de cada artigo (S5-04).
+ * Regista também as saídas de stock e os consumos, tudo ou nada (S6-04).
  */
 public class StockDAOMemoria implements StockDAO {
 
@@ -71,9 +73,65 @@ public class StockDAOMemoria implements StockDAO {
 
     @Override
     public List<Artigo> listarArtigos() {
-        List<Artigo> lista = new ArrayList<>(artigos.values());
+        // Devolve cópias, como o DAO real (cada leitura traz valores novos).
+        List<Artigo> lista = new ArrayList<>();
+        artigos.values().forEach(artigo -> lista.add(copiar(artigo)));
         lista.sort((a, b) -> a.getNome().compareToIgnoreCase(b.getNome()));
         return lista;
+    }
+
+    @Override
+    public void registarSaidas(List<MovimentoStock> saidas) {
+        Map<Integer, Integer> real = new LinkedHashMap<>();
+        for (Artigo artigo : artigos.values()) {
+            real.put(artigo.getId(), artigo.getQuantidadeAtual());
+        }
+        for (MovimentoStock saida : saidas) {
+            if (saida.getTipo() == TipoMovimento.ENTRADA) {
+                throw new IllegalArgumentException("As entradas registam-se com registarEntrada.");
+            }
+            Integer atual = real.get(saida.getArtigo().getId());
+            if (atual == null) {
+                throw new DAOException("O artigo '" + saida.getArtigo().getNome() + "' já não existe.");
+            }
+            if (saida.getTipo() == TipoMovimento.SAIDA && saida.getQuantidade() > atual) {
+                throw new DAOException("Stock insuficiente de '" + saida.getArtigo().getNome() + "': existem "
+                        + atual + " e foram pedidos " + saida.getQuantidade() + ".");
+            }
+            real.put(saida.getArtigo().getId(), Math.max(0, atual - saida.getQuantidade()));
+        }
+        // Só chega aqui se nenhuma saída falhou.
+        for (Artigo artigo : artigos.values()) {
+            int quantidade = real.get(artigo.getId());
+            if (quantidade != artigo.getQuantidadeAtual()) {
+                Artigo novo = new Artigo(artigo.getId(), artigo.getNome(), artigo.getUnidade(), quantidade);
+                copiarDados(artigo, novo);
+                artigos.put(artigo.getNome().toLowerCase(), novo);
+            }
+        }
+        movimentos.addAll(saidas);
+    }
+
+    @Override
+    public List<MovimentoStock> listarSaidas() {
+        List<MovimentoStock> saidas = new ArrayList<>();
+        for (MovimentoStock movimento : movimentos) {
+            if (movimento.getTipo() != TipoMovimento.ENTRADA) {
+                saidas.add(0, movimento);   // do mais recente para o mais antigo
+            }
+        }
+        return saidas;
+    }
+
+    @Override
+    public void definirConsumivel(int idArtigo, boolean consumivel) {
+        for (Artigo artigo : artigos.values()) {
+            if (artigo.getId() == idArtigo) {
+                artigo.setConsumivel(consumivel);
+                return;
+            }
+        }
+        throw new DAOException("O artigo com id " + idArtigo + " não existe.");
     }
 
     /** @return os movimentos guardados, pela ordem de registo (para os testes confirmarem) */
@@ -104,9 +162,14 @@ public class StockDAOMemoria implements StockDAO {
     private static Artigo copiar(Artigo original) {
         Artigo copia = new Artigo(original.getId(), original.getNome(), original.getUnidade(),
                 original.getQuantidadeAtual());
+        copiarDados(original, copia);
+        return copia;
+    }
+
+    private static void copiarDados(Artigo original, Artigo copia) {
         copia.setFornecedor(original.getFornecedor());
         copia.setQuantidadeReservada(original.getQuantidadeReservada());
+        copia.setConsumivel(original.isConsumivel());
         copia.setUltimoPreco(original.getPrecoUnitario(), original.getUnidadePreco(), original.getTaxaPercentagem());
-        return copia;
     }
 }

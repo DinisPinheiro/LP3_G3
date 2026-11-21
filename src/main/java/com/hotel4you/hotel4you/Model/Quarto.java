@@ -27,6 +27,8 @@ public class Quarto {
     private BigDecimal suplementoVista;
     private boolean ativo;
     private final List<Equipamento> equipamentos = new ArrayList<>();
+    /** Equipamentos do quarto escolhidos a partir dos produtos do stock, com a quantidade (S6-05). */
+    private final List<ProdutoQuarto> produtos = new ArrayList<>();
 
     /**
      * @param id        identificador (0 se ainda não foi guardado)
@@ -109,6 +111,36 @@ public class Quarto {
     /** @return lista só de leitura dos equipamentos do quarto */
     public List<Equipamento> getEquipamentos() {
         return Collections.unmodifiableList(equipamentos);
+    }
+
+    /**
+     * Põe um produto do stock no quarto. Se o quarto já tiver esse produto, a quantidade passa a ser
+     * a indicada (não soma).
+     *
+     * @param produto produto do stock e quantidade
+     */
+    public void definirProduto(ProdutoQuarto produto) {
+        Objects.requireNonNull(produto, "O produto é obrigatório.");
+        removerProduto(produto.getArtigo().getId());
+        produtos.add(produto);
+    }
+
+    /**
+     * @param idArtigo identificador do produto do stock
+     * @return {@code true} se o quarto tinha o produto
+     */
+    public boolean removerProduto(int idArtigo) {
+        return produtos.removeIf(produto -> produto.getArtigo().getId() == idArtigo);
+    }
+
+    /** Retira todos os produtos do stock do quarto. */
+    public void limparProdutos() {
+        produtos.clear();
+    }
+
+    /** @return lista só de leitura dos produtos do stock que o quarto tem (S6-05) */
+    public List<ProdutoQuarto> getProdutos() {
+        return Collections.unmodifiableList(produtos);
     }
 
     public int getId() {

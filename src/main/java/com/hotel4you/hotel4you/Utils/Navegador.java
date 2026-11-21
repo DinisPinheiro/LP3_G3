@@ -4,6 +4,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 
@@ -90,6 +91,26 @@ public final class Navegador {
             janela.getScene().setRoot(raiz);
         }
         janela.setTitle(titulo);
+    }
+
+    /**
+     * Abre um ecrã (ficheiro FXML) numa janela à parte, por cima da janela principal, e espera que seja
+     * fechada (por exemplo, a janela de saída de stock, S6-04).
+     *
+     * @param ficheiroFxml nome do ficheiro em {@code resources/com/hotel4you/hotel4you/}
+     * @param titulo       título da janela
+     * @throws IllegalStateException se o navegador não foi iniciado ou o FXML não puder ser carregado
+     */
+    public static void abrirJanela(String ficheiroFxml, String titulo) {
+        if (janela == null) {
+            throw new IllegalStateException("O Navegador não foi iniciado.");
+        }
+        Stage dialogo = new Stage();
+        dialogo.initOwner(janela);
+        dialogo.initModality(Modality.WINDOW_MODAL);
+        dialogo.setTitle(titulo);
+        dialogo.setScene(new Scene(carregar(ficheiroFxml)));
+        dialogo.showAndWait();
     }
 
     private static Parent carregar(String ficheiroFxml) {

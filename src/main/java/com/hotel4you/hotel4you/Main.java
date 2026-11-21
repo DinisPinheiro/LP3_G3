@@ -84,6 +84,7 @@ public class Main extends Application {
                         quartoDAO,
                         equipamentoDAO,
                         suplementoVistaDAO,
+                        stockDAO,
                         sessao
                 );
 
@@ -117,6 +118,7 @@ public class Main extends Application {
                 new EdicaoReservaController(
                         reservaDAO,
                         servicoDAO,
+                        stockDAO,
                         sessao
                 );
 
@@ -126,6 +128,7 @@ public class Main extends Application {
                 new CheckInCheckOutController(
                         reservaDAO,
                         cartaoDAO,
+                        stockDAO,
                         sessao
                 );
 
@@ -323,6 +326,14 @@ public class Main extends Application {
             if (tipo == ConsultaStockViewController.class) {
 
                 return new ConsultaStockViewController(
+                        gestaoStockController
+                );
+            }
+
+            // Janela de saída de stock (S6-04)
+            if (tipo == SaidaStockViewController.class) {
+
+                return new SaidaStockViewController(
                         gestaoStockController
                 );
             }

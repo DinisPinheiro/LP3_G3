@@ -34,6 +34,11 @@ public interface ReservaDAO extends DAO<Reserva> {
      * {@inheritDoc}
      * <p>
      * Atualiza estado, valor total e momentos de check-in/check-out (cliente, quarto e datas não mudam).
+     * Numa reserva pendente ou com check-in também guarda os produtos do stock (S6-05), na mesma
+     * transação, e confirma que o stock chega.
+     *
+     * @throws DAOException se a reserva não existir, se o stock de um produto não chegar ou se não for
+     *                      possível guardar
      */
     @Override
     void atualizar(Reserva reserva);
@@ -78,4 +83,4 @@ public interface ReservaDAO extends DAO<Reserva> {
     // Número de reservas nos estados escolhidos.
     int contarPorEstados(List<com.hotel4you.hotel4you.Model.enums.EstadoReserva> estados);
 
-}
+}

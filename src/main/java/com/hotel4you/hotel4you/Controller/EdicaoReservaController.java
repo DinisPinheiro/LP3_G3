@@ -2,6 +2,8 @@ package com.hotel4you.hotel4you.Controller;
 
 import com.hotel4you.hotel4you.DAO.ReservaDAO;
 import com.hotel4you.hotel4you.DAO.ServicoDAO;
+import com.hotel4you.hotel4you.DAO.StockDAO;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.ConsumoServico;
 import com.hotel4you.hotel4you.Model.Reserva;
 import com.hotel4you.hotel4you.Model.Servico;
@@ -12,17 +14,75 @@ import java.util.List;
 
 /**
  * Permite consultar e editar os serviços de uma reserva.
+ * <p>
+ * S6-05: também se alteram os produtos do stock da reserva (por exemplo, uma só pessoa num quarto duplo
+ * fica com 1 toalha em vez de 2). A alteração ajusta o stock disponível; a regra está no model
+ * ({@link Reserva#alterarProduto(Artigo, int)}).
  */
 public class EdicaoReservaController {
 
     private final ReservaDAO reservaDAO;
     private final ServicoDAO servicoDAO;
+    /** Stock do hotel, para alterar os produtos da reserva (S6-05); pode ser {@code null}. */
+    private final StockDAO stockDAO;
     private final Sessao sessao;
 
     public EdicaoReservaController(ReservaDAO reservaDAO, ServicoDAO servicoDAO, Sessao sessao) {
+        this(reservaDAO, servicoDAO, null, sessao);
+    }
+
+    /**
+     * @param reservaDAO onde as reservas estão guardadas
+     * @param servicoDAO onde os serviços estão guardados
+     * @param stockDAO   stock do hotel, para alterar os produtos da reserva (S6-05)
+     * @param sessao     sessão com o utilizador autenticado
+     */
+    public EdicaoReservaController(ReservaDAO reservaDAO, ServicoDAO servicoDAO, StockDAO stockDAO, Sessao sessao) {
         this.reservaDAO = reservaDAO;
         this.servicoDAO = servicoDAO;
+        this.stockDAO = stockDAO;
         this.sessao = sessao;
+    }
+
+    /**
+     * @return os produtos do stock, com o stock real e o disponível, para escolher na reserva
+     */
+    public List<Artigo> listarProdutosStock() {
+        verificarPermissao();
+        return stockDAO == null ? List.of() : stockDAO.listarArtigos();
+    }
+
+    /**
+     * Muda a quantidade de um produto do stock na reserva e ajusta o stock disponível (S6-05).
+     * Com quantidade 0 o produto sai da reserva.
+     *
+     * @param idReserva  identificador da reserva
+     * @param idArtigo   identificador do produto
+     * @param quantidade nova quantidade (0 retira o produto)
+     * @throws IllegalArgumentException se a reserva ou o produto não existirem, a quantidade for negativa,
+     *                                  a reserva não estiver pendente nem com check-in ou o stock não chegar
+     */
+    public void alterarProduto(int idReserva, int idArtigo, int quantidade) {
+        verificarPermissao();
+        if (stockDAO == null) {
+            throw new IllegalStateException("O stock não está disponível neste ecrã.");
+        }
+        Reserva reserva = consultarReserva(idReserva);
+        Artigo artigo = null;
+        for (Artigo doStock : stockDAO.listarArtigos()) {
+            if (doStock.getId() == idArtigo) {
+                artigo = doStock;
+            }
+        }
+        if (artigo == null) {
+            throw new IllegalArgumentException("Escolha um produto que exista em stock.");
+        }
+        try {
+            reserva.alterarProduto(artigo, quantidade);
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
+        reservaDAO.atualizar(reserva);
     }
 
     /**
@@ -93,4 +153,4 @@ public class EdicaoReservaController {
     private void verificarPermissao() {
         Permissoes.exigirPerfil(sessao, "Apenas o rececionista ou gestor pode gerir reservas.", Perfil.RECECIONISTA, Perfil.GESTOR);
     }
-}
+}

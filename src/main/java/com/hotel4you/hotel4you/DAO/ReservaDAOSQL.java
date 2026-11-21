@@ -129,6 +129,13 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Numa reserva pendente ou com check-in os produtos também são regravados (S6-05: no check-in recebe
+     * os equipamentos do quarto e na edição podem mudar as quantidades) e, na mesma transação, confirma-se
+     * que o stock real chega para tudo o que está em uso.
+     */
     @Override
     public void atualizar(Reserva reserva) {
         CartaoMagnetico cartao = reserva.getCartao();
@@ -138,20 +145,38 @@ public class ReservaDAOSQL implements ReservaDAO {
         String sql = "UPDATE dbo.Reserva SET Estado = ?, ValorTotal = ?, DataCheckIn = ?, DataCheckOut = ?, "
                 + "IdCartao = ? WHERE IdReserva = ?";
         try (Connection conn = DBConnection.getConnection()) {
-            int linhas = SqlUtil.executar(conn, sql, ps -> {
-                ps.setString(1, reserva.getEstado().name());
-                ps.setBigDecimal(2, valorTotal(reserva));
-                SqlUtil.definirDataHora(ps, 3, reserva.getDataCheckIn());
-                SqlUtil.definirDataHora(ps, 4, reserva.getDataCheckOut());
-                if (cartao == null) {
-                    ps.setNull(5, Types.INTEGER);
-                } else {
-                    ps.setInt(5, cartao.getId());
+            conn.setAutoCommit(false);
+            try {
+                int linhas = SqlUtil.executar(conn, sql, ps -> {
+                    ps.setString(1, reserva.getEstado().name());
+                    ps.setBigDecimal(2, valorTotal(reserva));
+                    SqlUtil.definirDataHora(ps, 3, reserva.getDataCheckIn());
+                    SqlUtil.definirDataHora(ps, 4, reserva.getDataCheckOut());
+                    if (cartao == null) {
+                        ps.setNull(5, Types.INTEGER);
+                    } else {
+                        ps.setInt(5, cartao.getId());
+                    }
+                    ps.setInt(6, reserva.getId());
+                });
+                if (linhas == 0) {
+                    conn.rollback();
+                    throw new DAOException("A reserva com id " + reserva.getId() + " não existe.");
                 }
-                ps.setInt(6, reserva.getId());
-            });
-            if (linhas == 0) {
-                throw new DAOException("A reserva com id " + reserva.getId() + " não existe.");
+                if (reserva.usaStock()) {
+                    SqlUtil.executar(conn, "DELETE FROM dbo.ReservaProduto WHERE IdReserva = ?",
+                            ps -> ps.setInt(1, reserva.getId()));
+                    gravarProdutos(conn, reserva.getId(), reserva.getProdutos());
+                    String semStock = procurarArtigoSemStock(conn, reserva.getId());
+                    if (semStock != null) {
+                        conn.rollback();
+                        throw new DAOException("Não há stock disponível suficiente de '" + semStock + "'.");
+                    }
+                }
+                conn.commit();
+            } catch (SQLException e) {
+                SqlUtil.reverter(conn, e);
+                throw new DAOException("Não foi possível atualizar a reserva.", e);
             }
         } catch (SQLException e) {
             throw new DAOException("Não foi possível atualizar a reserva.", e);

@@ -2,8 +2,11 @@ package com.hotel4you.hotel4you.Controller;
 
 import com.hotel4you.hotel4you.DAO.EquipamentoDAO;
 import com.hotel4you.hotel4you.DAO.QuartoDAO;
+import com.hotel4you.hotel4you.DAO.StockDAO;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.DAO.SuplementoVistaDAO;
 import com.hotel4you.hotel4you.Model.Equipamento;
+import com.hotel4you.hotel4you.Model.ProdutoQuarto;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import com.hotel4you.hotel4you.Model.enums.TipoQuarto;
@@ -26,6 +29,8 @@ import java.util.Objects;
  * piso 3: 301 a 310), por isso nunca há mais de 10 quartos por piso. O número e o piso não se
  * alteram depois de criado o quarto; para o retirar de uso, desativa-se.
  * <p>
+ * S6-05: os equipamentos do quarto também se escolhem a partir dos produtos que existem em stock, com a
+ * quantidade (ex.: 2 toalhas e 1 televisão). No check-in passam para a reserva e saem do stock disponível.
  */
 public class GestaoQuartosController {
 
@@ -38,6 +43,8 @@ public class GestaoQuartosController {
     private final EquipamentoDAO equipamentoDAO;
     /** Valores das vistas em vigor; {@code null} usa os valores iniciais de {@link Vista}. */
     private final SuplementoVistaDAO suplementoVistaDAO;
+    /** Produtos do stock que podem ser equipamentos do quarto; {@code null} se não forem usados. */
+    private final StockDAO stockDAO;
     private final Sessao sessao;
 
     /**
@@ -57,10 +64,33 @@ public class GestaoQuartosController {
      */
     public GestaoQuartosController(QuartoDAO quartoDAO, EquipamentoDAO equipamentoDAO,
                                    SuplementoVistaDAO suplementoVistaDAO, Sessao sessao) {
+        this(quartoDAO, equipamentoDAO, suplementoVistaDAO, null, sessao);
+    }
+
+    /**
+     * @param quartoDAO          onde os quartos são guardados
+     * @param equipamentoDAO     catálogo de equipamentos
+     * @param suplementoVistaDAO valores das vistas especiais, editáveis pelo gestor (S4-vistas)
+     * @param stockDAO           produtos do stock que podem ser equipamentos do quarto (S6-05)
+     * @param sessao             sessão com o utilizador autenticado
+     */
+    public GestaoQuartosController(QuartoDAO quartoDAO, EquipamentoDAO equipamentoDAO,
+                                   SuplementoVistaDAO suplementoVistaDAO, StockDAO stockDAO, Sessao sessao) {
         this.quartoDAO = Objects.requireNonNull(quartoDAO);
         this.equipamentoDAO = Objects.requireNonNull(equipamentoDAO);
         this.suplementoVistaDAO = suplementoVistaDAO;
+        this.stockDAO = stockDAO;
         this.sessao = Objects.requireNonNull(sessao);
+    }
+
+    /**
+     * @return os produtos que existem em stock, para escolher os equipamentos do quarto (S6-05)
+     * @throws SecurityException se o utilizador não for gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler
+     */
+    public List<Artigo> consultarProdutosStock() {
+        exigirGestor();
+        return stockDAO == null ? List.of() : stockDAO.listarArtigos();
     }
 
     /**
@@ -126,6 +156,27 @@ public class GestaoQuartosController {
      */
     public Quarto criarQuarto(int numero, String local, TipoQuarto tipo, BigDecimal precoBase,
                               Vista vista, List<Equipamento> equipamentos) {
+        return criarQuarto(numero, local, tipo, precoBase, vista, equipamentos, List.of());
+    }
+
+    /**
+     * Cria um quarto novo, ativo, com equipamentos do catálogo e produtos do stock (S6-05).
+     *
+     * @param numero       número do quarto (201 a 210 ou 301 a 310)
+     * @param local        descrição da localização; pode ser vazia
+     * @param tipo         tipo de quarto
+     * @param precoBase    preço base por noite, não negativo
+     * @param vista        vista do quarto
+     * @param equipamentos equipamentos do catálogo a associar ao quarto
+     * @param produtos     produtos do stock que o quarto tem, com a quantidade
+     * @return o quarto guardado, já com identificador
+     * @throws IllegalArgumentException se algum dado for inválido, o número já existir ou um produto
+     *                                  não existir em stock
+     * @throws SecurityException        se o utilizador não for gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
+     */
+    public Quarto criarQuarto(int numero, String local, TipoQuarto tipo, BigDecimal precoBase,
+                              Vista vista, List<Equipamento> equipamentos, List<ProdutoQuarto> produtos) {
         exigirGestor();
         int piso = pisoDoNumero(numero);
         if (quartoDAO.procurarPorNumero(numero).isPresent()) {
@@ -137,6 +188,7 @@ public class GestaoQuartosController {
         Quarto quarto = new Quarto(0, numero, piso, local, tipo, preco, vista, true);
         quarto.setSuplementoVista(obterSuplemento(vista));
         escolhidos.forEach(quarto::adicionarEquipamento);
+        validarProdutos(produtos).forEach(quarto::definirProduto);
         return quartoDAO.inserir(quarto);
     }
 
@@ -156,11 +208,34 @@ public class GestaoQuartosController {
      */
     public void editarQuarto(int id, String local, TipoQuarto tipo, BigDecimal precoBase,
                              Vista vista, boolean ativo, List<Equipamento> equipamentos) {
+        editarQuarto(id, local, tipo, precoBase, vista, ativo, equipamentos, null);
+    }
+
+    /**
+     * Edita um quarto já guardado, incluindo os produtos do stock que tem (S6-05).
+     *
+     * @param id           identificador do quarto
+     * @param local        descrição da localização; pode ser vazia
+     * @param tipo         tipo de quarto
+     * @param precoBase    preço base por noite, não negativo
+     * @param vista        vista do quarto
+     * @param ativo        se o quarto está disponível para reservas
+     * @param equipamentos equipamentos do catálogo que o quarto passa a ter
+     * @param produtos     produtos do stock que o quarto passa a ter; {@code null} mantém os atuais
+     * @throws IllegalArgumentException se o quarto não existir, algum dado for inválido ou um produto
+     *                                  não existir em stock
+     * @throws SecurityException        se o utilizador não for gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
+     */
+    public void editarQuarto(int id, String local, TipoQuarto tipo, BigDecimal precoBase,
+                             Vista vista, boolean ativo, List<Equipamento> equipamentos,
+                             List<ProdutoQuarto> produtos) {
         exigirGestor();
         Quarto quarto = quartoDAO.procurarPorId(id)
                 .orElseThrow(() -> new IllegalArgumentException("O quarto selecionado não existe."));
         BigDecimal preco = validarDados(local, tipo, precoBase, vista);
         List<Equipamento> escolhidos = validarEquipamentos(equipamentos);
+        List<ProdutoQuarto> produtosValidos = produtos == null ? null : validarProdutos(produtos);
 
         quarto.setLocal(local);
         quarto.setTipo(tipo);
@@ -170,6 +245,10 @@ public class GestaoQuartosController {
         quarto.setAtivo(ativo);
         new ArrayList<>(quarto.getEquipamentos()).forEach(quarto::removerEquipamento);
         escolhidos.forEach(quarto::adicionarEquipamento);
+        if (produtosValidos != null) {
+            quarto.limparProdutos();
+            produtosValidos.forEach(quarto::definirProduto);
+        }
         quartoDAO.atualizar(quarto);
     }
 
@@ -258,6 +337,30 @@ public class GestaoQuartosController {
                                 "O equipamento '" + pedido.getNome() + "' não existe no catálogo."));
                 validos.put(existente.getId(), existente);
             }
+        }
+        return new ArrayList<>(validos.values());
+    }
+
+    /**
+     * Confirma que os produtos existem em stock (S6-05). O mesmo produto escolhido duas vezes fica com
+     * a última quantidade.
+     */
+    private List<ProdutoQuarto> validarProdutos(List<ProdutoQuarto> pedidos) {
+        Map<Integer, ProdutoQuarto> validos = new LinkedHashMap<>();
+        if (pedidos == null || pedidos.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Map<Integer, Artigo> stock = new LinkedHashMap<>();
+        for (Artigo artigo : consultarProdutosStock()) {
+            stock.put(artigo.getId(), artigo);
+        }
+        for (ProdutoQuarto pedido : pedidos) {
+            Artigo artigo = stock.get(pedido.getArtigo().getId());
+            if (artigo == null) {
+                throw new IllegalArgumentException("O produto '" + pedido.getArtigo().getNome()
+                        + "' não existe em stock.");
+            }
+            validos.put(artigo.getId(), new ProdutoQuarto(artigo, pedido.getQuantidade()));
         }
         return new ArrayList<>(validos.values());
     }

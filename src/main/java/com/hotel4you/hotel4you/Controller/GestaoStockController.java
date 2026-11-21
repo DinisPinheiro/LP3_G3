@@ -31,6 +31,10 @@ import java.util.Objects;
  * S5-04 (stock completo): cada linha guarda também as caixas e unidades, o preço unitário, a taxa e o total
  * da linha, e cada encomenda guarda o total das linhas, o total das taxas e o total com taxas. Os valores
  * são calculados por {@link EncomendaFornecedor#totais()} e {@link LinhaEncomenda}, não copiados do XML.
+ * <p>
+ * S6-04: saída de stock com justificação (avarias, perdas), histórico de saídas e indicação dos
+ * produtos consumíveis. A regra do stock (não fica negativo, a justificação é obrigatória) está no
+ * model ({@link Artigo#aplicar(MovimentoStock)} e {@link MovimentoStock}).
  */
 public class GestaoStockController {
 
@@ -91,6 +95,80 @@ public class GestaoStockController {
         } catch (DAOException e) {
             throw new AcessoDadosException(e.getMessage(), e);
         }
+    }
+
+    /**
+     * Dá saída de stock de um produto (S6-04): desconta a quantidade ao stock real e regista o movimento
+     * com a justificação, o utilizador autenticado e a data/hora.
+     *
+     * @param idArtigo     identificador do produto
+     * @param quantidade   quantidade a retirar, pelo menos 1
+     * @param justificacao motivo da saída (ex.: "Televisão avariada no quarto 205"), obrigatório
+     * @return o movimento de saída registado
+     * @throws IllegalArgumentException se o produto não existir, a quantidade for inferior a 1, a
+     *                                  justificação estiver vazia ou o stock real não chegar
+     * @throws SecurityException        se o utilizador não for rececionista nem gestor
+     * @throws AcessoDadosException     se não for possível guardar
+     */
+    public MovimentoStock darSaida(int idArtigo, int quantidade, String justificacao) {
+        exigirStock();
+        Artigo artigo = procurarArtigo(idArtigo);
+        MovimentoStock saida = new MovimentoStock(TipoMovimento.SAIDA, quantidade, LocalDateTime.now(),
+                utilizadorAtual(), artigo, justificacao);
+        try {
+            artigo.aplicar(saida);   // regra do model: o stock real não pode ficar negativo
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
+        try {
+            stockDAO.registarSaidas(List.of(saida));
+        } catch (DAOException e) {
+            throw new AcessoDadosException(e.getMessage(), e);
+        }
+        return saida;
+    }
+
+    /**
+     * @return o histórico de saídas de stock e de consumos no check-out, do mais recente para o mais antigo
+     * @throws SecurityException    se o utilizador não for rececionista nem gestor
+     * @throws AcessoDadosException se não for possível ler
+     */
+    public List<MovimentoStock> consultarHistoricoSaidas() {
+        exigirStock();
+        try {
+            return stockDAO.listarSaidas();
+        } catch (DAOException e) {
+            throw new AcessoDadosException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Indica se um produto é consumível (gasta-se com o uso e no check-out não volta ao stock).
+     *
+     * @param idArtigo   identificador do produto
+     * @param consumivel {@code true} se for consumível
+     * @throws IllegalArgumentException se o produto não existir
+     * @throws SecurityException        se o utilizador não for rececionista nem gestor
+     * @throws AcessoDadosException     se não for possível guardar
+     */
+    public void definirConsumivel(int idArtigo, boolean consumivel) {
+        exigirStock();
+        procurarArtigo(idArtigo);
+        try {
+            stockDAO.definirConsumivel(idArtigo, consumivel);
+        } catch (DAOException e) {
+            throw new AcessoDadosException(e.getMessage(), e);
+        }
+    }
+
+    /** Lê o produto agora (com o stock real e o que está em uso). */
+    private Artigo procurarArtigo(int idArtigo) {
+        for (Artigo artigo : consultarStock()) {
+            if (artigo.getId() == idArtigo) {
+                return artigo;
+            }
+        }
+        throw new IllegalArgumentException("Escolha um produto que exista em stock.");
     }
 
     private static Fornecedor criarFornecedor(FornecedorEncomenda dados) {

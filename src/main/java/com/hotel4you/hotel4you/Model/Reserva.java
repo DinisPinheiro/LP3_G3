@@ -1,6 +1,7 @@
 package com.hotel4you.hotel4you.Model;
 
 import com.hotel4you.hotel4you.Model.enums.EstadoReserva;
+import com.hotel4you.hotel4you.Model.enums.TipoMovimento;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -8,7 +9,9 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -26,6 +29,11 @@ import java.util.Objects;
  * <p>
  * Os preços ficam guardados na reserva quando ela é criada (S5-09): o preço base do quarto, o valor
  * da vista e o valor de cada serviço. Se o gestor os alterar depois, só as reservas novas mudam.
+ * <p>
+ * Stock (S6-05): os produtos de uma reserva pendente ou com check-in estão em uso e saem do stock
+ * disponível. No check-in os equipamentos do quarto ({@link Quarto#getProdutos()}) passam para a
+ * reserva; no check-out os consumíveis saem do stock real e os restantes voltam ao disponível. As
+ * contas de cada produto são feitas pelo {@link Artigo}.
  */
 public class Reserva {
 
@@ -139,6 +147,39 @@ public class Reserva {
      * @param quando momento do check-in
      */
     public void fazerCheckIn(CartaoMagnetico cartao, LocalDateTime quando) {
+        validarCheckIn(cartao);
+        concluirCheckIn(cartao, quando);
+    }
+
+    /**
+     * Check-in com baixa no stock (S6-05): além de entregar o cartão, os equipamentos do quarto
+     * ({@link Quarto#getProdutos()}) passam para a reserva e saem do stock disponível. Se o stock
+     * disponível de algum produto não chegar, nada muda (nem o estado, nem os produtos, nem o stock).
+     *
+     * @param cartao cartão entregue
+     * @param quando momento do check-in
+     * @param stock  produtos do stock com o stock real e o que está em uso (lidos agora do DAO);
+     *               os que a reserva usa ficam com a baixa feita
+     * @throws IllegalStateException    se a reserva não estiver pendente ou o stock disponível não chegar
+     * @throws IllegalArgumentException se o cartão for o mestre ou estiver desativado, ou se um
+     *                                  produto do quarto já não existir em stock
+     */
+    public void fazerCheckIn(CartaoMagnetico cartao, LocalDateTime quando, List<Artigo> stock) {
+        validarCheckIn(cartao);
+        Objects.requireNonNull(stock, "O stock é obrigatório.");
+        List<ProdutoReserva> doQuarto = new ArrayList<>();
+        for (ProdutoQuarto produto : quarto.getProdutos()) {
+            Artigo artigo = procurarNoStock(stock, produto.getArtigo());
+            doQuarto.add(new ProdutoReserva(artigo, produto.getQuantidade()));
+        }
+        darBaixa(doQuarto);
+        for (ProdutoReserva produto : doQuarto) {
+            juntarProduto(produto.getArtigo(), produto.getQuantidade());
+        }
+        concluirCheckIn(cartao, quando);
+    }
+
+    private void validarCheckIn(CartaoMagnetico cartao) {
         if (estado != EstadoReserva.PENDENTE) {
             throw new IllegalStateException("Só é possível fazer check-in de reservas pendentes " + "(estado: " + estado + ").");
         }
@@ -149,9 +190,30 @@ public class Reserva {
         if (!cartao.isAtivo()) {
             throw new IllegalArgumentException("O cartão " + cartao.getNumero() + " está desativado.");
         }
+    }
+
+    private void concluirCheckIn(CartaoMagnetico cartao, LocalDateTime quando) {
         this.cartao = cartao;
         this.dataCheckIn = Objects.requireNonNull(quando);
         this.estado = EstadoReserva.CHECK_IN;
+    }
+
+    /**
+     * Dá baixa de todos os produtos ou de nenhum: primeiro confirma que o disponível chega para cada
+     * artigo (somando linhas repetidas) e só depois altera o stock.
+     */
+    private static void darBaixa(List<ProdutoReserva> pedidos) {
+        Map<Artigo, Integer> porArtigo = new LinkedHashMap<>();
+        for (ProdutoReserva pedido : pedidos) {
+            porArtigo.merge(pedido.getArtigo(), pedido.getQuantidade(), Integer::sum);
+        }
+        for (Map.Entry<Artigo, Integer> pedido : porArtigo.entrySet()) {
+            Artigo artigo = pedido.getKey();
+            if (pedido.getValue() > artigo.getQuantidadeDisponivel()) {
+                artigo.darBaixa(pedido.getValue());   // lança a exceção com a mensagem do Artigo
+            }
+        }
+        porArtigo.forEach(Artigo::darBaixa);
     }
 
     /**
@@ -178,6 +240,32 @@ public class Reserva {
         if (cartao != null) {
             cartao.desativar();
         }
+    }
+
+    /**
+     * Check-out com reposição do stock (S6-05): além do check-out normal, cada produto da reserva deixa
+     * de estar em uso. Os consumíveis (ex.: champô) saem definitivamente do stock real e ficam num
+     * movimento de utilização; os outros (ex.: toalhas) voltam ao stock disponível.
+     *
+     * @param quando momento do check-out
+     * @param stock  produtos do stock (lidos agora do DAO); ficam com a reposição feita
+     * @param quem   utilizador que faz o check-out (fica nos movimentos)
+     * @return os movimentos de utilização dos consumíveis, a guardar no stock (vazio se não houver)
+     * @throws IllegalStateException se o check-in ainda não foi feito
+     */
+    public List<MovimentoStock> fazerCheckOut(LocalDateTime quando, List<Artigo> stock, Utilizador quem) {
+        Objects.requireNonNull(stock, "O stock é obrigatório.");
+        Objects.requireNonNull(quem, "O utilizador é obrigatório.");
+        fazerCheckOut(quando);
+        List<MovimentoStock> consumos = new ArrayList<>();
+        for (ProdutoReserva produto : produtos) {
+            Artigo artigo = procurarNoStockOuNulo(stock, produto.getArtigo().getId());
+            if (artigo != null && artigo.reporNoCheckOut(produto.getQuantidade())) {
+                consumos.add(new MovimentoStock(TipoMovimento.UTILIZACAO, produto.getQuantidade(), quando, quem,
+                        artigo, "Consumo na reserva n.º " + id + " (quarto " + quarto.getNumero() + ")"));
+            }
+        }
+        return consumos;
     }
 
     /**
@@ -322,13 +410,14 @@ public class Reserva {
     }
 
     /**
-     * Quantidade de um artigo do stock usada por esta reserva. Uma reserva cancelada não usa stock.
+     * Quantidade de um artigo do stock em uso por esta reserva. Só as reservas pendentes e com check-in
+     * usam stock: uma reserva cancelada nunca usou e uma com check-out já devolveu (S6-05).
      *
      * @param artigo artigo do stock
-     * @return quantidade usada (0 se a reserva não tiver esse artigo ou estiver cancelada)
+     * @return quantidade em uso (0 se a reserva não tiver esse artigo ou não estiver ativa)
      */
     public int quantidadeUsada(Artigo artigo) {
-        if (estado == EstadoReserva.CANCELADA) {
+        if (!usaStock()) {
             return 0;
         }
         int quantidade = 0;
@@ -338,6 +427,83 @@ public class Reserva {
             }
         }
         return quantidade;
+    }
+
+    /**
+     * @return {@code true} se os produtos desta reserva estão em uso (reserva pendente ou com check-in)
+     */
+    public boolean usaStock() {
+        return estado == EstadoReserva.PENDENTE || estado == EstadoReserva.CHECK_IN;
+    }
+
+    /**
+     * Na edição da reserva os produtos podem mudar enquanto a reserva estiver pendente ou com check-in.
+     *
+     * @return {@code true} se os produtos podem ser alterados
+     */
+    public boolean podeEditarProdutos() {
+        return usaStock();
+    }
+
+    /**
+     * Muda a quantidade de um produto do stock na reserva (por exemplo, só uma pessoa num quarto duplo
+     * precisa de 1 toalha em vez de 2) e ajusta o stock (S6-05): se aumentar, a diferença sai do stock
+     * disponível; se diminuir, volta ao disponível sem ser gasta. Com quantidade 0 o produto sai da reserva.
+     *
+     * @param artigoDoStock    o produto, lido agora do stock (com o real e o que está em uso)
+     * @param novaQuantidade   nova quantidade na reserva (0 retira o produto)
+     * @throws IllegalStateException    se a reserva não estiver pendente nem com check-in, ou se o
+     *                                  stock disponível não chegar para o aumento
+     * @throws IllegalArgumentException se a quantidade for negativa
+     */
+    public void alterarProduto(Artigo artigoDoStock, int novaQuantidade) {
+        Objects.requireNonNull(artigoDoStock, "Escolha um produto.");
+        if (!podeEditarProdutos()) {
+            throw new IllegalStateException("Os produtos só se alteram em reservas pendentes ou com check-in "
+                    + "(estado: " + estado + ").");
+        }
+        if (novaQuantidade < 0) {
+            throw new IllegalArgumentException("A quantidade não pode ser negativa.");
+        }
+        int atual = quantidadeUsada(artigoDoStock);
+        if (novaQuantidade > atual) {
+            artigoDoStock.darBaixa(novaQuantidade - atual);
+        } else if (novaQuantidade < atual) {
+            artigoDoStock.devolver(atual - novaQuantidade);
+        }
+        produtos.removeIf(produto -> produto.getArtigo().getId() == artigoDoStock.getId());
+        if (novaQuantidade > 0) {
+            produtos.add(new ProdutoReserva(artigoDoStock, novaQuantidade));
+        }
+    }
+
+    /** Junta a quantidade à linha do mesmo produto (ou cria uma linha nova). */
+    private void juntarProduto(Artigo artigo, int quantidade) {
+        int atual = 0;
+        for (ProdutoReserva produto : produtos) {
+            if (produto.getArtigo().getId() == artigo.getId()) {
+                atual += produto.getQuantidade();
+            }
+        }
+        produtos.removeIf(produto -> produto.getArtigo().getId() == artigo.getId());
+        produtos.add(new ProdutoReserva(artigo, atual + quantidade));
+    }
+
+    private static Artigo procurarNoStock(List<Artigo> stock, Artigo procurado) {
+        Artigo artigo = procurarNoStockOuNulo(stock, procurado.getId());
+        if (artigo == null) {
+            throw new IllegalArgumentException("O produto '" + procurado.getNome() + "' já não existe em stock.");
+        }
+        return artigo;
+    }
+
+    private static Artigo procurarNoStockOuNulo(List<Artigo> stock, int idArtigo) {
+        for (Artigo artigo : stock) {
+            if (artigo.getId() == idArtigo) {
+                return artigo;
+            }
+        }
+        return null;
     }
 
     public int getId() {
@@ -405,4 +571,4 @@ public class Reserva {
         }
         return preco;
     }
-}
+}

@@ -44,9 +44,37 @@ public interface StockDAO {
     void registarEntrada(Fornecedor fornecedor, EncomendaFornecedor encomenda, List<MovimentoStock> entradas);
 
     /**
-     * @return todos os artigos com o stock atual, a quantidade usada em reservas não canceladas
-     *         (para o stock disponível), o fornecedor e o último preço e taxa, ordenados por nome
+     * @return todos os artigos com o stock real, a quantidade em uso nas reservas pendentes e com
+     *         check-in (para o stock disponível), se é consumível, o fornecedor e o último preço e taxa,
+     *         ordenados por nome
      * @throws DAOException se não for possível ler
      */
     List<Artigo> listarArtigos();
+
+    /**
+     * Regista saídas de stock (S6-04) e consumos no check-out (S6-05), tudo ou nada: cada movimento
+     * desconta a quantidade ao stock real do artigo e fica guardado com a justificação, o utilizador e a
+     * data/hora. Uma saída ({@code SAIDA}) nunca deixa o stock real negativo; um consumo
+     * ({@code UTILIZACAO}) desconta no máximo o que existe.
+     *
+     * @param saidas movimentos do tipo {@code SAIDA} ou {@code UTILIZACAO}, com o artigo já guardado
+     * @throws DAOException             se o stock real não chegar para uma saída ou não for possível guardar
+     * @throws IllegalArgumentException se algum movimento for uma entrada
+     */
+    void registarSaidas(List<MovimentoStock> saidas);
+
+    /**
+     * @return o histórico de saídas de stock e de consumos no check-out, do mais recente para o mais antigo
+     * @throws DAOException se não for possível ler
+     */
+    List<MovimentoStock> listarSaidas();
+
+    /**
+     * Indica se um artigo é consumível (gasta-se com o uso e no check-out não volta ao stock).
+     *
+     * @param idArtigo   identificador do artigo
+     * @param consumivel {@code true} se for consumível
+     * @throws DAOException se o artigo não existir ou não for possível guardar
+     */
+    void definirConsumivel(int idArtigo, boolean consumivel);
 }
