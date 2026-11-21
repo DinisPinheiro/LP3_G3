@@ -3,8 +3,10 @@ package com.hotel4you.hotel4you.Controller;
 import com.hotel4you.hotel4you.DAO.DAOException;
 import com.hotel4you.hotel4you.DAO.XsdDAO;
 import com.hotel4you.hotel4you.Model.FicheiroXsd;
+import com.hotel4you.hotel4you.Model.Fornecedor;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import com.hotel4you.hotel4you.Utils.ValidadorXml;
+import com.hotel4you.hotel4you.Utils.XsdEmFaltaException;
 import com.hotel4you.hotel4you.Utils.XsdInvalidoException;
 
 import javax.xml.validation.Schema;
@@ -18,11 +20,12 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Importação e atualização do XSD pelo gestor (S5-05).
+ * Importação do XSD pelo fornecedor (S5-05, S6-02).
  * <p>
- * O XSD importado fica guardado e passa a ser o que valida os XML dos fornecedores, sem alterar o
- * código. Enquanto o gestor não importar nenhum, usa-se o XSD que vem com a aplicação. Um ficheiro que
- * não seja um XSD válido é recusado com uma mensagem de erro e nada muda.
+ * Cada fornecedor importa o seu XSD, a seguir ao XML, e esse XSD fica guardado e passa a validar todos os
+ * XML <b>desse</b> fornecedor, sem alterar o código, até ele importar outro (que o substitui). Não existe XSD
+ * geral nem XSD que venha com a aplicação: sem XSD importado não há validação (ver {@link XsdEmFaltaException}).
+ * Um ficheiro que não seja um XSD válido é recusado com uma mensagem de erro e nada muda.
  */
 public class GestaoXsdController {
 
@@ -32,7 +35,7 @@ public class GestaoXsdController {
     private final Sessao sessao;
 
     /**
-     * @param xsdDAO onde o XSD importado é guardado
+     * @param xsdDAO onde os XSD importados são guardados
      * @param sessao sessão com o utilizador autenticado
      */
     public GestaoXsdController(XsdDAO xsdDAO, Sessao sessao) {
@@ -41,22 +44,25 @@ public class GestaoXsdController {
     }
 
     /**
-     * Valida um ficheiro XSD e, se for válido, guarda-o como o XSD em vigor.
+     * Valida um ficheiro XSD e, se for válido, guarda-o como o XSD em vigor do fornecedor.
      *
-     * @param ficheiro caminho do ficheiro XSD escolhido
+     * @param fornecedor ficha do fornecedor com sessão iniciada, a quem o XSD pertence
+     * @param ficheiro   caminho do ficheiro XSD escolhido
      * @return o ficheiro guardado
      * @throws XsdInvalidoException     se o ficheiro não for um XSD válido (a mensagem diz o motivo)
      * @throws IllegalArgumentException se o ficheiro não for indicado, estiver vazio ou não puder ser lido
-     * @throws SecurityException        se o utilizador não for um gestor
+     * @throws SecurityException        se o utilizador não for fornecedor
      * @throws AcessoDadosException     se não for possível guardar
      */
-    public FicheiroXsd importarXsd(Path ficheiro) {
-        Permissoes.exigirPerfil(sessao, "Apenas o gestor pode importar o ficheiro XSD.", Perfil.GESTOR);
+    public FicheiroXsd importarXsd(Fornecedor fornecedor, Path ficheiro) {
+        Permissoes.exigirPerfil(sessao, "Apenas o fornecedor pode importar o ficheiro XSD.", Perfil.FORNECEDOR);
+        Objects.requireNonNull(fornecedor, "O fornecedor é obrigatório.");
         if (ficheiro == null) {
             throw new IllegalArgumentException("Escolha um ficheiro XSD.");
         }
         byte[] conteudo = lerBytes(ficheiro);
-        FicheiroXsd xsd = new FicheiroXsd(0, ficheiro.getFileName().toString(), conteudo, LocalDateTime.now());
+        FicheiroXsd xsd = new FicheiroXsd(0, fornecedor.getId(), ficheiro.getFileName().toString(), conteudo,
+                LocalDateTime.now());
         ValidadorXml.carregarSchema(new ByteArrayInputStream(conteudo));
         try {
             xsdDAO.guardar(xsd, sessao.getUtilizadorAtual().orElseThrow().getId());
@@ -67,40 +73,41 @@ public class GestaoXsdController {
     }
 
     /**
-     * Devolve o esquema que valida os XML dos fornecedores: o último XSD importado pelo gestor ou, se
-     * não houver nenhum, o que vem com a aplicação.
+     * Devolve o esquema que valida os XML do fornecedor: o último XSD que ele importou.
      *
-     * @return o esquema em vigor
+     * @param fornecedor fornecedor cujos XML se vão validar
+     * @return o esquema em vigor desse fornecedor
+     * @throws XsdEmFaltaException  se o fornecedor ainda não importou nenhum XSD
      * @throws IllegalStateException se o XSD guardado deixou de ser válido
      * @throws AcessoDadosException  se não for possível ler o XSD guardado
      */
-    public Schema obterSchemaEmVigor() {
-        Optional<FicheiroXsd> importado = obterXsdImportado();
-        if (importado.isEmpty()) {
-            return ValidadorXml.schemaPadrao();
-        }
+    public Schema obterSchema(Fornecedor fornecedor) {
+        FicheiroXsd xsd = obterXsdImportado(fornecedor).orElseThrow(() -> new XsdEmFaltaException(
+                "O fornecedor '" + fornecedor.getNome() + "' ainda não importou o ficheiro XSD, por isso não é "
+                        + "possível validar o XML. Escolha primeiro o ficheiro XSD."));
         try {
-            return ValidadorXml.carregarSchema(new ByteArrayInputStream(importado.get().getConteudo()));
+            return ValidadorXml.carregarSchema(new ByteArrayInputStream(xsd.getConteudo()));
         } catch (XsdInvalidoException e) {
-            throw new IllegalStateException("O XSD importado ('" + importado.get().getNomeFicheiro()
+            throw new IllegalStateException("O XSD importado ('" + xsd.getNomeFicheiro()
                     + "') deixou de ser válido: " + e.getMessage(), e);
         }
     }
 
     /**
-     * @return o texto que diz qual é o XSD em vigor, pronto a mostrar ao utilizador
+     * @param fornecedor fornecedor a consultar
+     * @return o texto que diz qual é o XSD em vigor do fornecedor, pronto a mostrar ao utilizador
      * @throws AcessoDadosException se não for possível ler o XSD guardado
      */
-    public String descreverXsdEmVigor() {
-        return obterXsdImportado()
-                .map(xsd -> "XSD importado: " + xsd.getNomeFicheiro() + " (em "
+    public String descreverXsd(Fornecedor fornecedor) {
+        return obterXsdImportado(fornecedor)
+                .map(xsd -> "XSD em uso: " + xsd.getNomeFicheiro() + " (importado em "
                         + xsd.getDataImportacao().format(FORMATO_DATA_HORA) + ")")
-                .orElse("XSD que vem com a aplicação (ainda não foi importado nenhum).");
+                .orElse("Ainda não importou nenhum XSD. Escolha o ficheiro XSD para validar o XML.");
     }
 
-    private Optional<FicheiroXsd> obterXsdImportado() {
+    private Optional<FicheiroXsd> obterXsdImportado(Fornecedor fornecedor) {
         try {
-            return xsdDAO.obterAtual();
+            return xsdDAO.obterAtual(fornecedor.getId());
         } catch (DAOException e) {
             throw new AcessoDadosException(e.getMessage(), e);
         }

@@ -45,7 +45,6 @@ public enum OpcaoMenu {
     CONFIGURAR_QUARTOS("Configurar quartos", GESTOR),
     EDITAR_VISTAS("Valores das vistas especiais", GESTOR),
     GERIR_FORNECEDORES("Gerir fornecedores", GESTOR),
-    IMPORTAR_XSD("Importar XSD", GESTOR),
 
     // Empresa de restauração
     COZINHA_RESTAURANTE("Cozinha e restaurante", EMPRESA_RESTAURACAO),

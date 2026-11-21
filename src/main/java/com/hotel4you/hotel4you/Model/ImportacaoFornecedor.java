@@ -3,6 +3,7 @@ package com.hotel4you.hotel4you.Model;
 import com.hotel4you.hotel4you.Model.enums.EstadoImportacao;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Objects;
 
 /**
@@ -69,6 +70,27 @@ public class ImportacaoFornecedor {
         this.estado = Objects.requireNonNull(estado, "O estado é obrigatório.");
         this.idDecisor = idDecisor;
         this.dataDecisao = dataDecisao;
+    }
+
+    /**
+     * Regra da encomenda repetida (S6-03): um fornecedor não pode enviar duas vezes a mesma encomenda.
+     * A encomenda é identificada pelo número, sem distinguir maiúsculas de minúsculas nem espaços nas
+     * pontas, e conta qualquer envio anterior, qualquer que seja o seu estado.
+     *
+     * @param numeroEncomenda número da encomenda do ficheiro que vai ser enviado
+     * @param jaEnviadas      ficheiros que o mesmo fornecedor já enviou
+     * @throws IllegalArgumentException se o fornecedor já enviou uma encomenda com esse número
+     */
+    public static void exigirEncomendaNova(String numeroEncomenda, Collection<ImportacaoFornecedor> jaEnviadas) {
+        String procurado = exigirTexto(numeroEncomenda, "O número da encomenda");
+        for (ImportacaoFornecedor enviada : jaEnviadas) {
+            if (enviada.getNumeroEncomenda().equalsIgnoreCase(procurado)) {
+                throw new IllegalArgumentException("A encomenda " + procurado + " já foi enviada em "
+                        + enviada.getDataImportacao().toLocalDate() + " (ficheiro '" + enviada.getNomeFicheiro()
+                        + "', " + enviada.getEstado().getNome().toLowerCase() + "). "
+                        + "Não é possível enviar a mesma encomenda mais do que uma vez.");
+            }
+        }
     }
 
     /**

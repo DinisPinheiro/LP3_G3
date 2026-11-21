@@ -33,8 +33,8 @@ class ValidadorXmlTest {
 
         assertTrue(ValidadorXml.validar(texto("<Encomenda>ok</Encomenda>"), schema).valido());
         assertFalse(ValidadorXml.validar(texto("<Order>ok</Order>"), schema).valido());
-        // O XSD da aplicação aceita o inverso: o resultado depende mesmo do XSD escolhido.
-        assertFalse(ValidadorXml.validar(texto("<Encomenda>ok</Encomenda>")).valido());
+        // O XSD de teste (o do enunciado) aceita o inverso: o resultado depende mesmo do XSD escolhido.
+        assertFalse(ValidadorXml.validar(texto("<Encomenda>ok</Encomenda>"), RecursosDeTeste.schema()).valido());
     }
 
     @Test

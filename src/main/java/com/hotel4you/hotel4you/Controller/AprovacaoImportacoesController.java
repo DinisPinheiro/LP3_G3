@@ -132,7 +132,7 @@ public class AprovacaoImportacoesController {
 
     private EncomendaFornecedor lerEncomenda(ImportacaoFornecedor importacao) {
         try {
-            return LeitorEncomendaXml.ler(importacao.getConteudo(), gestaoXsd.obterSchemaEmVigor());
+            return LeitorEncomendaXml.ler(importacao.getConteudo(), gestaoXsd.obterSchema(importacao.getFornecedor()));
         } catch (IOException e) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro '" + importacao.getNomeFicheiro()
                     + "': " + e.getMessage(), e);

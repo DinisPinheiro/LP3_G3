@@ -10,6 +10,7 @@ import com.hotel4you.hotel4you.Model.encomenda.TotaisEncomenda;
 import com.hotel4you.hotel4you.Utils.ErroXml;
 import com.hotel4you.hotel4you.Utils.Utils;
 import com.hotel4you.hotel4you.Utils.XmlInvalidoException;
+import com.hotel4you.hotel4you.Utils.XsdEmFaltaException;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -29,12 +30,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * ViewController do ecrã em que o fornecedor importa os seus ficheiros XML
- * ({@code ImportacaoFornecedorView.fxml}, S5-02).
+ * ViewController do ecrã em que o fornecedor importa os seus ficheiros XML e o XSD que os valida
+ * ({@code ImportacaoFornecedorView.fxml}, S5-02, S6-02 e S6-03).
  * <p>
- * Só escolhe o ficheiro (FileChooser) e mostra o resultado; a validação contra o XSD, a verificação de
- * que o ficheiro é do fornecedor e o envio estão no {@link ImportacaoFornecedorController}. Um ficheiro
- * inválido mostra a linha e o motivo de cada erro. Nenhum erro fecha a aplicação.
+ * Só escolhe os ficheiros (FileChooser) e mostra o resultado; a validação contra o XSD, a verificação de
+ * que o ficheiro é do fornecedor, a regra da encomenda repetida e o envio estão no
+ * {@link ImportacaoFornecedorController}. Primeiro escolhe o XML e, a seguir, o XSD (que fica guardado
+ * para os XML seguintes). Um ficheiro inválido mostra a linha e o motivo de cada erro; diferenças de
+ * IVA ou de totais mostram um aviso mas deixam enviar. Nenhum erro fecha a aplicação.
  */
 public class ImportacaoFornecedorViewController {
 
@@ -49,12 +52,21 @@ public class ImportacaoFornecedorViewController {
     /** Ficheiro válido e do fornecedor, à espera de ser enviado; {@code null} se não houver. */
     private Path ficheiroValido;
 
+    /** Último XML escolhido, para o voltar a validar depois de o fornecedor importar o XSD. */
+    private Path xmlEscolhido;
+
     @FXML
     private Label labelFornecedor;
     @FXML
     private Button botaoEscolher;
     @FXML
     private Label labelFicheiro;
+    @FXML
+    private Button botaoEscolherXsd;
+    @FXML
+    private Label labelXsd;
+    @FXML
+    private Label labelAvisos;
     @FXML
     private Label labelMensagem;
     @FXML
@@ -150,6 +162,31 @@ public class ImportacaoFornecedorViewController {
         }
     }
 
+    /** Chamado pelo botão "Escolher ficheiro XSD...": importa o XSD e volta a validar o XML escolhido. */
+    @FXML
+    private void onEscolherXsd() {
+        FileChooser escolha = new FileChooser();
+        escolha.setTitle("Escolher o XSD de validação");
+        escolha.getExtensionFilters().add(new FileChooser.ExtensionFilter("Ficheiros XSD", "*.xsd"));
+        File ficheiro = escolha.showOpenDialog(labelMensagem.getScene().getWindow());
+        if (ficheiro == null) {
+            return;
+        }
+        try {
+            controller.importarXsd(ficheiro.toPath());
+            mostrarXsd();
+            if (xmlEscolhido != null) {
+                validar(xmlEscolhido);
+            } else {
+                limparResultado();
+                mostrar("XSD importado. Escolha agora o ficheiro XML.", COR_SUCESSO);
+            }
+        } catch (RuntimeException e) {
+            // Inclui o XSD inválido: a mensagem diz o motivo.
+            mostrar(e.getMessage(), COR_ERRO);
+        }
+    }
+
     /** Chamado pelo botão "Enviar ao hotel". */
     @FXML
     private void onEnviar() {
@@ -159,6 +196,7 @@ public class ImportacaoFornecedorViewController {
         try {
             ImportacaoFornecedor enviada = controller.enviar(ficheiroValido, checkAtualizarFicha.isSelected());
             limparResultado();
+            xmlEscolhido = null;
             labelFicheiro.setText("Nenhum ficheiro escolhido.");
             mostrar("Ficheiro enviado: encomenda " + enviada.getNumeroEncomenda()
                     + ". Fica pendente até o hotel o aprovar.", COR_SUCESSO);
@@ -172,11 +210,14 @@ public class ImportacaoFornecedorViewController {
 
     private void validar(Path caminho) {
         limparResultado();
+        xmlEscolhido = caminho;
         labelFicheiro.setText(caminho.getFileName().toString());
         try {
             mostrarDados(controller.lerEncomenda(caminho));
             ficheiroValido = caminho;
             botaoEnviar.setDisable(false);
+        } catch (XsdEmFaltaException e) {
+            mostrar(e.getMessage(), COR_ERRO);
         } catch (XmlInvalidoException e) {
             mostrarErros(e.getErros());
         } catch (RuntimeException e) {
@@ -192,11 +233,17 @@ public class ImportacaoFornecedorViewController {
             // Conta base ainda sem morada: sugere preencher a ficha com os dados do primeiro XML.
             checkAtualizarFicha.setSelected(fornecedor.getMorada().isEmpty() && fornecedor.getCidade().isEmpty());
             tabelaImportacoes.setItems(FXCollections.observableArrayList(controller.listarMinhasImportacoes()));
+            mostrarXsd();
         } catch (RuntimeException e) {
             labelFornecedor.setText(e.getMessage());
             labelFornecedor.setStyle(COR_ERRO);
             botaoEscolher.setDisable(true);
+            botaoEscolherXsd.setDisable(true);
         }
+    }
+
+    private void mostrarXsd() {
+        labelXsd.setText(controller.descreverXsd());
     }
 
     private static String moradaEmTexto(Fornecedor fornecedor) {
@@ -216,6 +263,18 @@ public class ImportacaoFornecedorViewController {
         tabelaLinhas.setItems(FXCollections.observableArrayList(encomenda.linhas()));
         mostrar("Ficheiro válido: " + encomenda.linhas().size() + " linha(s). Reveja os dados e envie ao hotel.",
                 COR_SUCESSO);
+        mostrarAvisos(encomenda.avisos());
+    }
+
+    /** Diferenças entre o IVA e os totais do XML e os calculados: só avisam, o envio pode continuar. */
+    private void mostrarAvisos(List<String> avisos) {
+        if (avisos.isEmpty()) {
+            return;
+        }
+        labelAvisos.setText("Aviso: o XML tem valores que diferem dos calculados (o envio pode continuar):"
+                + System.lineSeparator() + String.join(System.lineSeparator(), avisos));
+        labelAvisos.setVisible(true);
+        labelAvisos.setManaged(true);
     }
 
     private void mostrarErros(List<ErroXml> erros) {
@@ -231,6 +290,9 @@ public class ImportacaoFornecedorViewController {
         labelCabecalho.setText("");
         labelTotais.setText("");
         tabelaLinhas.getItems().clear();
+        labelAvisos.setText("");
+        labelAvisos.setVisible(false);
+        labelAvisos.setManaged(false);
         areaErros.clear();
         areaErros.setVisible(false);
         areaErros.setManaged(false);

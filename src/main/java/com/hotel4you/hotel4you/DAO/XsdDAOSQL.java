@@ -11,20 +11,22 @@ import java.util.Optional;
 
 /**
  * {@link XsdDAO} sobre a tabela {@code dbo.FicheiroXsd}. Cada importação é uma linha nova;
- * o XSD em vigor é o mais recente.
+ * o XSD em vigor de um fornecedor é o mais recente desse fornecedor. As linhas sem fornecedor
+ * (da época em que o gestor importava o XSD, S5-05) são ignoradas.
  */
 public class XsdDAOSQL implements XsdDAO {
 
     @Override
-    public FicheiroXsd guardar(FicheiroXsd xsd, int idDoGestor) {
-        String sql = "INSERT INTO dbo.FicheiroXsd (NomeFicheiro, Conteudo, DataImportacao, IdUtilizador) "
-                + "VALUES (?, ?, ?, ?)";
+    public FicheiroXsd guardar(FicheiroXsd xsd, int idUtilizador) {
+        String sql = "INSERT INTO dbo.FicheiroXsd (IdFornecedor, NomeFicheiro, Conteudo, DataImportacao, IdUtilizador) "
+                + "VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection()) {
             int id = SqlUtil.inserirComId(conn, sql, ps -> {
-                ps.setString(1, xsd.getNomeFicheiro());
-                ps.setBytes(2, xsd.getConteudo());
-                SqlUtil.definirDataHora(ps, 3, xsd.getDataImportacao());
-                ps.setInt(4, idDoGestor);
+                ps.setInt(1, xsd.getIdFornecedor());
+                ps.setString(2, xsd.getNomeFicheiro());
+                ps.setBytes(3, xsd.getConteudo());
+                SqlUtil.definirDataHora(ps, 4, xsd.getDataImportacao());
+                ps.setInt(5, idUtilizador);
             });
             xsd.setId(id);
             return xsd;
@@ -34,17 +36,20 @@ public class XsdDAOSQL implements XsdDAO {
     }
 
     @Override
-    public Optional<FicheiroXsd> obterAtual() {
-        String sql = "SELECT TOP 1 IdXsd, NomeFicheiro, Conteudo, DataImportacao FROM dbo.FicheiroXsd "
-                + "ORDER BY IdXsd DESC";
+    public Optional<FicheiroXsd> obterAtual(int idFornecedor) {
+        String sql = "SELECT TOP 1 IdXsd, IdFornecedor, NomeFicheiro, Conteudo, DataImportacao FROM dbo.FicheiroXsd "
+                + "WHERE IdFornecedor = ? ORDER BY IdXsd DESC";
         try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (!rs.next()) {
-                return Optional.empty();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idFornecedor);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(new FicheiroXsd(rs.getInt("IdXsd"), rs.getInt("IdFornecedor"),
+                        rs.getString("NomeFicheiro"), rs.getBytes("Conteudo"),
+                        SqlUtil.lerDataHora(rs, "DataImportacao")));
             }
-            return Optional.of(new FicheiroXsd(rs.getInt("IdXsd"), rs.getString("NomeFicheiro"),
-                    rs.getBytes("Conteudo"), SqlUtil.lerDataHora(rs, "DataImportacao")));
         } catch (SQLException e) {
             throw new DAOException("Não foi possível consultar o ficheiro XSD.", e);
         }

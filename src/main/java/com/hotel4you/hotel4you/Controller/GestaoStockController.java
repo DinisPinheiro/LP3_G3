@@ -11,11 +11,7 @@ import com.hotel4you.hotel4you.Model.encomenda.FornecedorEncomenda;
 import com.hotel4you.hotel4you.Model.encomenda.LinhaEncomenda;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import com.hotel4you.hotel4you.Model.enums.TipoMovimento;
-import com.hotel4you.hotel4you.Utils.LeitorEncomendaXml;
-import com.hotel4you.hotel4you.Utils.XmlInvalidoException;
 
-import java.io.IOException;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,10 +38,6 @@ public class GestaoStockController {
     private static final int MAX_NOME = 100;
     private static final int MAX_UNIDADE = 20;
     private static final int MAX_IDENTIFICADOR_FORNECEDOR = 20;
-    /** Limites das colunas de dbo.Encomenda (Numero, Moeda) e dbo.EncomendaLinha (CodigoProduto). */
-    private static final int MAX_NUMERO_ENCOMENDA = 30;
-    private static final int MAX_MOEDA = 3;
-    private static final int MAX_CODIGO_PRODUTO = 40;
 
     private final StockDAO stockDAO;
     private final Sessao sessao;
@@ -60,37 +52,11 @@ public class GestaoStockController {
     }
 
     /**
-     * Valida um ficheiro XML do fornecedor contra o XSD e, se for válido, lê os seus dados.
-     * Não guarda nada.
-     *
-     * @param ficheiro caminho do ficheiro XML escolhido
-     * @return a encomenda lida do ficheiro
-     * @throws XmlInvalidoException     se o XML não cumprir o XSD (traz a linha e o motivo de cada erro)
-     * @throws IllegalArgumentException se o ficheiro não for indicado ou não puder ser lido, ou se algum valor
-     *                                  da encomenda for inválido (preço negativo, taxa acima de 100, moedas diferentes)
-     * @throws SecurityException        se o utilizador não for rececionista nem gestor
-     */
-    public EncomendaFornecedor lerEncomendaXml(Path ficheiro) {
-        exigirStock();
-        if (ficheiro == null) {
-            throw new IllegalArgumentException("Escolha um ficheiro XML.");
-        }
-        try {
-            EncomendaFornecedor encomenda = LeitorEncomendaXml.ler(ficheiro);
-            validarValores(encomenda);
-            return encomenda;
-        } catch (IOException e) {
-            throw new IllegalArgumentException("Não foi possível ler o ficheiro '" + ficheiro.getFileName()
-                    + "': " + e.getMessage(), e);
-        }
-    }
-
-    /**
      * Dá entrada em stock do material de uma encomenda já validada. Cada linha soma a sua quantidade
      * ao artigo com a mesma descrição (que é criado se ainda não existir) e fica registada como um
      * movimento de entrada, feito pelo utilizador autenticado.
      *
-     * @param encomenda encomenda lida de um XML válido (ver {@link #lerEncomendaXml(Path)})
+     * @param encomenda encomenda lida de um XML válido (a que o fornecedor enviou e o hotel aprovou)
      * @return o número de linhas que deram entrada
      * @throws IllegalArgumentException se alguma linha for inválida (quantidade a zero, textos longos
      *                                  demais ou unidade diferente da do artigo já em stock); nada é guardado
@@ -100,7 +66,7 @@ public class GestaoStockController {
     public int darEntrada(EncomendaFornecedor encomenda) {
         exigirStock();
         Objects.requireNonNull(encomenda, "A encomenda é obrigatória.");
-        validarValores(encomenda);
+        encomenda.validarValores();
         Fornecedor fornecedor = criarFornecedor(encomenda.fornecedor());
         List<MovimentoStock> entradas = criarEntradas(encomenda.linhas());
         try {
@@ -125,29 +91,6 @@ public class GestaoStockController {
         } catch (DAOException e) {
             throw new AcessoDadosException(e.getMessage(), e);
         }
-    }
-
-    /**
-     * Verifica os valores da encomenda que o XSD aceita mas que a base de dados não: preços negativos, taxas
-     * acima de 100, textos longos demais, e se os totais se conseguem calcular. Não guarda nada.
-     */
-    static void validarValores(EncomendaFornecedor encomenda) {
-        limitar(encomenda.numero(), MAX_NUMERO_ENCOMENDA, "O número da encomenda");
-        for (LinhaEncomenda linha : encomenda.linhas()) {
-            String prefixo = "Linha " + linha.numero() + ": ";
-            limitar(linha.codigoProduto(), MAX_CODIGO_PRODUTO, prefixo + "o código do produto");
-            limitar(linha.precoUnitario().preco().moeda(), MAX_MOEDA, prefixo + "a moeda");
-            if (linha.precoUnitario().preco().valor().signum() < 0) {
-                throw new IllegalArgumentException(prefixo + "o preço unitário não pode ser negativo.");
-            }
-            if (linha.precoUnitario().porQuantidade() < 1) {
-                throw new IllegalArgumentException(prefixo + "o preço tem de se referir a pelo menos 1 unidade.");
-            }
-            if (linha.imposto().percentagem() > 100) {
-                throw new IllegalArgumentException(prefixo + "a taxa de imposto não pode ser superior a 100%.");
-            }
-        }
-        encomenda.totais();
     }
 
     private static Fornecedor criarFornecedor(FornecedorEncomenda dados) {

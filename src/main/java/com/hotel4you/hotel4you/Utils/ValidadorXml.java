@@ -16,14 +16,12 @@ import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Valida ficheiros XML de encomendas de fornecedores contra um XSD: por omissão o {@code Hotel4You.xsd}
- * que vem com a aplicação, ou o XSD que o gestor importou (S5-05), recebido por parâmetro.
+ * Valida ficheiros XML de encomendas de fornecedores contra o XSD que o próprio fornecedor importou
+ * (S5-05, S6-02), recebido por parâmetro. A aplicação não traz nenhum XSD seu.
  * <p>
  * Devolve todos os erros encontrados, cada um com a linha e o motivo. Não lê os dados nem
  * mostra nada no ecrã: quem a usa decide o que fazer com o resultado. Usa apenas o que já vem
@@ -34,36 +32,9 @@ import java.util.List;
  */
 public final class ValidadorXml {
 
-    private static final String CAMINHO_XSD = "/com/hotel4you/hotel4you/xml/Hotel4You.xsd";
     private static final String RECUSAR_DOCTYPE = "http://apache.org/xml/features/disallow-doctype-decl";
 
-    private static Schema schema;
-
     private ValidadorXml() {
-    }
-
-    /**
-     * Valida um ficheiro XML contra o XSD do fornecedor.
-     *
-     * @param ficheiro caminho do ficheiro XML
-     * @return o resultado, com a lista de erros (vazia se o ficheiro for válido)
-     * @throws IOException se o ficheiro não puder ser lido
-     */
-    public static ResultadoValidacao validar(Path ficheiro) throws IOException {
-        try (InputStream entrada = Files.newInputStream(ficheiro)) {
-            return validar(entrada);
-        }
-    }
-
-    /**
-     * Valida um XML contra o XSD do fornecedor.
-     *
-     * @param xml conteúdo do XML (não é fechado por este método)
-     * @return o resultado, com a lista de erros (vazia se o XML for válido)
-     * @throws IOException se o conteúdo não puder ser lido
-     */
-    public static ResultadoValidacao validar(InputStream xml) throws IOException {
-        return validar(xml, schemaPadrao());
     }
 
     /**
@@ -100,25 +71,7 @@ public final class ValidadorXml {
     }
 
     /**
-     * @return o esquema do {@code Hotel4You.xsd} que vem com a aplicação (carregado uma só vez)
-     * @throws IllegalStateException se o XSD da aplicação não existir ou for inválido
-     */
-    public static synchronized Schema schemaPadrao() {
-        if (schema == null) {
-            try (InputStream xsd = ValidadorXml.class.getResourceAsStream(CAMINHO_XSD)) {
-                if (xsd == null) {
-                    throw new IllegalStateException("XSD não encontrado nos recursos: " + CAMINHO_XSD);
-                }
-                schema = carregarSchema(xsd);
-            } catch (IOException | XsdInvalidoException e) {
-                throw new IllegalStateException("Não foi possível carregar o XSD do fornecedor.", e);
-            }
-        }
-        return schema;
-    }
-
-    /**
-     * Lê e compila um ficheiro XSD, para o poder usar na validação (S5-05). Falha se o ficheiro não
+     * Lê e compila um ficheiro XSD, para o poder usar na validação (S5-05, S6-02). Falha se o ficheiro não
      * for um esquema XML válido. Não são abertos recursos externos (por exemplo, outros XSD por URL).
      *
      * @param xsd conteúdo do XSD (não é fechado por este método)

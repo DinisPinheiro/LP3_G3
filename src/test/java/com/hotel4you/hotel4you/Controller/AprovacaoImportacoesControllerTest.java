@@ -11,7 +11,9 @@ import com.hotel4you.hotel4you.Model.Utilizador;
 import com.hotel4you.hotel4you.Model.encomenda.EncomendaFornecedor;
 import com.hotel4you.hotel4you.Model.enums.EstadoImportacao;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
+import com.hotel4you.hotel4you.Utils.RecursosDeTeste;
 import com.hotel4you.hotel4you.Utils.XmlInvalidoException;
+import com.hotel4you.hotel4you.Utils.XsdEmFaltaException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,6 +33,8 @@ class AprovacaoImportacoesControllerTest {
     @TempDir
     Path pasta;
 
+    private FornecedorDAOMemoria fornecedores;
+    private int numeroDaEntrega;
     private StockDAOMemoria stock;
     private ImportacaoDAOMemoria importacoes;
     private Sessao sessao;
@@ -44,7 +48,7 @@ class AprovacaoImportacoesControllerTest {
     @BeforeEach
     void preparar() {
         UtilizadorDAOMemoria utilizadores = new UtilizadorDAOMemoria();
-        FornecedorDAOMemoria fornecedores = new FornecedorDAOMemoria();
+        fornecedores = new FornecedorDAOMemoria();
         importacoes = new ImportacaoDAOMemoria();
         stock = new StockDAOMemoria();
         sessao = new Sessao();
@@ -62,10 +66,17 @@ class AprovacaoImportacoesControllerTest {
         return Paths.get("src", "test", "resources", "xml", nome);
     }
 
-    /** O fornecedor envia o XML de exemplo; devolve o id da importação pendente. */
+    /**
+     * O fornecedor importa o XSD e envia o XML de exemplo, com um número de encomenda novo de cada vez
+     * (o mesmo número não pode ser enviado duas vezes); devolve o id da importação pendente.
+     */
     private int fornecedorEnviaFicheiro() throws Exception {
         sessao.iniciar(conta);
-        return envio.enviar(recurso("ProductHero.xml"), false).getId();
+        envio.importarXsd(RecursosDeTeste.xsd());
+        String xml = Files.readString(recurso("ProductHero.xml"), StandardCharsets.UTF_8)
+                .replace("<OrderNumber>OC56974</OrderNumber>", "<OrderNumber>OC" + (60000 + ++numeroDaEntrega) + "</OrderNumber>");
+        Path ficheiro = Files.writeString(pasta.resolve("entrega-" + numeroDaEntrega + ".xml"), xml, StandardCharsets.UTF_8);
+        return envio.enviar(ficheiro, false).getId();
     }
 
     @Test
@@ -160,14 +171,29 @@ class AprovacaoImportacoesControllerTest {
         Path xsdRestrito = pasta.resolve("restrito.xsd");
         Files.writeString(xsdRestrito, "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
                 + "<xs:element name=\"Encomenda\" type=\"xs:string\"/></xs:schema>", StandardCharsets.UTF_8);
+        // Entretanto o fornecedor importa um XSD diferente, que o XML já enviado não cumpre.
+        sessao.iniciar(conta);
+        envio.importarXsd(xsdRestrito);
         sessao.iniciar(gestor);
-        xsd.importarXsd(xsdRestrito);
 
         assertThrows(XmlInvalidoException.class, () -> aprovacao.aprovar(id));
         assertEquals(EstadoImportacao.PENDENTE, importacoes.procurarPorId(id).orElseThrow().getEstado());
         assertTrue(stock.listarArtigos().isEmpty());
         aprovacao.rejeitar(id);
         assertEquals(EstadoImportacao.REJEITADO, importacoes.procurarPorId(id).orElseThrow().getEstado());
+    }
+
+    @Test
+    void ficheiroDeFornecedorSemXsdNaoDaEntradaEFicaPendente() throws Exception {
+        // Ficheiro enviado antes de o XSD passar a ser do fornecedor: o fornecedor ainda não tem XSD.
+        Fornecedor fornecedor = fornecedores.procurarPorIdentificador("11PT920").orElseThrow();
+        ImportacaoFornecedor antigo = importacoes.inserir(new ImportacaoFornecedor(fornecedor, "antigo.xml", "OC1",
+                Files.readAllBytes(recurso("ProductHero.xml")), java.time.LocalDateTime.now()));
+        sessao.iniciar(gestor);
+
+        assertThrows(XsdEmFaltaException.class, () -> aprovacao.aprovar(antigo.getId()));
+        assertEquals(EstadoImportacao.PENDENTE, importacoes.procurarPorId(antigo.getId()).orElseThrow().getEstado());
+        assertTrue(stock.listarArtigos().isEmpty());
     }
 
     @Test
