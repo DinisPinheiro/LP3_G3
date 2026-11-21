@@ -350,13 +350,6 @@ public class Main extends Application {
                 );
             }
 
-            if (tipo == ImportacaoXsdViewController.class) {
-
-                return new ImportacaoXsdViewController(
-                        gestaoXsdController
-                );
-            }
-
 
             throw new IllegalArgumentException(
                     "View desconhecida: " + tipo.getName()

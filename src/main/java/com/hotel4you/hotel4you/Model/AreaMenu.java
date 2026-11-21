@@ -21,7 +21,7 @@ public enum AreaMenu {
     RESERVAS("Reservas", "Reservas", CRIAR_RESERVA, EDITAR_RESERVA, RESERVAS_ATIVAS, HISTORICO_RESERVAS, CANCELAR_RESERVA, APAGAR_RESERVAS, CHECK_IN, CHECK_OUT),
     SERVICOS("Serviços e extras", "Serviços e extras", SERVICOS_E_EXTRAS, SERVICOS_QUARTO),
     STOCK("Stock", "Stock", GERIR_STOCK, APROVAR_ENTREGAS),
-    FORNECEDORES("Fornecedores", "Fornecedores", ENVIAR_ENTREGA_XML, GERIR_FORNECEDORES, IMPORTAR_XSD),
+    FORNECEDORES("Fornecedores", "Fornecedores", ENVIAR_ENTREGA_XML, GERIR_FORNECEDORES),
     COZINHA("Cozinha e restaurante", "Cozinha e restaurante", COZINHA_RESTAURANTE),
     FUNCIONARIOS("Gerir funcionários", "Funcionários", GERIR_FUNCIONARIOS),
     SUGESTOES("Sugestões e queixas", "Sugestões e queixas", SUGESTOES_QUEIXAS),

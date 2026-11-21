@@ -21,6 +21,11 @@ import java.util.List;
 public record EncomendaFornecedor(String numero, LocalDate data, FornecedorEncomenda fornecedor,
                                   List<LinhaEncomenda> linhas, TotaisEncomenda resumoXml) {
 
+    /** Limites das colunas de dbo.Encomenda (Numero, Moeda) e dbo.EncomendaLinha (CodigoProduto). */
+    private static final int MAX_NUMERO_ENCOMENDA = 30;
+    private static final int MAX_MOEDA = 3;
+    private static final int MAX_CODIGO_PRODUTO = 40;
+
     /** Garante que a lista não pode ser alterada por quem recebe a encomenda. */
     public EncomendaFornecedor {
         linhas = List.copyOf(linhas);
@@ -30,6 +35,31 @@ public record EncomendaFornecedor(String numero, LocalDate data, FornecedorEncom
     public EncomendaFornecedor(String numero, LocalDate data, FornecedorEncomenda fornecedor,
                                List<LinhaEncomenda> linhas) {
         this(numero, data, fornecedor, linhas, null);
+    }
+
+    /**
+     * Verifica os valores que o XSD aceita mas que a base de dados não: preços negativos, taxas acima
+     * de 100, textos longos demais, e se os totais se conseguem calcular. Não guarda nada.
+     *
+     * @throws IllegalArgumentException se algum valor for inválido
+     */
+    public void validarValores() {
+        limitar(numero, MAX_NUMERO_ENCOMENDA, "O número da encomenda");
+        for (LinhaEncomenda linha : linhas) {
+            String prefixo = "Linha " + linha.numero() + ": ";
+            limitar(linha.codigoProduto(), MAX_CODIGO_PRODUTO, prefixo + "o código do produto");
+            limitar(linha.precoUnitario().preco().moeda(), MAX_MOEDA, prefixo + "a moeda");
+            if (linha.precoUnitario().preco().valor().signum() < 0) {
+                throw new IllegalArgumentException(prefixo + "o preço unitário não pode ser negativo.");
+            }
+            if (linha.precoUnitario().porQuantidade() < 1) {
+                throw new IllegalArgumentException(prefixo + "o preço tem de se referir a pelo menos 1 unidade.");
+            }
+            if (linha.imposto().percentagem() > 100) {
+                throw new IllegalArgumentException(prefixo + "a taxa de imposto não pode ser superior a 100%.");
+            }
+        }
+        totais();
     }
 
     /**
@@ -81,6 +111,12 @@ public record EncomendaFornecedor(String numero, LocalDate data, FornecedorEncom
             comparar(avisos, "Encomenda: total com taxas", resumoXml.totalComTaxas(), calculados.totalComTaxas());
         }
         return avisos;
+    }
+
+    private static void limitar(String texto, int maximo, String descricao) {
+        if (texto != null && texto.trim().length() > maximo) {
+            throw new IllegalArgumentException(descricao + " não pode ter mais de " + maximo + " caracteres.");
+        }
     }
 
     private static void comparar(List<String> avisos, String descricao, BigDecimal noXml, BigDecimal calculado) {

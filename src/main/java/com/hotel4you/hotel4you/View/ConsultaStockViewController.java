@@ -84,12 +84,6 @@ public class ConsultaStockViewController {
                 });
     }
 
-    /** Chamado pelo botão "Entrada de stock (XML do fornecedor)". */
-    @FXML
-    private void onEntradaXml() {
-        Navegador.mudarPara("ValidacaoXmlView.fxml", "Hotel4You - Entrada de stock");
-    }
-
     /** Chamado pelo botão "Voltar ao menu". */
     @FXML
     private void onVoltar() {

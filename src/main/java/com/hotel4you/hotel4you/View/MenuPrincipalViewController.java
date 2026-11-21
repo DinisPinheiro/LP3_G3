@@ -200,15 +200,6 @@ public class MenuPrincipalViewController {
         );
 
         DESTINOS.put(
-                OpcaoMenu.IMPORTAR_XSD,
-                new Destino(
-                        "ImportacaoXsdView.fxml",
-                        "Hotel4You - XSD",
-                        "Importar XSD"
-                )
-        );
-
-        DESTINOS.put(
                 OpcaoMenu.GERIR_FUNCIONARIOS,
                 new Destino(
                         "GestaoFuncionariosView.fxml",

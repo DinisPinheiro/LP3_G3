@@ -39,13 +39,17 @@ class LeitorEncomendaXmlTest {
         return Paths.get("src", "test", "resources", "xml", nome);
     }
 
+    private static EncomendaFornecedor lerFicheiro(Path ficheiro) throws IOException {
+        return LeitorEncomendaXml.ler(Files.readAllBytes(ficheiro), RecursosDeTeste.schema());
+    }
+
     private static EncomendaFornecedor ler(String xml) throws IOException {
-        return LeitorEncomendaXml.ler(xml.getBytes(StandardCharsets.UTF_8), ValidadorXml.schemaPadrao());
+        return LeitorEncomendaXml.ler(xml.getBytes(StandardCharsets.UTF_8), RecursosDeTeste.schema());
     }
 
     @Test
     void xmlValidoDaOCabecalhoEOFornecedor() throws Exception {
-        EncomendaFornecedor encomenda = LeitorEncomendaXml.ler(recurso("ProductHero.xml"));
+        EncomendaFornecedor encomenda = lerFicheiro(recurso("ProductHero.xml"));
 
         assertEquals("OC56974", encomenda.numero());
         assertEquals(LocalDate.of(2026, 10, 5), encomenda.data());
@@ -60,7 +64,7 @@ class LeitorEncomendaXmlTest {
 
     @Test
     void xmlValidoDaAsLinhasComQuantidadePrecoEImposto() throws Exception {
-        EncomendaFornecedor encomenda = LeitorEncomendaXml.ler(recurso("ProductHero.xml"));
+        EncomendaFornecedor encomenda = lerFicheiro(recurso("ProductHero.xml"));
 
         assertEquals(5, encomenda.linhas().size());
         LinhaEncomenda primeira = encomenda.linhas().get(0);
@@ -101,7 +105,7 @@ class LeitorEncomendaXmlTest {
     @Test
     void xmlQueNaoCumpreOXsdLancaErrosComLinhaEMotivo() throws Exception {
         XmlInvalidoException erro = assertThrows(XmlInvalidoException.class,
-                () -> LeitorEncomendaXml.ler(recurso("ProductHero_invalido.xml")));
+                () -> lerFicheiro(recurso("ProductHero_invalido.xml")));
 
         assertFalse(erro.getErros().isEmpty());
         for (ErroXml e : erro.getErros()) {
@@ -155,7 +159,7 @@ class LeitorEncomendaXmlTest {
 
     @Test
     void ficheiroQueNaoExisteLancaIOException() {
-        assertThrows(IOException.class, () -> LeitorEncomendaXml.ler(Paths.get("nao-existe-mesmo.xml")));
+        assertThrows(IOException.class, () -> lerFicheiro(Paths.get("nao-existe-mesmo.xml")));
     }
 
     @Test

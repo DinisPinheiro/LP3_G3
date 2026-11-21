@@ -41,6 +41,10 @@ public class ImportacaoDAOSQL implements ImportacaoDAO {
             importacao.setId(id);
             return importacao;
         } catch (SQLException e) {
+            if (SqlUtil.violaUnicidade(e)) {
+                throw new DAOException("A encomenda " + importacao.getNumeroEncomenda()
+                        + " já foi enviada por este fornecedor. Não é possível enviá-la outra vez.", e);
+            }
             throw new DAOException("Não foi possível guardar o ficheiro importado.", e);
         }
     }

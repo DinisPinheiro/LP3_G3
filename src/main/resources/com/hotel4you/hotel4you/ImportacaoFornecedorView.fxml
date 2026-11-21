@@ -22,11 +22,16 @@
     <Label fx:id="labelFornecedor" wrapText="true" style="-fx-text-fill: #555555;"/>
 
     <HBox spacing="8">
-        <Button fx:id="botaoEscolher" text="Escolher ficheiro XML..." defaultButton="true" onAction="#onEscolherFicheiro"/>
+        <Button fx:id="botaoEscolher" text="1. Escolher ficheiro XML..." defaultButton="true" onAction="#onEscolherFicheiro"/>
         <Label fx:id="labelFicheiro" text="Nenhum ficheiro escolhido." style="-fx-text-fill: #555555;"/>
+    </HBox>
+    <HBox spacing="8">
+        <Button fx:id="botaoEscolherXsd" text="2. Escolher ficheiro XSD..." onAction="#onEscolherXsd"/>
+        <Label fx:id="labelXsd" wrapText="true" style="-fx-text-fill: #555555;"/>
     </HBox>
 
     <Label fx:id="labelMensagem" wrapText="true"/>
+    <Label fx:id="labelAvisos" wrapText="true" visible="false" managed="false" style="-fx-text-fill: #b9770e;"/>
     <Label fx:id="labelCabecalho" wrapText="true" style="-fx-font-weight: bold;"/>
     <Label fx:id="labelTotais" wrapText="true"/>
 

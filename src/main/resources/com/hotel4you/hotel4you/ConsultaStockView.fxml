@@ -21,7 +21,6 @@
            wrapText="true" style="-fx-text-fill: #555555;"/>
 
     <HBox spacing="8">
-        <Button text="Entrada de stock (XML do fornecedor)" onAction="#onEntradaXml"/>
         <Button text="Atualizar" onAction="#onAtualizar"/>
     </HBox>
 

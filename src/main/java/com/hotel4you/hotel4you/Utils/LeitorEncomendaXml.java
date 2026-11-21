@@ -21,8 +21,6 @@ import javax.xml.validation.Schema;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -43,22 +41,10 @@ public final class LeitorEncomendaXml {
     }
 
     /**
-     * Valida (com o XSD da aplicação) e lê um ficheiro XML de encomenda.
-     *
-     * @param ficheiro caminho do ficheiro XML
-     * @return a encomenda com todos os dados do ficheiro
-     * @throws IOException           se o ficheiro não puder ser lido
-     * @throws XmlInvalidoException  se o XML não cumprir o XSD (traz a linha e o motivo de cada erro)
-     */
-    public static EncomendaFornecedor ler(Path ficheiro) throws IOException {
-        return ler(Files.readAllBytes(ficheiro), ValidadorXml.schemaPadrao());
-    }
-
-    /**
      * Valida um XML de encomenda contra o XSD indicado e, se for válido, lê os seus dados.
      *
      * @param conteudo bytes do ficheiro XML
-     * @param schema   XSD contra o qual validar (o da aplicação ou o que o gestor importou, S5-05)
+     * @param schema   XSD contra o qual validar (o que o fornecedor importou, S6-02)
      * @return a encomenda com todos os dados do ficheiro
      * @throws IOException           se o conteúdo não puder ser lido
      * @throws XmlInvalidoException  se o XML não cumprir o XSD ou, mesmo cumprindo-o, não tiver a
@@ -72,7 +58,7 @@ public final class LeitorEncomendaXml {
         try {
             return converter(construirDocumento(conteudo).getDocumentElement());
         } catch (IllegalStateException | NumberFormatException e) {
-            // Um XSD importado pelo gestor pode aceitar ficheiros com outra estrutura: aqui falta algo
+            // Um XSD importado pelo fornecedor pode aceitar ficheiros com outra estrutura: aqui falta algo
             // que a aplicação precisa para dar entrada em stock.
             throw new XmlInvalidoException(List.of(new ErroXml(0, 0,
                     "O ficheiro cumpre o XSD, mas não tem a estrutura de encomenda que a aplicação lê: "

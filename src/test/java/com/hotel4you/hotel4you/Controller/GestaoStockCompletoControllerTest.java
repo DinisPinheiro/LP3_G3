@@ -7,6 +7,7 @@ import com.hotel4you.hotel4you.Model.encomenda.EncomendaFornecedor;
 import com.hotel4you.hotel4you.Model.encomenda.LinhaEncomenda;
 import com.hotel4you.hotel4you.Model.encomenda.TotaisEncomenda;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
+import com.hotel4you.hotel4you.Utils.RecursosDeTeste;
 import com.hotel4you.hotel4you.Utils.XmlInvalidoException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,7 +63,7 @@ class GestaoStockCompletoControllerTest {
     }
 
     private EncomendaFornecedor ler(Path pasta, String xml) throws Exception {
-        return controller.lerEncomendaXml(Files.writeString(pasta.resolve("encomenda.xml"), xml, StandardCharsets.UTF_8));
+        return RecursosDeTeste.ler(Files.writeString(pasta.resolve("encomenda.xml"), xml, StandardCharsets.UTF_8));
     }
 
     private Artigo artigo(String inicio) {
@@ -73,7 +74,7 @@ class GestaoStockCompletoControllerTest {
 
     @Test
     void linhasDoXMLTemCaixasUnidadesPrecoTaxaETotal() throws Exception {
-        EncomendaFornecedor encomenda = controller.lerEncomendaXml(recurso("ProductHero.xml"));
+        EncomendaFornecedor encomenda = RecursosDeTeste.ler(recurso("ProductHero.xml"));
         LinhaEncomenda toalhas = encomenda.linhas().get(0);
         assertEquals(50, toalhas.caixas().getAsInt());
         assertEquals(500, toalhas.unidades().getAsInt());
@@ -89,7 +90,7 @@ class GestaoStockCompletoControllerTest {
 
     @Test
     void entradaGuardaOUltimoPrecoETaxaNoArtigo() throws Exception {
-        controller.darEntrada(controller.lerEncomendaXml(recurso("ProductHero.xml")));
+        controller.darEntrada(RecursosDeTeste.ler(recurso("ProductHero.xml")));
 
         Artigo toalhas = artigo("Toalha");
         assertEquals(new BigDecimal("2.51"), toalhas.getPrecoUnitario());
@@ -103,7 +104,7 @@ class GestaoStockCompletoControllerTest {
 
     @Test
     void segundaEntradaAtualizaOPrecoESomaOStock(@TempDir Path pasta) throws Exception {
-        controller.darEntrada(controller.lerEncomendaXml(recurso("ProductHero.xml")));
+        controller.darEntrada(RecursosDeTeste.ler(recurso("ProductHero.xml")));
         String maisCaro = xmlComResumo(null, null, null).replace("<CurrencyValue CurrencyType=\"EUR\">29.99</CurrencyValue>",
                 "<CurrencyValue CurrencyType=\"EUR\">31.50</CurrencyValue>");
         controller.darEntrada(ler(pasta, maisCaro));
@@ -118,7 +119,7 @@ class GestaoStockCompletoControllerTest {
 
     @Test
     void encomendaTemTotalDasLinhasDasTaxasETotalComTaxas() throws Exception {
-        EncomendaFornecedor encomenda = controller.lerEncomendaXml(recurso("ProductHero.xml"));
+        EncomendaFornecedor encomenda = RecursosDeTeste.ler(recurso("ProductHero.xml"));
         TotaisEncomenda totais = encomenda.totais();
         assertEquals(new BigDecimal("14138.00"), totais.totalLinhas());
         assertEquals(new BigDecimal("3251.75"), totais.totalTaxas());
@@ -128,7 +129,7 @@ class GestaoStockCompletoControllerTest {
 
     @Test
     void entradaGuardaAEncomendaComOsSeusTotais() throws Exception {
-        controller.darEntrada(controller.lerEncomendaXml(recurso("ProductHero.xml")));
+        controller.darEntrada(RecursosDeTeste.ler(recurso("ProductHero.xml")));
         assertEquals(1, dao.getEncomendas().size());
         EncomendaFornecedor guardada = dao.getEncomendas().get(0);
         assertEquals("OC56974", guardada.numero());
@@ -139,7 +140,7 @@ class GestaoStockCompletoControllerTest {
     @Test
     void valorDoXMLDiferenteDoCalculadoGeraAvisoMasNaoImpedeAEntrada() throws Exception {
         // no ProductHero.xml o imposto da linha 2 está como 160,51 (o certo é 160,54)
-        EncomendaFornecedor encomenda = controller.lerEncomendaXml(recurso("ProductHero.xml"));
+        EncomendaFornecedor encomenda = RecursosDeTeste.ler(recurso("ProductHero.xml"));
         assertTrue(encomenda.avisos().stream().anyMatch(a -> a.startsWith("Linha 2: imposto")));
         assertEquals(5, controller.darEntrada(encomenda));
     }
@@ -205,7 +206,7 @@ class GestaoStockCompletoControllerTest {
 
     @Test
     void gestaoDeStockMostraOStockDoHotelEODisponivel() throws Exception {
-        controller.darEntrada(controller.lerEncomendaXml(recurso("ProductHero.xml")));
+        controller.darEntrada(RecursosDeTeste.ler(recurso("ProductHero.xml")));
         String nome = artigo("Secador").getNome();
         dao.definirReservado(nome, 12);
 
@@ -217,9 +218,9 @@ class GestaoStockCompletoControllerTest {
 
     @Test
     void entradaNovaNaoPerdeOUsadoEmReservas() throws Exception {
-        controller.darEntrada(controller.lerEncomendaXml(recurso("ProductHero.xml")));
+        controller.darEntrada(RecursosDeTeste.ler(recurso("ProductHero.xml")));
         dao.definirReservado(artigo("Secador").getNome(), 12);
-        controller.darEntrada(controller.lerEncomendaXml(recurso("ProductHero.xml")));
+        controller.darEntrada(RecursosDeTeste.ler(recurso("ProductHero.xml")));
 
         Artigo secador = artigo("Secador");
         assertEquals(100, secador.getQuantidadeAtual());

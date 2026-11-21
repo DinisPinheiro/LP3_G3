@@ -3,6 +3,7 @@ package com.hotel4you.hotel4you.Controller;
 import com.hotel4you.hotel4you.DAO.DAOException;
 import com.hotel4you.hotel4you.DAO.FornecedorDAO;
 import com.hotel4you.hotel4you.DAO.ImportacaoDAO;
+import com.hotel4you.hotel4you.Model.FicheiroXsd;
 import com.hotel4you.hotel4you.Model.Fornecedor;
 import com.hotel4you.hotel4you.Model.ImportacaoFornecedor;
 import com.hotel4you.hotel4you.Model.encomenda.EncomendaFornecedor;
@@ -10,6 +11,8 @@ import com.hotel4you.hotel4you.Model.encomenda.FornecedorEncomenda;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import com.hotel4you.hotel4you.Utils.LeitorEncomendaXml;
 import com.hotel4you.hotel4you.Utils.XmlInvalidoException;
+import com.hotel4you.hotel4you.Utils.XsdEmFaltaException;
+import com.hotel4you.hotel4you.Utils.XsdInvalidoException;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,11 +22,14 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Importação de ficheiros XML pelo próprio fornecedor (S5-02).
+ * Importação de ficheiros XML e XSD pelo próprio fornecedor (S5-02, S6-02, S6-03).
  * <p>
  * O fornecedor entra com a sua conta (perfil Fornecedor) e só pode importar ficheiros seus: o código
- * do fornecedor no XML tem de ser o da sua ficha. O XML é validado com o XSD em vigor (ver
- * {@link GestaoXsdController}); um ficheiro inválido é recusado com a linha e o motivo de cada erro.
+ * do fornecedor no XML tem de ser o da sua ficha. Importa o XML e, a seguir, o XSD com que ele é validado
+ * (ver {@link GestaoXsdController}); um XML inválido é recusado com a linha e o motivo de cada erro.
+ * Um fornecedor não pode enviar duas vezes a mesma encomenda: o número da encomenda tem de ser novo
+ * ({@link ImportacaoFornecedor#exigirEncomendaNova}). Se os valores do XML (IVA, totais) diferirem dos
+ * calculados, a encomenda traz avisos ({@link EncomendaFornecedor#avisos()}) mas pode seguir.
  * Um ficheiro válido fica {@code PENDENTE} à espera de aprovação (ver {@link AprovacaoImportacoesController});
  * nada dá entrada em stock aqui.
  */
@@ -39,7 +45,7 @@ public class ImportacaoFornecedorController {
     /**
      * @param importacaoDAO onde os ficheiros importados são guardados
      * @param fornecedorDAO onde as fichas dos fornecedores são guardadas
-     * @param gestaoXsd     fornece o XSD em vigor
+     * @param gestaoXsd     guarda e fornece o XSD de cada fornecedor
      * @param sessao        sessão com o utilizador autenticado (tem de ser fornecedor)
      */
     public ImportacaoFornecedorController(ImportacaoDAO importacaoDAO, FornecedorDAO fornecedorDAO,
@@ -67,12 +73,38 @@ public class ImportacaoFornecedorController {
     }
 
     /**
-     * Valida um XML e confirma que é do fornecedor com sessão iniciada, sem guardar nada.
+     * Importa o XSD do fornecedor com sessão iniciada. Substitui o anterior e passa a validar os seus XML.
+     *
+     * @param ficheiro caminho do XSD escolhido
+     * @return o ficheiro guardado
+     * @throws XsdInvalidoException     se o ficheiro não for um XSD válido (a mensagem diz o motivo)
+     * @throws IllegalArgumentException se o ficheiro não for indicado, estiver vazio ou não puder ser lido
+     * @throws SecurityException        se o utilizador não for um fornecedor com ficha
+     * @throws AcessoDadosException     se não for possível guardar
+     */
+    public FicheiroXsd importarXsd(Path ficheiro) {
+        return gestaoXsd.importarXsd(obterFornecedorAtual(), ficheiro);
+    }
+
+    /**
+     * @return o texto que diz qual é o XSD em uso do fornecedor com sessão iniciada
+     * @throws SecurityException    se o utilizador não for um fornecedor com ficha
+     * @throws AcessoDadosException se não for possível ler
+     */
+    public String descreverXsd() {
+        return gestaoXsd.descreverXsd(obterFornecedorAtual());
+    }
+
+    /**
+     * Valida um XML e confirma que é do fornecedor com sessão iniciada e que a encomenda ainda não foi
+     * enviada, sem guardar nada.
      *
      * @param ficheiro caminho do XML escolhido
-     * @return a encomenda lida do ficheiro
+     * @return a encomenda lida do ficheiro (use {@link EncomendaFornecedor#avisos()} para os avisos de valores)
+     * @throws XsdEmFaltaException      se o fornecedor ainda não importou o XSD
      * @throws XmlInvalidoException     se o XML não cumprir o XSD (traz a linha e o motivo de cada erro)
-     * @throws IllegalArgumentException se o ficheiro não for indicado, não puder ser lido ou for de outro fornecedor
+     * @throws IllegalArgumentException se o ficheiro não for indicado, não puder ser lido, for de outro
+     *                                  fornecedor ou for de uma encomenda já enviada
      * @throws SecurityException        se o utilizador não for um fornecedor com ficha
      */
     public EncomendaFornecedor lerEncomenda(Path ficheiro) {
@@ -88,8 +120,10 @@ public class ImportacaoFornecedorController {
      * @param atualizarFicha {@code true} para atualizar o nome, a morada, o código postal e a cidade do
      *                       fornecedor com os dados do XML
      * @return a importação guardada, no estado pendente
+     * @throws XsdEmFaltaException      se o fornecedor ainda não importou o XSD
      * @throws XmlInvalidoException     se o XML não cumprir o XSD (nada é guardado)
-     * @throws IllegalArgumentException se o ficheiro for de outro fornecedor ou os dados não couberem na ficha
+     * @throws IllegalArgumentException se o ficheiro for de outro fornecedor, for de uma encomenda já enviada
+     *                                  ou os dados não couberem na ficha
      * @throws SecurityException        se o utilizador não for um fornecedor com ficha
      * @throws AcessoDadosException     se não for possível guardar
      */
@@ -131,16 +165,22 @@ public class ImportacaoFornecedorController {
     private EncomendaFornecedor lerEValidar(byte[] conteudo, Fornecedor fornecedor) {
         EncomendaFornecedor encomenda;
         try {
-            encomenda = LeitorEncomendaXml.ler(conteudo, gestaoXsd.obterSchemaEmVigor());
+            encomenda = LeitorEncomendaXml.ler(conteudo, gestaoXsd.obterSchema(fornecedor));
         } catch (IOException e) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro: " + e.getMessage(), e);
         }
-        GestaoStockController.validarValores(encomenda);
+        encomenda.validarValores();
         FornecedorEncomenda doXml = encomenda.fornecedor();
         if (!fornecedor.getIdentificador().equalsIgnoreCase(doXml.identificador().trim())) {
             throw new IllegalArgumentException("Este ficheiro é do fornecedor '" + doXml.identificador()
                     + "' e a sua conta é do fornecedor '" + fornecedor.getIdentificador()
                     + "'. Só pode importar ficheiros seus.");
+        }
+        try {
+            ImportacaoFornecedor.exigirEncomendaNova(encomenda.numero(),
+                    importacaoDAO.listarDoFornecedor(fornecedor.getId()));
+        } catch (DAOException e) {
+            throw new AcessoDadosException(e.getMessage(), e);
         }
         return encomenda;
     }

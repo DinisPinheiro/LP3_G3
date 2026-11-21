@@ -6,13 +6,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Testes da S5-03: transições de estado Pendente, Aprovado e Rejeitado. */
+/** Testes da S5-03 (transições de estado Pendente, Aprovado e Rejeitado) e da S6-03 (encomenda repetida). */
 class ImportacaoFornecedorTest {
 
     private static final LocalDateTime ENVIO = LocalDateTime.of(2026, 11, 10, 9, 0);
@@ -95,5 +98,44 @@ class ImportacaoFornecedorTest {
         byte[] copia = importacao.getConteudo();
         copia[0] = 99;
         assertArrayEquals(new byte[]{1, 2, 3}, importacao.getConteudo());
+    }
+
+    // ---- S6-03: o mesmo fornecedor não envia duas vezes a mesma encomenda ---------------------------
+
+    @Test
+    void numeroDeEncomendaJaEnviadoEBloqueadoComMensagem() {
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> ImportacaoFornecedor.exigirEncomendaNova("OC1", List.of(importacao)));
+
+        assertTrue(erro.getMessage().contains("OC1"));
+        assertTrue(erro.getMessage().contains("já foi enviada"));
+        assertTrue(erro.getMessage().contains("entrega.xml"));
+    }
+
+    @Test
+    void numeroDeEncomendaNovoEAceite() {
+        assertDoesNotThrow(() -> ImportacaoFornecedor.exigirEncomendaNova("OC2", List.of(importacao)));
+        assertDoesNotThrow(() -> ImportacaoFornecedor.exigirEncomendaNova("OC1", List.of()));
+    }
+
+    @Test
+    void numeroDeEncomendaComparaSemMaiusculasNemEspacosNasPontas() {
+        assertThrows(IllegalArgumentException.class,
+                () -> ImportacaoFornecedor.exigirEncomendaNova("  oc1 ", List.of(importacao)));
+    }
+
+    @Test
+    void encomendaJaDecididaContaComoEnviada() {
+        importacao.rejeitar(decisor, DECISAO);
+
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> ImportacaoFornecedor.exigirEncomendaNova("OC1", List.of(importacao)));
+        assertTrue(erro.getMessage().contains("rejeitado"));
+    }
+
+    @Test
+    void numeroDeEncomendaEmBrancoEInvalido() {
+        assertThrows(IllegalArgumentException.class,
+                () -> ImportacaoFornecedor.exigirEncomendaNova(" ", List.of()));
     }
 }
