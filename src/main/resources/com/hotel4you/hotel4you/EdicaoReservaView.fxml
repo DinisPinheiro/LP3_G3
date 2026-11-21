@@ -50,10 +50,30 @@
             <ListView fx:id="listaServicos"
                       prefHeight="120"/>
 
-            <Label text="Produtos associados:"/>
+            <Label text="Produtos do stock na reserva:"/>
 
             <ListView fx:id="listaProdutos"
                       prefHeight="70"/>
+
+            <HBox spacing="8">
+
+                <ComboBox fx:id="campoProduto"
+                          promptText="Escolher produto"
+                          prefWidth="230"/>
+
+                <TextField fx:id="campoQuantidadeProduto"
+                           promptText="Qtd."
+                           prefWidth="60"/>
+
+                <Button fx:id="botaoAlterarProduto"
+                        text="Alterar quantidade"
+                        onAction="#onAlterarProduto"/>
+
+                <Button fx:id="botaoRemoverProduto"
+                        text="Remover produto"
+                        onAction="#onRemoverProduto"/>
+
+            </HBox>
 
             <Label fx:id="labelTotal"
                    text="Valor total: 0 €"
@@ -93,4 +113,4 @@
     <Button text="Voltar ao menu"
             onAction="#onVoltar"/>
 
-</VBox>
+</VBox>

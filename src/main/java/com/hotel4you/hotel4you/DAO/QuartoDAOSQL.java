@@ -1,7 +1,9 @@
 package com.hotel4you.hotel4you.DAO;
 
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.Equipamento;
+import com.hotel4you.hotel4you.Model.ProdutoQuarto;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.enums.TipoQuarto;
 import com.hotel4you.hotel4you.Model.enums.Vista;
@@ -22,6 +24,9 @@ import java.util.Set;
 /**
  * {@link QuartoDAO} sobre as tabelas {@code dbo.Quarto} e {@code dbo.Quarto_Equipamento}.
  * Gravar um quarto e a sua lista de equipamentos é feito numa só transação.
+ * <p>
+ * S6-05: os equipamentos escolhidos a partir do stock ficam na tabela de ligação {@code dbo.QuartoProduto}
+ * (quarto, produto do stock e quantidade), gravada na mesma transação do quarto.
  */
 public class QuartoDAOSQL implements QuartoDAO {
 
@@ -47,6 +52,7 @@ public class QuartoDAOSQL implements QuartoDAO {
                     ps.setBoolean(7, quarto.isAtivo());
                 });
                 gravarEquipamentos(conn, id, equipamentos);
+                gravarProdutos(conn, id, quarto.getProdutos());
                 conn.commit();
                 quarto.setId(id);
                 return quarto;
@@ -84,6 +90,9 @@ public class QuartoDAOSQL implements QuartoDAO {
                 SqlUtil.executar(conn, "DELETE FROM dbo.Quarto_Equipamento WHERE IdQuarto = ?",
                         ps -> ps.setInt(1, quarto.getId()));
                 gravarEquipamentos(conn, quarto.getId(), equipamentos);
+                SqlUtil.executar(conn, "DELETE FROM dbo.QuartoProduto WHERE IdQuarto = ?",
+                        ps -> ps.setInt(1, quarto.getId()));
+                gravarProdutos(conn, quarto.getId(), quarto.getProdutos());
                 conn.commit();
             } catch (SQLException e) {
                 SqlUtil.reverter(conn, e);
@@ -189,6 +198,7 @@ public class QuartoDAOSQL implements QuartoDAO {
         }
         for (Quarto quarto : lista) {
             carregarEquipamentos(conn, quarto);
+            carregarProdutos(conn, quarto);
         }
         return lista;
     }
@@ -215,6 +225,44 @@ public class QuartoDAOSQL implements QuartoDAO {
                     quarto.adicionarEquipamento(new Equipamento(rs.getInt("IdEquipamento"), rs.getString("Nome")));
                 }
             }
+        }
+    }
+
+    /** Lê os produtos do stock que o quarto tem, com a quantidade (S6-05). */
+    private static void carregarProdutos(Connection conn, Quarto quarto) throws SQLException {
+        String sql = "SELECT qp.Quantidade, a.IdArtigo, a.Nome, a.Unidade, a.QuantidadeAtual, a.Consumivel "
+                + "FROM dbo.QuartoProduto qp JOIN dbo.Artigo a ON a.IdArtigo = qp.IdArtigo "
+                + "WHERE qp.IdQuarto = ? ORDER BY a.Nome";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, quarto.getId());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Artigo artigo = new Artigo(rs.getInt("IdArtigo"), rs.getString("Nome"),
+                            rs.getString("Unidade"), rs.getInt("QuantidadeAtual"));
+                    artigo.setConsumivel(rs.getBoolean("Consumivel"));
+                    quarto.definirProduto(new ProdutoQuarto(artigo, rs.getInt("Quantidade")));
+                }
+            }
+        }
+    }
+
+    private static void gravarProdutos(Connection conn, int idQuarto, List<ProdutoQuarto> produtos)
+            throws SQLException {
+        for (ProdutoQuarto produto : produtos) {
+            if (produto.getArtigo().getId() <= 0) {
+                throw new DAOException("O produto '" + produto.getArtigo().getNome()
+                        + "' não está guardado no stock.");
+            }
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO dbo.QuartoProduto (IdQuarto, IdArtigo, Quantidade) VALUES (?, ?, ?)")) {
+            for (ProdutoQuarto produto : produtos) {
+                ps.setInt(1, idQuarto);
+                ps.setInt(2, produto.getArtigo().getId());
+                ps.setInt(3, produto.getQuantidade());
+                ps.addBatch();
+            }
+            ps.executeBatch();
         }
     }
 

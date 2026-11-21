@@ -1,13 +1,16 @@
 package com.hotel4you.hotel4you.View;
 
 import com.hotel4you.hotel4you.Controller.GestaoQuartosController;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.Equipamento;
+import com.hotel4you.hotel4you.Model.ProdutoQuarto;
 import com.hotel4you.hotel4you.Model.Quarto;
 import com.hotel4you.hotel4you.Model.enums.TipoQuarto;
 import com.hotel4you.hotel4you.Model.enums.Vista;
 import com.hotel4you.hotel4you.Utils.Navegador;
 import com.hotel4you.hotel4you.Utils.Utils;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -32,6 +35,8 @@ import java.util.Set;
  * Só lê os campos e mostra mensagens; as regras (número válido, preço, permissões) estão no
  * {@link GestaoQuartosController}.
  * <p>
+ * S6-05: os equipamentos do quarto escolhem-se a partir dos produtos que existem em stock, com a
+ * quantidade; ficam guardados quando se carrega em "Guardar".
  */
 public class GestaoQuartosViewController {
 
@@ -40,6 +45,8 @@ public class GestaoQuartosViewController {
 
     private final GestaoQuartosController controller;
     private final List<CheckBox> caixasEquipamentos = new ArrayList<>();
+    /** Produtos do stock escolhidos para o quarto aberto (S6-05). */
+    private final ObservableList<ProdutoQuarto> produtosEscolhidos = FXCollections.observableArrayList();
     /** Quarto aberto para edição; {@code null} quando se está a criar um quarto novo. */
     private Quarto quartoSelecionado;
 
@@ -65,6 +72,12 @@ public class GestaoQuartosViewController {
     private VBox caixaEquipamentos;
     @FXML
     private TextField campoNovoEquipamento;
+    @FXML
+    private ComboBox<Artigo> campoProdutoStock;
+    @FXML
+    private TextField campoQuantidadeProduto;
+    @FXML
+    private ListView<ProdutoQuarto> listaProdutosQuarto;
     @FXML
     private Label labelMensagem;
 
@@ -94,9 +107,11 @@ public class GestaoQuartosViewController {
         });
         campoPreco.textProperty().addListener((observavel, antigo, novo) -> atualizarPrecoNoite());
         campoVista.setOnAction(evento -> atualizarPrecoNoite());
+        configurarProdutosStock();
         try {
             atualizarLista();
             atualizarEquipamentos(new HashSet<>());
+            campoProdutoStock.setItems(FXCollections.observableArrayList(controller.consultarProdutosStock()));
         } catch (RuntimeException e) {
             mostrar(e.getMessage(), COR_ERRO);
         }
@@ -149,6 +164,41 @@ public class GestaoQuartosViewController {
         }
     }
 
+    /**
+     * Chamado pelo botão "Pôr no quarto": junta o produto do stock à lista do quarto (se já lá estiver,
+     * fica com a quantidade nova). Só fica guardado ao carregar em "Guardar".
+     */
+    @FXML
+    private void onAdicionarProduto() {
+        Artigo artigo = campoProdutoStock.getValue();
+        if (artigo == null) {
+            mostrar("Escolha um produto do stock.", COR_ERRO);
+            return;
+        }
+        Optional<Integer> quantidade = Utils.converterInteiro(campoQuantidadeProduto.getText());
+        if (quantidade.isEmpty() || quantidade.get() < 1) {
+            mostrar("Quantidade inválida. Escreva um número inteiro, por exemplo 2.", COR_ERRO);
+            return;
+        }
+        produtosEscolhidos.removeIf(produto -> produto.getArtigo().getId() == artigo.getId());
+        produtosEscolhidos.add(new ProdutoQuarto(artigo, quantidade.get()));
+        campoQuantidadeProduto.clear();
+        mostrar("'" + artigo.getNome() + "' x" + quantidade.get()
+                + " no quarto. Carregue em Guardar para gravar.", COR_SUCESSO);
+    }
+
+    /** Chamado pelo botão "Tirar do quarto": retira o produto selecionado na lista. */
+    @FXML
+    private void onRemoverProduto() {
+        ProdutoQuarto produto = listaProdutosQuarto.getSelectionModel().getSelectedItem();
+        if (produto == null) {
+            mostrar("Selecione um produto na lista do quarto.", COR_ERRO);
+            return;
+        }
+        produtosEscolhidos.remove(produto);
+        mostrar("'" + produto.getArtigo().getNome() + "' retirado. Carregue em Guardar para gravar.", COR_SUCESSO);
+    }
+
     /** Chamado pelo botão "Voltar ao menu". */
     @FXML
     private void onVoltar() {
@@ -162,7 +212,7 @@ public class GestaoQuartosViewController {
             return;
         }
         Quarto criado = controller.criarQuarto(numero.get(), campoLocal.getText(), campoTipo.getValue(),
-                preco, campoVista.getValue(), equipamentosMarcados());
+                preco, campoVista.getValue(), equipamentosMarcados(), new ArrayList<>(produtosEscolhidos));
         atualizarLista();
         selecionarPorId(criado.getId());
         mostrar("Quarto " + criado.getNumero() + " criado.", COR_SUCESSO);
@@ -170,7 +220,8 @@ public class GestaoQuartosViewController {
 
     private void editar(BigDecimal preco) {
         controller.editarQuarto(quartoSelecionado.getId(), campoLocal.getText(), campoTipo.getValue(), preco,
-                campoVista.getValue(), campoAtivo.isSelected(), equipamentosMarcados());
+                campoVista.getValue(), campoAtivo.isSelected(), equipamentosMarcados(),
+                new ArrayList<>(produtosEscolhidos));
         int id = quartoSelecionado.getId();
         int numero = quartoSelecionado.getNumero();
         atualizarLista();
@@ -217,6 +268,7 @@ public class GestaoQuartosViewController {
         campoAtivo.setSelected(true);
         campoAtivo.setDisable(true);
         marcarEquipamentos(new HashSet<>());
+        produtosEscolhidos.clear();
         labelModo.setText("Novo quarto");
         atualizarPrecoNoite();
     }
@@ -234,8 +286,34 @@ public class GestaoQuartosViewController {
         Set<Integer> ids = new HashSet<>();
         quarto.getEquipamentos().forEach(equipamento -> ids.add(equipamento.getId()));
         marcarEquipamentos(ids);
+        produtosEscolhidos.setAll(quarto.getProdutos());
         labelModo.setText("A editar o quarto " + quarto.getNumero() + " (piso " + quarto.getPiso() + ")");
         atualizarPrecoNoite();
+    }
+
+    private void configurarProdutosStock() {
+        listaProdutosQuarto.setItems(produtosEscolhidos);
+        listaProdutosQuarto.setCellFactory(lista -> new ListCell<ProdutoQuarto>() {
+            @Override
+            protected void updateItem(ProdutoQuarto produto, boolean vazio) {
+                super.updateItem(produto, vazio);
+                setText(vazio || produto == null ? null : produto.getArtigo().getNome() + "  x"
+                        + produto.getQuantidade() + " " + produto.getArtigo().getUnidade()
+                        + (produto.getArtigo().isConsumivel() ? "  (consumível)" : ""));
+            }
+        });
+        campoProdutoStock.setConverter(new StringConverter<Artigo>() {
+            @Override
+            public String toString(Artigo artigo) {
+                return artigo == null ? "" : artigo.getNome() + "  (disponível: " + artigo.getQuantidadeDisponivel()
+                        + " " + artigo.getUnidade() + ")";
+            }
+
+            @Override
+            public Artigo fromString(String texto) {
+                return null;
+            }
+        });
     }
 
     private void atualizarLista() {
@@ -309,6 +387,7 @@ public class GestaoQuartosViewController {
     private static String descrever(Quarto quarto) {
         return "Quarto " + quarto.getNumero() + "  |  " + quarto.getTipo().getNome() + "  |  piso " + quarto.getPiso()
                 + "\n" + quarto.getVista().getNome() + "  |  " + Utils.formatarPreco(quarto.precoNoite()) + "/noite  |  "
-                + (quarto.isAtivo() ? "Ativo" : "Inativo") + "  |  " + quarto.getEquipamentos().size() + " equip.";
+                + (quarto.isAtivo() ? "Ativo" : "Inativo") + "  |  " + quarto.getEquipamentos().size() + " equip.  |  "
+                + quarto.getProdutos().size() + " prod. stock";
     }
 }

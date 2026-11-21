@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- S6-04: janela de saída de stock (produto, quantidade e justificação). -->
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.hotel4you.hotel4you.View.SaidaStockViewController"
+      spacing="10" prefWidth="520">
+    <padding>
+        <Insets top="14" right="18" bottom="14" left="18"/>
+    </padding>
+
+    <Label text="Saída de stock" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+    <Label text="Use para avarias, perdas ou produtos retirados. O stock real diminui e a saída fica no histórico."
+           wrapText="true" style="-fx-text-fill: #555555;"/>
+
+    <GridPane hgap="10" vgap="8">
+        <columnConstraints>
+            <ColumnConstraints minWidth="110"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+        </columnConstraints>
+        <Label text="Produto" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="campoProduto" promptText="Escolha o produto" maxWidth="Infinity"
+                  GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        <Label fx:id="labelStock" wrapText="true" style="-fx-text-fill: #555555;"
+               GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+        <Label text="Quantidade" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <TextField fx:id="campoQuantidade" promptText="ex.: 1" maxWidth="120"
+                   GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+        <Label text="Justificação" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+        <TextArea fx:id="campoJustificacao" promptText="ex.: Televisão avariada no quarto 205"
+                  prefRowCount="3" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+    </GridPane>
+
+    <HBox spacing="8">
+        <Button text="Dar saída" defaultButton="true" onAction="#onConfirmar"/>
+        <Button text="Fechar" cancelButton="true" onAction="#onFechar"/>
+    </HBox>
+    <Label fx:id="labelMensagem" wrapText="true"/>
+</VBox>

@@ -1,6 +1,7 @@
 package com.hotel4you.hotel4you.View;
 
 import com.hotel4you.hotel4you.Controller.EdicaoReservaController;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.ConsumoServico;
 import com.hotel4you.hotel4you.Model.ProdutoReserva;
 import com.hotel4you.hotel4you.Model.Reserva;
@@ -20,6 +21,9 @@ import java.util.List;
 
 /**
  * Janela de consulta e edição de reservas.
+ * <p>
+ * S6-05: nas reservas pendentes ou com check-in também se muda a quantidade dos produtos do stock
+ * (por exemplo, 1 toalha para uma só pessoa num quarto duplo); o stock disponível é ajustado.
  */
 public class EdicaoReservaViewController {
 
@@ -52,6 +56,14 @@ public class EdicaoReservaViewController {
     private Button botaoAdicionar;
     @FXML
     private Button botaoRemover;
+    @FXML
+    private ComboBox<Artigo> campoProduto;
+    @FXML
+    private TextField campoQuantidadeProduto;
+    @FXML
+    private Button botaoAlterarProduto;
+    @FXML
+    private Button botaoRemoverProduto;
 
     public EdicaoReservaViewController(EdicaoReservaController controller) {
         this.controller = controller;
@@ -95,6 +107,37 @@ public class EdicaoReservaViewController {
                     }
                 }
         );
+
+        campoProduto.setConverter(new StringConverter<Artigo>() {
+
+            @Override
+            public String toString(Artigo artigo) {
+                if (artigo == null) {
+                    return "";
+                }
+                return artigo.getNome() + " (disponível: " + artigo.getQuantidadeDisponivel() + " " + artigo.getUnidade() + ")";
+            }
+
+            @Override
+            public Artigo fromString(String texto) {
+                return null;
+            }
+        });
+
+        // Ao escolher um produto da reserva, preenche o produto e a quantidade para os alterar.
+        listaProdutos.getSelectionModel().selectedIndexProperty().addListener((observavel, anterior, atual) -> {
+            int indice = atual.intValue();
+            if (reservaSelecionada == null || indice < 0 || indice >= reservaSelecionada.getProdutos().size()) {
+                return;
+            }
+            ProdutoReserva produto = reservaSelecionada.getProdutos().get(indice);
+            for (Artigo artigo : campoProduto.getItems()) {
+                if (artigo.getId() == produto.getArtigo().getId()) {
+                    campoProduto.setValue(artigo);
+                }
+            }
+            campoQuantidadeProduto.setText(String.valueOf(produto.getQuantidade()));
+        });
 
         listaReservas.getSelectionModel().selectedItemProperty().addListener((observavel, anterior, atual) -> {
                     if (atual != null) {
@@ -141,7 +184,21 @@ public class EdicaoReservaViewController {
             campoServico.setDisable(!podeEditar);
             campoQuantidade.setDisable(!podeEditar);
             campoServico.setItems(FXCollections.observableArrayList(controller.listarServicos()));
-            labelMensagem.setText(podeEditar ? "Pode acrescentar ou remover serviços." : "Esta reserva não pode ser editada.");
+
+            boolean podeEditarProdutos = reservaSelecionada.podeEditarProdutos();
+            botaoAlterarProduto.setDisable(!podeEditarProdutos);
+            botaoRemoverProduto.setDisable(!podeEditarProdutos);
+            campoProduto.setDisable(!podeEditarProdutos);
+            campoQuantidadeProduto.setDisable(!podeEditarProdutos);
+            campoProduto.setItems(FXCollections.observableArrayList(controller.listarProdutosStock()));
+
+            if (podeEditar) {
+                labelMensagem.setText("Pode acrescentar ou remover serviços e alterar os produtos.");
+            } else if (podeEditarProdutos) {
+                labelMensagem.setText("Os serviços só se editam depois do check-in; os produtos já se podem alterar.");
+            } else {
+                labelMensagem.setText("Esta reserva não pode ser editada.");
+            }
         }
 
         catch (RuntimeException e) {
@@ -229,6 +286,70 @@ public class EdicaoReservaViewController {
     }
 
     /**
+     * Muda a quantidade do produto escolhido na reserva (ou junta-o, se ainda não estiver).
+     * Com quantidade 0 o produto sai da reserva.
+     */
+    @FXML
+    private void onAlterarProduto() {
+
+        if (reservaSelecionada == null) {
+            labelMensagem.setText("Selecione uma reserva.");
+            return;
+        }
+
+        Artigo artigo = campoProduto.getValue();
+        if (artigo == null) {
+            labelMensagem.setText("Escolha um produto do stock.");
+            return;
+        }
+
+        try {
+            int quantidade = Integer.parseInt(campoQuantidadeProduto.getText().trim());
+            controller.alterarProduto(reservaSelecionada.getId(), artigo.getId(), quantidade);
+            mostrarReserva(reservaSelecionada.getId());
+            campoQuantidadeProduto.clear();
+            labelMensagem.setText(quantidade == 0 ? "Produto retirado da reserva." : "Quantidade do produto alterada.");
+        }
+
+        catch (NumberFormatException e) {
+            labelMensagem.setText("Introduza uma quantidade válida (0 retira o produto).");
+        }
+
+        catch (RuntimeException e) {
+            labelMensagem.setText(e.getMessage());
+        }
+    }
+
+    /**
+     * Retira da reserva o produto selecionado na lista; volta ao stock disponível.
+     */
+    @FXML
+    private void onRemoverProduto() {
+
+        if (reservaSelecionada == null) {
+            labelMensagem.setText("Selecione uma reserva.");
+            return;
+        }
+
+        int indice = listaProdutos.getSelectionModel().getSelectedIndex();
+        if (indice < 0) {
+            labelMensagem.setText("Selecione um produto para remover.");
+            return;
+        }
+
+        try {
+            ProdutoReserva produto = reservaSelecionada.getProdutos().get(indice);
+            controller.alterarProduto(reservaSelecionada.getId(), produto.getArtigo().getId(), 0);
+            mostrarReserva(reservaSelecionada.getId());
+            labelMensagem.setText("Produto retirado da reserva.");
+        }
+
+        catch (RuntimeException e) {
+            labelMensagem.setText(e.getMessage());
+        }
+    }
+
+    /**
      * Volta ao menu principal.
      */
     @FXML
@@ -239,4 +360,4 @@ public class EdicaoReservaViewController {
                 "Hotel4You"
         );
     }
-}
+}
