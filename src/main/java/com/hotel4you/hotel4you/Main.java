@@ -1,4 +1,3 @@
-
 package com.hotel4you.hotel4you;
 
 import com.hotel4you.hotel4you.Controller.*;
@@ -66,6 +65,7 @@ public class Main extends Application {
         GestaoFuncionariosController gestaoFuncionariosController =
                 new GestaoFuncionariosController(
                         utilizadorDAO,
+                        cartaoDAO,
                         sessao
                 );
 
@@ -140,9 +140,9 @@ public class Main extends Application {
                         cartaoDAO,
                         reservaDAO,
                         quartoDAO,
+                        utilizadorDAO,
                         sessao
                 );
-
 
         // Stock
         GestaoStockController gestaoStockController =

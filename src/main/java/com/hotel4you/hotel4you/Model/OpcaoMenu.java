@@ -34,7 +34,6 @@ public enum OpcaoMenu {
     SERVICOS_E_EXTRAS("Serviços e extras", RECECIONISTA, GESTOR),
     GERIR_STOCK("Gerir stock", RECECIONISTA, GESTOR),
     APROVAR_ENTREGAS("Aprovar entregas dos fornecedores", RECECIONISTA, GESTOR),
-    PICAGEM_CARTAO("Picagem de cartão", RECECIONISTA, GESTOR, EMPRESA_RESTAURACAO),
 
     // Só gestor
     GERIR_FUNCIONARIOS("Gerir funcionários", GESTOR),
@@ -42,6 +41,7 @@ public enum OpcaoMenu {
     APAGAR_RESERVAS("Apagar reservas", GESTOR),
     LISTAGEM_POR_CARTAO("Locais por onde passou um cartão", GESTOR),
     LISTAGEM_POR_QUARTO("Passagens de cartões num quarto", GESTOR),
+    LISTAGEM_POR_LOCAL("Passagens de cartões num local", GESTOR),
     CONFIGURAR_QUARTOS("Configurar quartos", GESTOR),
     EDITAR_VISTAS("Valores das vistas especiais", GESTOR),
     GERIR_FORNECEDORES("Gerir fornecedores", GESTOR),

@@ -47,6 +47,12 @@ public class LoginViewController {
         }
     }
 
+    /** Chamado pelo botão "Picar cartão": abre a janela de picagem, que não precisa de login (S6-06). */
+    @FXML
+    private void onPicarCartao() {
+        Navegador.mudarPara("PicagemCartaoView.fxml", "Hotel4You - Picagem de cartão");
+    }
+
     /** Chamado pelo botão "Sair". */
     @FXML
     private void onSair() {

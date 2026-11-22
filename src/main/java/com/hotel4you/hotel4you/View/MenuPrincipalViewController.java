@@ -1,4 +1,3 @@
-
 package com.hotel4you.hotel4you.View;
 
 import com.hotel4you.hotel4you.Controller.MenuController;
@@ -133,16 +132,6 @@ public class MenuPrincipalViewController {
                 )
         );
 
-        // Picagem de cartão
-        DESTINOS.put(
-                OpcaoMenu.PICAGEM_CARTAO,
-                new Destino(
-                        "PicagemCartaoView.fxml",
-                        "Hotel4You - Picagem de cartão",
-                        "Picagem de cartão"
-                )
-        );
-
         // Consulta de passagens por cartão
         DESTINOS.put(
                 OpcaoMenu.LISTAGEM_POR_CARTAO,
@@ -160,6 +149,16 @@ public class MenuPrincipalViewController {
                         "ConsultaPassagensView.fxml",
                         "Hotel4You - Passagens por quarto",
                         "Passagens por quarto"
+                )
+        );
+
+        // Consulta de passagens por local
+        DESTINOS.put(
+                OpcaoMenu.LISTAGEM_POR_LOCAL,
+                new Destino(
+                        "ConsultaPassagensView.fxml",
+                        "Hotel4You - Passagens por local",
+                        "Passagens por local"
                 )
         );
 
