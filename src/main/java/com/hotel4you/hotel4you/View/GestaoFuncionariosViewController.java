@@ -98,7 +98,7 @@ public class GestaoFuncionariosViewController {
     private void onCriar() {
 
         try {
-            controller.criarFuncionario(
+            int cartao = controller.criarFuncionario(
                     campoNome.getText(),
                     campoUsername.getText(),
                     campoPassword.getText(),
@@ -106,7 +106,9 @@ public class GestaoFuncionariosViewController {
             );
 
             labelMensagem.setText(
-                    "Funcionário criado com sucesso."
+                    cartao > 0
+                            ? "Funcionário criado com sucesso. Cartão n.º " + cartao + "."
+                            : "Funcionário criado com sucesso."
             );
 
             limparCampos();
@@ -122,6 +124,9 @@ public class GestaoFuncionariosViewController {
                     "Não foi possível criar o funcionário: "
                             + e.getMessage()
             );
+
+            // O funcionário pode ter sido criado e só ter falhado a emissão do cartão.
+            atualizarLista();
         }
     }
 

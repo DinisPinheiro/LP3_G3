@@ -70,7 +70,7 @@ public final class BaseDadosH2 {
                 "CREATE TABLE dbo.Equipamento (IdEquipamento INT IDENTITY(1,1) PRIMARY KEY, Nome NVARCHAR(100))",
                 "CREATE TABLE dbo.Quarto_Equipamento (IdQuarto INT NOT NULL, IdEquipamento INT NOT NULL)",
                 "CREATE TABLE dbo.CartaoMagnetico (IdCartao INT IDENTITY(1,1) PRIMARY KEY, Numero INT NOT NULL UNIQUE, "
-                        + "Mestre BIT NOT NULL, Ativo BIT NOT NULL)",
+                        + "Mestre BIT NOT NULL, Ativo BIT NOT NULL, IdUtilizador INT)",
                 "CREATE TABLE dbo.Reserva (IdReserva INT IDENTITY(1,1) PRIMARY KEY, IdCliente INT NOT NULL, "
                         + "IdQuarto INT NOT NULL, DataEntrada DATE NOT NULL, DataSaida DATE NOT NULL, "
                         + "Estado VARCHAR(20) NOT NULL, ValorTotal DECIMAL(10,2), DataCheckIn TIMESTAMP, "

@@ -24,4 +24,5 @@
         <Button text="Entrar" defaultButton="true" onAction="#onEntrar"/>
         <Button text="Sair" onAction="#onSair"/>
     </HBox>
+    <Button text="Picar cartão" onAction="#onPicarCartao"/>
 </VBox>

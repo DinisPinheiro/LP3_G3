@@ -1,44 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.VBox?>
 
+<!-- Janela de picagem de cartão: abre a partir do ecrã de login, por isso não precisa de sessão. -->
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.hotel4you.hotel4you.View.PicagemCartaoViewController"
-      spacing="12">
+      alignment="CENTER" spacing="10" maxWidth="360">
 
     <padding>
-        <Insets top="18" right="18"
-                bottom="18" left="18"/>
+        <Insets top="24" right="24" bottom="24" left="24"/>
     </padding>
 
     <Label text="Picagem de cartão"
-           style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+           style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
 
     <Label text="Número do cartão:"/>
+    <TextField fx:id="campoCartao" promptText="Ex.: 1001"/>
 
-    <TextField fx:id="campoCartao"
-               promptText="Ex.: 1001"/>
+    <Label text="NIF (clientes):"/>
+    <TextField fx:id="campoNif" promptText="NIF do titular do cartão"/>
 
     <Label text="Local:"/>
+    <ComboBox fx:id="campoLocal" prefWidth="320"/>
 
-    <ComboBox fx:id="campoLocal"
-              prefWidth="240"/>
+    <Label text="Número do quarto (só para o local Quarto):"/>
+    <TextField fx:id="campoQuarto" promptText="Ex.: 202" disable="true"/>
 
-    <Label text="Número do quarto (obrigatório para entrada no quarto):"/>
+    <Button fx:id="botaoPicar" text="Picar cartão" defaultButton="true" onAction="#picar"/>
 
-    <TextField fx:id="campoQuarto"
-               promptText="Ex.: 202"/>
+    <Label fx:id="labelMensagem" wrapText="true"/>
 
-    <Button text="Registar passagem"
-            onAction="#registar"/>
-
-    <Label fx:id="labelMensagem"
-           wrapText="true"/>
-
-    <Button text="Voltar"
-            onAction="#voltar"/>
+    <Button text="Voltar ao login" onAction="#voltar"/>
 
 </VBox>

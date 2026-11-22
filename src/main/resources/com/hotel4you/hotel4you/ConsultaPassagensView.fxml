@@ -25,7 +25,12 @@
                   prefWidth="130"/>
 
         <TextField fx:id="campoNumero"
-                   promptText="Número do cartão ou quarto"/>
+                   promptText="Número do cartão ou do quarto"/>
+
+        <ComboBox fx:id="campoLocal"
+                  prefWidth="220"
+                  visible="false"
+                  managed="false"/>
 
         <Button text="Pesquisar"
                 onAction="#pesquisar"/>
