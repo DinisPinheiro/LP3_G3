@@ -66,7 +66,8 @@ public final class BaseDadosH2 {
                 "CREATE TABLE dbo.SuplementoVista (Vista VARCHAR(20) PRIMARY KEY, Valor DECIMAL(10,2) NOT NULL)",
                 "CREATE TABLE dbo.Quarto (IdQuarto INT IDENTITY(1,1) PRIMARY KEY, Numero INT NOT NULL UNIQUE, "
                         + "Piso INT NOT NULL, Local NVARCHAR(50), Tipo VARCHAR(20) NOT NULL, "
-                        + "PrecoBase DECIMAL(10,2) NOT NULL, Vista VARCHAR(20) NOT NULL, Ativo BIT NOT NULL)",
+                        + "PrecoBase DECIMAL(10,2) NOT NULL, Vista VARCHAR(20) NOT NULL, Ativo BIT NOT NULL, "
+                        + "PrecoPersonalizado BIT NOT NULL DEFAULT 1, EquipamentosPersonalizados BIT NOT NULL DEFAULT 1)",
                 "CREATE TABLE dbo.Equipamento (IdEquipamento INT IDENTITY(1,1) PRIMARY KEY, Nome NVARCHAR(100))",
                 "CREATE TABLE dbo.Quarto_Equipamento (IdQuarto INT NOT NULL, IdEquipamento INT NOT NULL)",
                 "CREATE TABLE dbo.CartaoMagnetico (IdCartao INT IDENTITY(1,1) PRIMARY KEY, Numero INT NOT NULL UNIQUE, "
@@ -95,6 +96,11 @@ public final class BaseDadosH2 {
                         + "DataHora TIMESTAMP NOT NULL, Justificacao NVARCHAR(200) NOT NULL DEFAULT '')",
                 "CREATE TABLE dbo.QuartoProduto (IdQuarto INT NOT NULL, IdArtigo INT NOT NULL, Quantidade INT NOT NULL, "
                         + "PRIMARY KEY (IdQuarto, IdArtigo))",
+                "CREATE TABLE dbo.ConfigTipoQuarto (Tipo VARCHAR(20) PRIMARY KEY, PrecoBase DECIMAL(10,2) NOT NULL)",
+                "CREATE TABLE dbo.ConfigTipoQuarto_Equipamento (Tipo VARCHAR(20) NOT NULL, IdEquipamento INT NOT NULL, "
+                        + "PRIMARY KEY (Tipo, IdEquipamento))",
+                "CREATE TABLE dbo.ConfigTipoQuarto_Produto (Tipo VARCHAR(20) NOT NULL, IdArtigo INT NOT NULL, "
+                        + "Quantidade INT NOT NULL, PRIMARY KEY (Tipo, IdArtigo))",
                 "CREATE TABLE dbo.ReservaProduto (IdReservaProduto INT IDENTITY(1,1) PRIMARY KEY, "
                         + "IdReserva INT NOT NULL, IdArtigo INT NOT NULL, Quantidade INT NOT NULL)");
         return bd;

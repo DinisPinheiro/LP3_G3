@@ -1,10 +1,12 @@
 package com.hotel4you.hotel4you.Controller;
 
+import com.hotel4you.hotel4you.DAO.ConfiguracaoTipoQuartoDAO;
 import com.hotel4you.hotel4you.DAO.EquipamentoDAO;
 import com.hotel4you.hotel4you.DAO.QuartoDAO;
 import com.hotel4you.hotel4you.DAO.StockDAO;
 import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.DAO.SuplementoVistaDAO;
+import com.hotel4you.hotel4you.Model.ConfiguracaoTipoQuarto;
 import com.hotel4you.hotel4you.Model.Equipamento;
 import com.hotel4you.hotel4you.Model.ProdutoQuarto;
 import com.hotel4you.hotel4you.Model.Quarto;
@@ -21,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Configuração e gestão dos quartos do hotel (S3-01): tipo, preço base, equipamentos e vista.
@@ -31,6 +34,10 @@ import java.util.Objects;
  * <p>
  * S6-05: os equipamentos do quarto também se escolhem a partir dos produtos que existem em stock, com a
  * quantidade (ex.: 2 toalhas e 1 televisão). No check-in passam para a reserva e saem do stock disponível.
+ * <p>
+ * S6-09: o gestor configura uma só vez, por tipo de quarto (individual, duplo, família), o preço base e os
+ * equipamentos. Os quartos herdam essa configuração e podem ter exceções (preço ou equipamentos próprios).
+ * Quando a configuração de um tipo muda, os quartos que a herdam mudam com ela.
  */
 public class GestaoQuartosController {
 
@@ -45,6 +52,8 @@ public class GestaoQuartosController {
     private final SuplementoVistaDAO suplementoVistaDAO;
     /** Produtos do stock que podem ser equipamentos do quarto; {@code null} se não forem usados. */
     private final StockDAO stockDAO;
+    /** Configuração por tipo de quarto (S6-09); {@code null} se não for usada. */
+    private final ConfiguracaoTipoQuartoDAO configuracaoDAO;
     private final Sessao sessao;
 
     /**
@@ -76,6 +85,21 @@ public class GestaoQuartosController {
      */
     public GestaoQuartosController(QuartoDAO quartoDAO, EquipamentoDAO equipamentoDAO,
                                    SuplementoVistaDAO suplementoVistaDAO, StockDAO stockDAO, Sessao sessao) {
+        this(quartoDAO, equipamentoDAO, suplementoVistaDAO, stockDAO, null, sessao);
+    }
+
+    /**
+     * @param quartoDAO          onde os quartos são guardados
+     * @param equipamentoDAO     catálogo de equipamentos
+     * @param suplementoVistaDAO valores das vistas especiais, editáveis pelo gestor (S4-vistas)
+     * @param stockDAO           produtos do stock que podem ser equipamentos do quarto (S6-05)
+     * @param configuracaoDAO    configuração do preço base e dos equipamentos por tipo de quarto (S6-09)
+     * @param sessao             sessão com o utilizador autenticado
+     */
+    public GestaoQuartosController(QuartoDAO quartoDAO, EquipamentoDAO equipamentoDAO,
+                                   SuplementoVistaDAO suplementoVistaDAO, StockDAO stockDAO,
+                                   ConfiguracaoTipoQuartoDAO configuracaoDAO, Sessao sessao) {
+        this.configuracaoDAO = configuracaoDAO;
         this.quartoDAO = Objects.requireNonNull(quartoDAO);
         this.equipamentoDAO = Objects.requireNonNull(equipamentoDAO);
         this.suplementoVistaDAO = suplementoVistaDAO;
@@ -239,7 +263,7 @@ public class GestaoQuartosController {
 
         quarto.setLocal(local);
         quarto.setTipo(tipo);
-        quarto.setPrecoBase(preco);
+        quarto.personalizarPreco(preco);
         quarto.setVista(vista);
         quarto.setSuplementoVista(obterSuplemento(vista));
         quarto.setAtivo(ativo);
@@ -249,7 +273,177 @@ public class GestaoQuartosController {
             quarto.limparProdutos();
             produtosValidos.forEach(quarto::definirProduto);
         }
+        quarto.setEquipamentosPersonalizados(true);
         quartoDAO.atualizar(quarto);
+    }
+
+    // CONFIGURAÇÃO POR TIPO DE QUARTO (S6-09)
+
+    /**
+     * @param tipo tipo de quarto
+     * @return a configuração do tipo, ou vazio se o gestor ainda não a definiu
+     * @throws SecurityException se o utilizador não for gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível ler
+     */
+    public Optional<ConfiguracaoTipoQuarto> consultarConfiguracaoTipo(TipoQuarto tipo) {
+        exigirGestor();
+        if (tipo == null) {
+            throw new IllegalArgumentException("Escolha o tipo de quarto.");
+        }
+        return configuracaoDAO == null ? Optional.empty() : configuracaoDAO.procurar(tipo);
+    }
+
+    /**
+     * Define o preço base e os equipamentos de um tipo de quarto. Os quartos desse tipo que herdam a
+     * configuração passam a ter os valores novos; os que têm exceções ficam como estão.
+     *
+     * @param tipo         tipo de quarto (individual, duplo ou família)
+     * @param precoBase    preço base por noite, não negativo
+     * @param equipamentos equipamentos do catálogo dos quartos do tipo
+     * @param produtos     produtos do stock dos quartos do tipo, com a quantidade
+     * @return o número de quartos que mudaram por herdarem a configuração
+     * @throws IllegalArgumentException se algum dado for inválido ou um equipamento ou produto não existir
+     * @throws SecurityException        se o utilizador não for gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
+     */
+    public int guardarConfiguracaoTipo(TipoQuarto tipo, BigDecimal precoBase, List<Equipamento> equipamentos,
+                                       List<ProdutoQuarto> produtos) {
+        exigirGestor();
+        if (configuracaoDAO == null) {
+            throw new IllegalStateException("A configuração por tipo de quarto não está disponível.");
+        }
+        if (tipo == null) {
+            throw new IllegalArgumentException("Escolha o tipo de quarto.");
+        }
+        BigDecimal preco = validarPreco(precoBase);
+        ConfiguracaoTipoQuarto configuracao = new ConfiguracaoTipoQuarto(tipo, preco,
+                validarEquipamentos(equipamentos), validarProdutos(produtos));
+        configuracaoDAO.guardar(configuracao);
+
+        int alterados = 0;
+        for (Quarto quarto : quartoDAO.listarTodos()) {
+            if (quarto.getTipo() == tipo && quarto.aplicarConfiguracao(configuracao)) {
+                quartoDAO.atualizar(quarto);
+                alterados++;
+            }
+        }
+        return alterados;
+    }
+
+    /**
+     * Cria um quarto novo, ativo, que herda do seu tipo o preço base e os equipamentos, a não ser que se
+     * indiquem exceções.
+     *
+     * @param numero               número do quarto (201 a 210 ou 301 a 310)
+     * @param local                descrição da localização; pode ser vazia
+     * @param tipo                 tipo de quarto (a configuração do tipo dá o preço e os equipamentos)
+     * @param vista                vista do quarto
+     * @param precoPersonalizado   preço base próprio (exceção), ou {@code null} para herdar o do tipo
+     * @param equipamentos         equipamentos próprios (exceção), ou {@code null} para herdar os do tipo
+     * @param produtos             produtos do stock próprios; só se usam com {@code equipamentos} diferente de {@code null}
+     * @return o quarto guardado, já com identificador
+     * @throws IllegalArgumentException se algum dado for inválido, o número já existir ou o quarto herdar de um
+     *                                  tipo que ainda não foi configurado
+     * @throws SecurityException        se o utilizador não for gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
+     */
+    public Quarto criarQuartoDoTipo(int numero, String local, TipoQuarto tipo, Vista vista,
+                                    BigDecimal precoPersonalizado, List<Equipamento> equipamentos,
+                                    List<ProdutoQuarto> produtos) {
+        exigirGestor();
+        int piso = pisoDoNumero(numero);
+        if (quartoDAO.procurarPorNumero(numero).isPresent()) {
+            throw new IllegalArgumentException("Já existe o quarto " + numero + ".");
+        }
+        validarLocalTipoVista(local, tipo, vista);
+        Heranca heranca = prepararHeranca(tipo, precoPersonalizado, equipamentos, produtos);
+        Quarto quarto = new Quarto(0, numero, piso, local, tipo, BigDecimal.ZERO, vista, true);
+        quarto.setSuplementoVista(obterSuplemento(vista));
+        heranca.aplicarA(quarto);
+        return quartoDAO.inserir(quarto);
+    }
+
+    /**
+     * Edita um quarto guardado, indicando o que herda do tipo e o que é exceção. Se o tipo do quarto mudar,
+     * o que ele herda passa a ser o do tipo novo.
+     *
+     * @param id                 identificador do quarto
+     * @param local              descrição da localização; pode ser vazia
+     * @param tipo               tipo de quarto
+     * @param vista              vista do quarto
+     * @param ativo              se o quarto está disponível para reservas
+     * @param precoPersonalizado preço base próprio (exceção), ou {@code null} para herdar o do tipo
+     * @param equipamentos       equipamentos próprios (exceção), ou {@code null} para herdar os do tipo
+     * @param produtos           produtos do stock próprios; só se usam com {@code equipamentos} diferente de {@code null}
+     * @throws IllegalArgumentException se o quarto não existir, algum dado for inválido ou o quarto herdar de um
+     *                                  tipo que ainda não foi configurado
+     * @throws SecurityException        se o utilizador não for gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
+     */
+    public void editarQuartoDoTipo(int id, String local, TipoQuarto tipo, Vista vista, boolean ativo,
+                                   BigDecimal precoPersonalizado, List<Equipamento> equipamentos,
+                                   List<ProdutoQuarto> produtos) {
+        exigirGestor();
+        Quarto quarto = quartoDAO.procurarPorId(id)
+                .orElseThrow(() -> new IllegalArgumentException("O quarto selecionado não existe."));
+        validarLocalTipoVista(local, tipo, vista);
+        Heranca heranca = prepararHeranca(tipo, precoPersonalizado, equipamentos, produtos);
+        BigDecimal suplemento = obterSuplemento(vista);
+        quarto.setLocal(local);
+        quarto.setTipo(tipo);
+        quarto.setVista(vista);
+        quarto.setSuplementoVista(suplemento);
+        quarto.setAtivo(ativo);
+        heranca.aplicarA(quarto);
+        quartoDAO.atualizar(quarto);
+    }
+
+    /**
+     * O que um quarto herda do tipo e o que é exceção, já validado. Só se aplica ao quarto depois de tudo
+     * estar validado, para um erro não deixar o quarto a meio.
+     */
+    private record Heranca(ConfiguracaoTipoQuarto configuracao, BigDecimal preco,
+                           List<Equipamento> equipamentos, List<ProdutoQuarto> produtos) {
+
+        void aplicarA(Quarto quarto) {
+            if (preco == null) {
+                quarto.herdarPreco(configuracao);
+            } else {
+                quarto.personalizarPreco(preco);
+            }
+            if (equipamentos == null) {
+                quarto.herdarEquipamentos(configuracao);
+            } else {
+                quarto.personalizarEquipamentos(equipamentos, produtos);
+            }
+        }
+    }
+
+    /** Valida as exceções e procura a configuração do tipo se o quarto herdar alguma coisa. */
+    private Heranca prepararHeranca(TipoQuarto tipo, BigDecimal precoPersonalizado,
+                                    List<Equipamento> equipamentos, List<ProdutoQuarto> produtos) {
+        BigDecimal preco = precoPersonalizado == null ? null : validarPreco(precoPersonalizado);
+        List<Equipamento> proprios = equipamentos == null ? null : validarEquipamentos(equipamentos);
+        List<ProdutoQuarto> produtosProprios = equipamentos == null ? null : validarProdutos(produtos);
+        ConfiguracaoTipoQuarto configuracao = null;
+        if (preco == null || proprios == null) {
+            configuracao = consultarConfiguracaoTipo(tipo).orElseThrow(() -> new IllegalArgumentException(
+                    "O tipo " + tipo.getNome() + " ainda não tem configuração: defina-a em "
+                            + "'Configuração por tipo de quarto' ou indique o preço e os equipamentos do quarto."));
+        }
+        return new Heranca(configuracao, preco, proprios, produtosProprios);
+    }
+
+    private void validarLocalTipoVista(String local, TipoQuarto tipo, Vista vista) {
+        if (local != null && local.trim().length() > MAX_LOCAL) {
+            throw new IllegalArgumentException("A localização não pode ter mais de " + MAX_LOCAL + " caracteres.");
+        }
+        if (tipo == null) {
+            throw new IllegalArgumentException("Escolha o tipo de quarto.");
+        }
+        if (vista == null) {
+            throw new IllegalArgumentException("Escolha a vista do quarto.");
+        }
     }
 
     /**
@@ -313,6 +507,10 @@ public class GestaoQuartosController {
         if (vista == null) {
             throw new IllegalArgumentException("Escolha a vista do quarto.");
         }
+        return validarPreco(precoBase);
+    }
+
+    private BigDecimal validarPreco(BigDecimal precoBase) {
         if (precoBase == null) {
             throw new IllegalArgumentException("Introduza o preço base por noite.");
         }

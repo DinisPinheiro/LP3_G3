@@ -2,6 +2,7 @@ package com.hotel4you.hotel4you.View;
 
 import com.hotel4you.hotel4you.Controller.GestaoQuartosController;
 import com.hotel4you.hotel4you.Model.Artigo;
+import com.hotel4you.hotel4you.Model.ConfiguracaoTipoQuarto;
 import com.hotel4you.hotel4you.Model.Equipamento;
 import com.hotel4you.hotel4you.Model.ProdutoQuarto;
 import com.hotel4you.hotel4you.Model.Quarto;
@@ -37,6 +38,9 @@ import java.util.Set;
  * <p>
  * S6-05: os equipamentos do quarto escolhem-se a partir dos produtos que existem em stock, com a
  * quantidade; ficam guardados quando se carrega em "Guardar".
+ * <p>
+ * S6-09: o preço base e os equipamentos do quarto vêm, por omissão, da configuração do seu tipo. Quem marcar
+ * "próprio" dá ao quarto uma exceção; desmarcar volta a herdar do tipo.
  */
 public class GestaoQuartosViewController {
 
@@ -49,6 +53,8 @@ public class GestaoQuartosViewController {
     private final ObservableList<ProdutoQuarto> produtosEscolhidos = FXCollections.observableArrayList();
     /** Quarto aberto para edição; {@code null} quando se está a criar um quarto novo. */
     private Quarto quartoSelecionado;
+    /** Enquanto se preenche o formulário com um quarto, as caixas de exceção não mexem nos campos. */
+    private boolean aCarregar;
 
     @FXML
     private ListView<Quarto> listaQuartos;
@@ -79,6 +85,12 @@ public class GestaoQuartosViewController {
     @FXML
     private ListView<ProdutoQuarto> listaProdutosQuarto;
     @FXML
+    private CheckBox campoPrecoPersonalizado;
+    @FXML
+    private CheckBox campoEquipPersonalizados;
+    @FXML
+    private Label labelHeranca;
+    @FXML
     private Label labelMensagem;
 
     /**
@@ -106,6 +118,9 @@ public class GestaoQuartosViewController {
             }
         });
         campoPreco.textProperty().addListener((observavel, antigo, novo) -> atualizarPrecoNoite());
+        campoTipo.valueProperty().addListener((observavel, antigo, novo) -> atualizarHeranca(true));
+        campoPrecoPersonalizado.selectedProperty().addListener((observavel, antigo, novo) -> atualizarHeranca(true));
+        campoEquipPersonalizados.selectedProperty().addListener((observavel, antigo, novo) -> atualizarHeranca(true));
         campoVista.setOnAction(evento -> atualizarPrecoNoite());
         configurarProdutosStock();
         try {
@@ -128,16 +143,21 @@ public class GestaoQuartosViewController {
     /** Chamado pelo botão "Guardar": cria o quarto novo ou grava as alterações do quarto aberto. */
     @FXML
     private void onGuardar() {
-        Optional<BigDecimal> preco = Utils.converterDecimal(campoPreco.getText());
-        if (preco.isEmpty()) {
-            mostrar("Preço base inválido. Use um número, por exemplo 60,00.", COR_ERRO);
-            return;
+        // Sem preço próprio, o quarto herda o preço base do tipo.
+        BigDecimal preco = null;
+        if (campoPrecoPersonalizado.isSelected()) {
+            Optional<BigDecimal> lido = Utils.converterDecimal(campoPreco.getText());
+            if (lido.isEmpty()) {
+                mostrar("Preço base inválido. Use um número, por exemplo 60,00.", COR_ERRO);
+                return;
+            }
+            preco = lido.get();
         }
         try {
             if (quartoSelecionado == null) {
-                criar(preco.get());
+                criar(preco);
             } else {
-                editar(preco.get());
+                editar(preco);
             }
         } catch (IllegalArgumentException | SecurityException e) {
             mostrar(e.getMessage(), COR_ERRO);
@@ -170,6 +190,10 @@ public class GestaoQuartosViewController {
      */
     @FXML
     private void onAdicionarProduto() {
+        if (!campoEquipPersonalizados.isSelected()) {
+            mostrar("Os equipamentos vêm do tipo de quarto. Marque 'Equipamentos próprios' para os alterar.", COR_ERRO);
+            return;
+        }
         Artigo artigo = campoProdutoStock.getValue();
         if (artigo == null) {
             mostrar("Escolha um produto do stock.", COR_ERRO);
@@ -190,6 +214,10 @@ public class GestaoQuartosViewController {
     /** Chamado pelo botão "Tirar do quarto": retira o produto selecionado na lista. */
     @FXML
     private void onRemoverProduto() {
+        if (!campoEquipPersonalizados.isSelected()) {
+            mostrar("Os equipamentos vêm do tipo de quarto. Marque 'Equipamentos próprios' para os alterar.", COR_ERRO);
+            return;
+        }
         ProdutoQuarto produto = listaProdutosQuarto.getSelectionModel().getSelectedItem();
         if (produto == null) {
             mostrar("Selecione um produto na lista do quarto.", COR_ERRO);
@@ -205,22 +233,22 @@ public class GestaoQuartosViewController {
         Navegador.mudarPara("MenuPrincipalView.fxml", "Hotel4You");
     }
 
-    private void criar(BigDecimal preco) {
+    private void criar(BigDecimal precoPersonalizado) {
         Optional<Integer> numero = Utils.converterInteiro(campoNumero.getText());
         if (numero.isEmpty()) {
             mostrar("Número de quarto inválido. Escreva só o número, por exemplo 205.", COR_ERRO);
             return;
         }
-        Quarto criado = controller.criarQuarto(numero.get(), campoLocal.getText(), campoTipo.getValue(),
-                preco, campoVista.getValue(), equipamentosMarcados(), new ArrayList<>(produtosEscolhidos));
+        Quarto criado = controller.criarQuartoDoTipo(numero.get(), campoLocal.getText(), campoTipo.getValue(),
+                campoVista.getValue(), precoPersonalizado, equipamentosProprios(), new ArrayList<>(produtosEscolhidos));
         atualizarLista();
         selecionarPorId(criado.getId());
         mostrar("Quarto " + criado.getNumero() + " criado.", COR_SUCESSO);
     }
 
-    private void editar(BigDecimal preco) {
-        controller.editarQuarto(quartoSelecionado.getId(), campoLocal.getText(), campoTipo.getValue(), preco,
-                campoVista.getValue(), campoAtivo.isSelected(), equipamentosMarcados(),
+    private void editar(BigDecimal precoPersonalizado) {
+        controller.editarQuartoDoTipo(quartoSelecionado.getId(), campoLocal.getText(), campoTipo.getValue(),
+                campoVista.getValue(), campoAtivo.isSelected(), precoPersonalizado, equipamentosProprios(),
                 new ArrayList<>(produtosEscolhidos));
         int id = quartoSelecionado.getId();
         int numero = quartoSelecionado.getNumero();
@@ -258,6 +286,7 @@ public class GestaoQuartosViewController {
 
     private void limparFormulario() {
         quartoSelecionado = null;
+        aCarregar = true;
         listaQuartos.getSelectionModel().clearSelection();
         campoNumero.clear();
         campoNumero.setDisable(false);
@@ -269,12 +298,18 @@ public class GestaoQuartosViewController {
         campoAtivo.setDisable(true);
         marcarEquipamentos(new HashSet<>());
         produtosEscolhidos.clear();
+        // Um quarto novo herda do tipo, a não ser que se marquem exceções.
+        campoPrecoPersonalizado.setSelected(false);
+        campoEquipPersonalizados.setSelected(false);
+        aCarregar = false;
         labelModo.setText("Novo quarto");
+        atualizarHeranca(true);
         atualizarPrecoNoite();
     }
 
     private void carregarNoFormulario(Quarto quarto) {
         quartoSelecionado = quarto;
+        aCarregar = true;
         campoNumero.setText(String.valueOf(quarto.getNumero()));
         campoNumero.setDisable(true);
         campoLocal.setText(quarto.getLocal());
@@ -287,8 +322,73 @@ public class GestaoQuartosViewController {
         quarto.getEquipamentos().forEach(equipamento -> ids.add(equipamento.getId()));
         marcarEquipamentos(ids);
         produtosEscolhidos.setAll(quarto.getProdutos());
+        campoPrecoPersonalizado.setSelected(quarto.isPrecoPersonalizado());
+        campoEquipPersonalizados.setSelected(quarto.isEquipamentosPersonalizados());
+        aCarregar = false;
         labelModo.setText("A editar o quarto " + quarto.getNumero() + " (piso " + quarto.getPiso() + ")");
+        atualizarHeranca(false);
         atualizarPrecoNoite();
+    }
+
+    /**
+     * Mostra o que o quarto herda do tipo: o que não é exceção fica bloqueado e, se {@code sobrescrever},
+     * com os valores do tipo. O que é exceção pode ser editado.
+     */
+    private void atualizarHeranca(boolean sobrescrever) {
+        if (aCarregar) {
+            return;
+        }
+        boolean precoProprio = campoPrecoPersonalizado.isSelected();
+        boolean equipamentosProprios = campoEquipPersonalizados.isSelected();
+        campoPreco.setDisable(!precoProprio);
+        aplicarEstadoEquipamentos(!equipamentosProprios);
+        TipoQuarto tipo = campoTipo.getValue();
+        if (tipo == null) {
+            labelHeranca.setText("Escolha o tipo: o preço base e os equipamentos vêm da configuração do tipo.");
+            return;
+        }
+        Optional<ConfiguracaoTipoQuarto> configuracao = configuracaoDoTipo(tipo);
+        if (configuracao.isEmpty()) {
+            labelHeranca.setText("O tipo " + tipo.getNome() + " ainda não tem configuração. Defina-a em "
+                    + "'Configuração por tipo de quarto' ou marque o preço e os equipamentos como próprios.");
+            return;
+        }
+        labelHeranca.setText("Tipo " + tipo.getNome() + ": preço base " + Utils.formatarPreco(configuracao.get().getPrecoBase())
+                + ", " + configuracao.get().getEquipamentos().size() + " equip. e "
+                + configuracao.get().getProdutos().size() + " prod. stock. O que não for próprio vem do tipo.");
+        if (!sobrescrever) {
+            return;
+        }
+        if (!precoProprio) {
+            campoPreco.setText(configuracao.get().getPrecoBase().toPlainString().replace('.', ','));
+        }
+        if (!equipamentosProprios) {
+            Set<Integer> ids = new HashSet<>();
+            configuracao.get().getEquipamentos().forEach(equipamento -> ids.add(equipamento.getId()));
+            marcarEquipamentos(ids);
+            produtosEscolhidos.setAll(configuracao.get().getProdutos());
+        }
+    }
+
+    private Optional<ConfiguracaoTipoQuarto> configuracaoDoTipo(TipoQuarto tipo) {
+        try {
+            return controller.consultarConfiguracaoTipo(tipo);
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    /** Bloqueia ou liberta os campos dos equipamentos (bloqueados enquanto o quarto os herda do tipo). */
+    private void aplicarEstadoEquipamentos(boolean bloqueados) {
+        caixasEquipamentos.forEach(caixa -> caixa.setDisable(bloqueados));
+        campoProdutoStock.setDisable(bloqueados);
+        campoQuantidadeProduto.setDisable(bloqueados);
+        listaProdutosQuarto.setDisable(bloqueados);
+    }
+
+    /** @return os equipamentos próprios do quarto, ou {@code null} se o quarto herda os do tipo */
+    private List<Equipamento> equipamentosProprios() {
+        return campoEquipPersonalizados.isSelected() ? equipamentosMarcados() : null;
     }
 
     private void configurarProdutosStock() {
@@ -337,6 +437,7 @@ public class GestaoQuartosViewController {
             CheckBox caixa = new CheckBox(equipamento.getNome());
             caixa.setUserData(equipamento);
             caixa.setSelected(marcados.contains(equipamento.getId()));
+            caixa.setDisable(!campoEquipPersonalizados.isSelected());
             caixasEquipamentos.add(caixa);
             caixaEquipamentos.getChildren().add(caixa);
         }
@@ -388,6 +489,7 @@ public class GestaoQuartosViewController {
         return "Quarto " + quarto.getNumero() + "  |  " + quarto.getTipo().getNome() + "  |  piso " + quarto.getPiso()
                 + "\n" + quarto.getVista().getNome() + "  |  " + Utils.formatarPreco(quarto.precoNoite()) + "/noite  |  "
                 + (quarto.isAtivo() ? "Ativo" : "Inativo") + "  |  " + quarto.getEquipamentos().size() + " equip.  |  "
-                + quarto.getProdutos().size() + " prod. stock";
+                + quarto.getProdutos().size() + " prod. stock"
+                + (quarto.isPrecoPersonalizado() || quarto.isEquipamentosPersonalizados() ? "  |  com exceções" : "");
     }
 }

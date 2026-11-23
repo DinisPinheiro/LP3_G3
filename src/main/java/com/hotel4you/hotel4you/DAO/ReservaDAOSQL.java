@@ -46,6 +46,7 @@ public class ReservaDAOSQL implements ReservaDAO {
     private static final String ESTADOS_ATIVOS = "('PENDENTE', 'CHECK_IN')";
     private static final String SQL_SOBREPOSICAO = "SELECT COUNT(*) FROM dbo.Reserva WHERE IdQuarto = ? AND Estado IN "
             + ESTADOS_ATIVOS + " AND DataEntrada < ? AND DataSaida > ?";
+    private static final String SQL_SOBREPOSICAO_OUTRAS = SQL_SOBREPOSICAO + " AND IdReserva <> ?";
     private static final String SQL_INSERIR_SERVICO = "INSERT INTO dbo.ConsumoServico "
             + "(IdReserva, IdServico, Quantidade, Data, ValorUnitario, Cobranca) VALUES (?, ?, ?, ?, ?, ?)";
     private static final String SQL_INSERIR_PRODUTO =
@@ -314,12 +315,80 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
     }
 
+    @Override
+    public boolean existeSobreposicao(int idQuarto, LocalDate dataEntrada, LocalDate dataSaida,
+                                      int idReservaIgnorada) {
+        try (Connection conn = DBConnection.getConnection()) {
+            return contarSobreposicoes(conn, idQuarto, dataEntrada, dataSaida, idReservaIgnorada) > 0;
+        } catch (SQLException e) {
+            throw new DAOException("Não foi possível verificar a disponibilidade do quarto.", e);
+        }
+    }
+
+    /**
+     * Guarda as novas datas e o novo valor total. Dentro da mesma transação confirma que a reserva
+     * continua ativa e que nenhuma outra reserva ocupa o quarto nas novas datas.
+     */
+    @Override
+    public void atualizarDatas(Reserva reserva) {
+        if (!reserva.podeEditarDatas()) {
+            throw new DAOException("A reserva não está ativa.");
+        }
+        try (Connection conn = DBConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            try {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT Estado FROM dbo.Reserva WITH (UPDLOCK, HOLDLOCK) WHERE IdReserva = ?")) {
+                    ps.setInt(1, reserva.getId());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new DAOException("A reserva n.º " + reserva.getId() + " não existe.");
+                        }
+                        String estado = rs.getString("Estado");
+                        if (!estado.equals("PENDENTE") && !estado.equals("CHECK_IN")) {
+                            throw new DAOException("A reserva não está ativa.");
+                        }
+                    }
+                }
+                if (contarSobreposicoes(conn, reserva.getQuarto().getId(), reserva.getDataEntrada(),
+                        reserva.getDataSaida(), reserva.getId()) > 0) {
+                    throw new DAOException("O " + reserva.getQuarto() + " já está reservado entre "
+                            + reserva.getDataEntrada() + " e " + reserva.getDataSaida() + ".");
+                }
+                int linhas = SqlUtil.executar(conn, "UPDATE dbo.Reserva SET DataEntrada = ?, DataSaida = ?, "
+                        + "ValorTotal = ? WHERE IdReserva = ? AND Estado IN " + ESTADOS_ATIVOS, ps -> {
+                    ps.setDate(1, Date.valueOf(reserva.getDataEntrada()));
+                    ps.setDate(2, Date.valueOf(reserva.getDataSaida()));
+                    ps.setBigDecimal(3, valorTotal(reserva));
+                    ps.setInt(4, reserva.getId());
+                });
+                if (linhas != 1) {
+                    throw new DAOException("Não foi possível atualizar as datas da reserva.");
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new DAOException("Não foi possível atualizar as datas da reserva.", e);
+        }
+    }
+
     private static int contarSobreposicoes(Connection conn, int idQuarto, LocalDate entrada, LocalDate saida)
             throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(SQL_SOBREPOSICAO)) {
+        return contarSobreposicoes(conn, idQuarto, entrada, saida, 0);
+    }
+
+    private static int contarSobreposicoes(Connection conn, int idQuarto, LocalDate entrada, LocalDate saida,
+                                           int idReservaIgnorada) throws SQLException {
+        // IdReserva <> 0 é sempre verdadeiro, por isso sem reserva a ignorar a consulta conta todas.
+        try (PreparedStatement ps = conn.prepareStatement(SQL_SOBREPOSICAO_OUTRAS)) {
             ps.setInt(1, idQuarto);
             ps.setDate(2, Date.valueOf(saida));
             ps.setDate(3, Date.valueOf(entrada));
+            ps.setInt(4, idReservaIgnorada);
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 return rs.getInt(1);
@@ -521,4 +590,4 @@ public class ReservaDAOSQL implements ReservaDAO {
         }
     }
 
-}
+}

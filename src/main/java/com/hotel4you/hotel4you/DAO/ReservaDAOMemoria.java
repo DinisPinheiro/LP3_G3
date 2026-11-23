@@ -156,25 +156,56 @@ public class ReservaDAOMemoria implements ReservaDAO {
             LocalDate dataEntrada,
             LocalDate dataSaida) {
 
+        return existeSobreposicao(idQuarto, dataEntrada, dataSaida, 0);
+    }
+
+    /**
+     * Verifica se um quarto já está reservado, sem contar com uma reserva.
+     */
+    @Override
+    public boolean existeSobreposicao(
+            int idQuarto,
+            LocalDate dataEntrada,
+            LocalDate dataSaida,
+            int idReservaIgnorada) {
+
         for (Reserva reserva : reservas.values()) {
 
-            boolean ativa =
-                    reserva.getEstado() == EstadoReserva.PENDENTE
-                            || reserva.getEstado() == EstadoReserva.CHECK_IN;
-
-            boolean mesmoQuarto =
-                    reserva.getQuarto().getId() == idQuarto;
-
-            boolean datasSobrepostas =
-                    reserva.getDataEntrada().isBefore(dataSaida)
-                            && reserva.getDataSaida().isAfter(dataEntrada);
-
-            if (ativa && mesmoQuarto && datasSobrepostas) {
+            if (reserva.getId() != idReservaIgnorada
+                    && reserva.getQuarto().getId() == idQuarto
+                    && reserva.ocupaQuarto()
+                    && reserva.sobrepoe(dataEntrada, dataSaida)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Guarda as novas datas de uma reserva ativa.
+     */
+    @Override
+    public void atualizarDatas(Reserva reserva) {
+
+        if (reserva == null) {
+            throw new IllegalArgumentException("A reserva é obrigatória.");
+        }
+
+        if (!reservas.containsKey(reserva.getId())) {
+            throw new DAOException("A reserva não existe.");
+        }
+
+        if (!reserva.podeEditarDatas()) {
+            throw new DAOException("A reserva não está ativa.");
+        }
+
+        if (existeSobreposicao(reserva.getQuarto().getId(), reserva.getDataEntrada(),
+                reserva.getDataSaida(), reserva.getId())) {
+            throw new DAOException("O quarto já está reservado nesse período.");
+        }
+
+        reservas.put(reserva.getId(), reserva);
     }
 
     @Override

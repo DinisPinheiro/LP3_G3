@@ -78,6 +78,30 @@ public interface ReservaDAO extends DAO<Reserva> {
      * @throws DAOException se não for possível ler
      */
     boolean existeSobreposicao(int idQuarto, LocalDate dataEntrada, LocalDate dataSaida);
+
+    /**
+     * Igual a {@link #existeSobreposicao(int, LocalDate, LocalDate)}, mas sem contar com uma reserva
+     * (a que está a ser editada).
+     *
+     * @param idQuarto          identificador do quarto
+     * @param dataEntrada       primeira noite
+     * @param dataSaida         dia de saída
+     * @param idReservaIgnorada reserva que não conta como ocupação
+     * @return {@code true} se outra reserva ativa se sobrepõe ao período
+     * @throws DAOException se não for possível ler
+     */
+    boolean existeSobreposicao(int idQuarto, LocalDate dataEntrada, LocalDate dataSaida, int idReservaIgnorada);
+
+    /**
+     * Guarda as novas datas de uma reserva ativa e o novo valor total. A verificação de disponibilidade e a
+     * gravação são feitas na mesma transação.
+     *
+     * @param reserva reserva com as datas já alteradas
+     * @throws DAOException se a reserva não existir, não estiver ativa, se o quarto já tiver outra reserva
+     *                      ativa nesse período ou se não for possível guardar
+     */
+    void atualizarDatas(Reserva reserva);
+
     // Consulta paginada das reservas nos estados escolhidos.
     List<Reserva> listarPorEstados(List<com.hotel4you.hotel4you.Model.enums.EstadoReserva> estados, int pagina, int tamanhoPagina);
     // Número de reservas nos estados escolhidos.

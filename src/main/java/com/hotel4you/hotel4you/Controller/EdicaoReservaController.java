@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Permite consultar e editar os serviços de uma reserva.
+ * Permite consultar e editar os serviços e as datas de uma reserva.
  * <p>
  * S6-05: também se alteram os produtos do stock da reserva (por exemplo, uma só pessoa num quarto duplo
  * fica com 1 toalha em vez de 2). A alteração ajusta o stock disponível; a regra está no model
@@ -145,6 +145,53 @@ public class EdicaoReservaController {
         Reserva reserva = consultarReserva(idReserva);
         reserva.removerServicoEdicao(indice);
         reservaDAO.atualizarServicos(reserva);
+    }
+
+    /**
+     * Altera as datas de uma reserva ativa (S6-08), para acomodar alterações do cliente.
+     * <p>
+     * A alteração é recusada se o quarto estiver ocupado por outra reserva nas novas datas. A
+     * disponibilidade é a mesma regra usada ao criar reservas ({@link ReservaDAO#existeSobreposicao}) e
+     * o valor total é recalculado com o novo número de noites e guardado.
+     *
+     * @param idReserva reserva a alterar
+     * @param entrada   nova primeira noite (não pode ser anterior a hoje se mudar)
+     * @param saida     novo dia de saída (depois da entrada)
+     * @return a reserva com as novas datas e o total recalculado
+     * @throws IllegalArgumentException se a reserva não existir, se as datas forem inválidas ou se o quarto
+     *                                  estiver ocupado nas novas datas
+     * @throws IllegalStateException    se a reserva não estiver ativa (pendente ou com check-in)
+     * @throws SecurityException        se o utilizador não for rececionista nem gestor
+     * @throws com.hotel4you.hotel4you.DAO.DAOException se não for possível guardar
+     */
+    public Reserva alterarDatas(int idReserva, LocalDate entrada, LocalDate saida) {
+        verificarPermissao();
+        Reserva reserva = consultarReserva(idReserva);
+
+        if (entrada == null) {
+            throw new IllegalArgumentException("Indique a data de entrada.");
+        }
+        if (saida == null) {
+            throw new IllegalArgumentException("Indique a data de saída.");
+        }
+        if (!saida.isAfter(entrada)) {
+            throw new IllegalArgumentException("A data de saída deve ser posterior à data de entrada.");
+        }
+        if (!entrada.equals(reserva.getDataEntrada()) && entrada.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("A data de entrada não pode ser anterior a hoje.");
+        }
+
+        LocalDate entradaAnterior = reserva.getDataEntrada();
+        LocalDate saidaAnterior = reserva.getDataSaida();
+        reserva.alterarDatas(entrada, saida, reservaDAO::existeSobreposicao);
+        try {
+            reservaDAO.atualizarDatas(reserva);
+        } catch (RuntimeException e) {
+            // Se não ficou guardada, a reserva volta às datas anteriores.
+            reserva.alterarDatas(entradaAnterior, saidaAnterior, (quarto, e1, s1, ignorada) -> false);
+            throw e;
+        }
+        return reserva;
     }
 
     /**
