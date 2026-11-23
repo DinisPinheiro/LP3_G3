@@ -27,17 +27,21 @@ import java.util.Set;
  * <p>
  * S6-05: os equipamentos escolhidos a partir do stock ficam na tabela de ligação {@code dbo.QuartoProduto}
  * (quarto, produto do stock e quantidade), gravada na mesma transação do quarto.
+ * <p>
+ * S6-09: guarda também se o preço e os equipamentos do quarto são exceções à configuração do seu tipo.
  */
 public class QuartoDAOSQL implements QuartoDAO {
 
     /** Quarto com o valor da vista em vigor (tabela dbo.SuplementoVista, editável pelo gestor). */
     private static final String SELECT = "SELECT q.IdQuarto, q.Numero, q.Piso, q.Local, q.Tipo, q.PrecoBase, q.Vista, "
-            + "q.Ativo, sv.Valor AS SuplementoVista FROM dbo.Quarto q "
+            + "q.Ativo, q.PrecoPersonalizado, q.EquipamentosPersonalizados, sv.Valor AS SuplementoVista "
+            + "FROM dbo.Quarto q "
             + "LEFT JOIN dbo.SuplementoVista sv ON sv.Vista = q.Vista";
 
     @Override
     public Quarto inserir(Quarto quarto) {
-        String sql = "INSERT INTO dbo.Quarto (Numero, Piso, Local, Tipo, PrecoBase, Vista, Ativo) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO dbo.Quarto (Numero, Piso, Local, Tipo, PrecoBase, Vista, Ativo, PrecoPersonalizado, "
+                + "EquipamentosPersonalizados) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         Set<Integer> equipamentos = idsDosEquipamentos(quarto);
         try (Connection conn = DBConnection.getConnection()) {
             conn.setAutoCommit(false);
@@ -50,6 +54,8 @@ public class QuartoDAOSQL implements QuartoDAO {
                     ps.setBigDecimal(5, quarto.getPrecoBase());
                     ps.setString(6, quarto.getVista().name());
                     ps.setBoolean(7, quarto.isAtivo());
+                    ps.setBoolean(8, quarto.isPrecoPersonalizado());
+                    ps.setBoolean(9, quarto.isEquipamentosPersonalizados());
                 });
                 gravarEquipamentos(conn, id, equipamentos);
                 gravarProdutos(conn, id, quarto.getProdutos());
@@ -70,7 +76,8 @@ public class QuartoDAOSQL implements QuartoDAO {
 
     @Override
     public void atualizar(Quarto quarto) {
-        String sql = "UPDATE dbo.Quarto SET Local = ?, Tipo = ?, PrecoBase = ?, Vista = ?, Ativo = ? WHERE IdQuarto = ?";
+        String sql = "UPDATE dbo.Quarto SET Local = ?, Tipo = ?, PrecoBase = ?, Vista = ?, Ativo = ?, "
+                + "PrecoPersonalizado = ?, EquipamentosPersonalizados = ? WHERE IdQuarto = ?";
         Set<Integer> equipamentos = idsDosEquipamentos(quarto);
         try (Connection conn = DBConnection.getConnection()) {
             conn.setAutoCommit(false);
@@ -81,7 +88,9 @@ public class QuartoDAOSQL implements QuartoDAO {
                     ps.setBigDecimal(3, quarto.getPrecoBase());
                     ps.setString(4, quarto.getVista().name());
                     ps.setBoolean(5, quarto.isAtivo());
-                    ps.setInt(6, quarto.getId());
+                    ps.setBoolean(6, quarto.isPrecoPersonalizado());
+                    ps.setBoolean(7, quarto.isEquipamentosPersonalizados());
+                    ps.setInt(8, quarto.getId());
                 });
                 if (linhas == 0) {
                     conn.rollback();
@@ -207,6 +216,8 @@ public class QuartoDAOSQL implements QuartoDAO {
         Quarto quarto = new Quarto(rs.getInt("IdQuarto"), rs.getInt("Numero"), rs.getInt("Piso"), rs.getString("Local"),
                 TipoQuarto.valueOf(rs.getString("Tipo")), rs.getBigDecimal("PrecoBase"),
                 Vista.valueOf(rs.getString("Vista")), rs.getBoolean("Ativo"));
+        quarto.setPrecoPersonalizado(rs.getBoolean("PrecoPersonalizado"));
+        quarto.setEquipamentosPersonalizados(rs.getBoolean("EquipamentosPersonalizados"));
         BigDecimal suplemento = rs.getBigDecimal("SuplementoVista");
         if (suplemento != null) {
             quarto.setSuplementoVista(suplemento);

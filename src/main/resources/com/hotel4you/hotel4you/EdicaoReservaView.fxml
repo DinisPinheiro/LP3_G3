@@ -45,6 +45,22 @@
             <Label fx:id="labelEstado"
                    text="Estado:"/>
 
+            <HBox spacing="8">
+
+                <DatePicker fx:id="campoEntrada"
+                            promptText="Entrada"
+                            editable="true"/>
+
+                <DatePicker fx:id="campoSaida"
+                            promptText="Saída"
+                            editable="true"/>
+
+                <Button fx:id="botaoAlterarDatas"
+                        text="Alterar datas"
+                        onAction="#onAlterarDatas"/>
+
+            </HBox>
+
             <Label text="Serviços e extras:"/>
 
             <ListView fx:id="listaServicos"

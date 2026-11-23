@@ -12,11 +12,13 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.util.StringConverter;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -52,6 +54,12 @@ public class EdicaoReservaViewController {
     private ComboBox<Servico> campoServico;
     @FXML
     private TextField campoQuantidade;
+    @FXML
+    private DatePicker campoEntrada;
+    @FXML
+    private DatePicker campoSaida;
+    @FXML
+    private Button botaoAlterarDatas;
     @FXML
     private Button botaoAdicionar;
     @FXML
@@ -91,6 +99,9 @@ public class EdicaoReservaViewController {
                 return null;
             }
         });
+
+        SeletorData.configurar(campoEntrada, 0, () -> { });
+        SeletorData.configurar(campoSaida, 1, () -> { });
 
         listaReservas.setCellFactory(lista ->
                 new javafx.scene.control.ListCell<Reserva>() {
@@ -177,6 +188,14 @@ public class EdicaoReservaViewController {
             labelEstado.setText("Estado: " + reservaSelecionada.getEstado());
 
             atualizarDetalhes();
+            boolean podeEditarDatas = reservaSelecionada.podeEditarDatas();
+            boolean aposCheckIn = reservaSelecionada.getEstado() == com.hotel4you.hotel4you.Model.enums.EstadoReserva.CHECK_IN;
+            campoEntrada.setValue(reservaSelecionada.getDataEntrada());
+            campoSaida.setValue(reservaSelecionada.getDataSaida());
+            // Depois do check-in só se pode mudar a saída.
+            campoEntrada.setDisable(!podeEditarDatas || aposCheckIn);
+            campoSaida.setDisable(!podeEditarDatas);
+            botaoAlterarDatas.setDisable(!podeEditarDatas);
             boolean podeEditar = reservaSelecionada.podeEditarServicos();
 
             botaoAdicionar.setDisable(!podeEditar);
@@ -193,9 +212,9 @@ public class EdicaoReservaViewController {
             campoProduto.setItems(FXCollections.observableArrayList(controller.listarProdutosStock()));
 
             if (podeEditar) {
-                labelMensagem.setText("Pode acrescentar ou remover serviços e alterar os produtos.");
+                labelMensagem.setText("Pode acrescentar ou remover serviços, alterar os produtos e alterar as datas.");
             } else if (podeEditarProdutos) {
-                labelMensagem.setText("Os serviços só se editam depois do check-in; os produtos já se podem alterar.");
+                labelMensagem.setText("Os serviços só se editam depois do check-in; os produtos e as datas já se podem alterar.");
             } else {
                 labelMensagem.setText("Esta reserva não pode ser editada.");
             }
@@ -342,6 +361,39 @@ public class EdicaoReservaViewController {
             controller.alterarProduto(reservaSelecionada.getId(), produto.getArtigo().getId(), 0);
             mostrarReserva(reservaSelecionada.getId());
             labelMensagem.setText("Produto retirado da reserva.");
+        }
+
+        catch (RuntimeException e) {
+            labelMensagem.setText(e.getMessage());
+        }
+    }
+
+    /**
+     * Altera as datas da reserva selecionada (S6-08).
+     */
+    @FXML
+    private void onAlterarDatas() {
+
+        if (reservaSelecionada == null) {
+            labelMensagem.setText("Selecione uma reserva.");
+            return;
+        }
+
+        LocalDate entrada = SeletorData.ler(campoEntrada).orElse(null);
+        LocalDate saida = SeletorData.ler(campoSaida).orElse(null);
+
+        if (entrada == null || saida == null) {
+            labelMensagem.setText("Indique as datas de entrada e de saída (dd/mm/aaaa).");
+            return;
+        }
+
+        try {
+            controller.alterarDatas(reservaSelecionada.getId(), entrada, saida);
+            int id = reservaSelecionada.getId();
+            atualizarReservas();
+            mostrarReserva(id);
+            labelMensagem.setText("Datas alteradas com sucesso. Novo valor total: "
+                    + reservaSelecionada.calcularTotal() + " €.");
         }
 
         catch (RuntimeException e) {

@@ -26,7 +26,7 @@ public enum AreaMenu {
     FUNCIONARIOS("Gerir funcionários", "Funcionários", GERIR_FUNCIONARIOS),
     SUGESTOES("Sugestões e queixas", "Sugestões e queixas", SUGESTOES_QUEIXAS),
     CARTOES("Movimento de cartão", "Movimento de cartão", LISTAGEM_POR_CARTAO, LISTAGEM_POR_QUARTO, LISTAGEM_POR_LOCAL),
-    QUARTOS("Configurar quartos", "Configurar quartos", CONFIGURAR_QUARTOS, EDITAR_VISTAS);
+    QUARTOS("Configurar quartos", "Configurar quartos", CONFIGURAR_QUARTOS, CONFIGURAR_TIPOS_QUARTO, EDITAR_VISTAS);
 
     private final String texto;
     private final String titulo;

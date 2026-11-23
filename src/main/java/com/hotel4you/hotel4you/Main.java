@@ -30,6 +30,9 @@ public class Main extends Application {
 
         EquipamentoDAO equipamentoDAO = new EquipamentoDAOSQL();
 
+        // Preço base e equipamentos por tipo de quarto, herdados pelos quartos (S6-09)
+        ConfiguracaoTipoQuartoDAO configuracaoTipoQuartoDAO = new ConfiguracaoTipoQuartoDAOSQL();
+
         SuplementoVistaDAO suplementoVistaDAO =
                 new SuplementoVistaDAOSQL();
 
@@ -85,6 +88,7 @@ public class Main extends Application {
                         equipamentoDAO,
                         suplementoVistaDAO,
                         stockDAO,
+                        configuracaoTipoQuartoDAO,
                         sessao
                 );
 
@@ -224,6 +228,13 @@ public class Main extends Application {
             if (tipo == GestaoQuartosViewController.class) {
 
                 return new GestaoQuartosViewController(
+                        gestaoQuartosController
+                );
+            }
+
+            if (tipo == ConfiguracaoTipoQuartoViewController.class) {
+
+                return new ConfiguracaoTipoQuartoViewController(
                         gestaoQuartosController
                 );
             }

@@ -27,6 +27,10 @@ import java.util.Objects;
  * A reserva pode levar serviços e extras ({@link ConsumoServico}) e produtos do stock
  * ({@link ProdutoReserva}), cada um com a sua quantidade (S5-06).
  * <p>
+ * As datas de uma reserva ativa (pendente ou com check-in) podem ser alteradas com
+ * {@link #alterarDatas(LocalDate, LocalDate, Disponibilidade)}, que confirma a disponibilidade do quarto
+ * e faz o total ser recalculado (S6-08).
+ * <p>
  * Os preços ficam guardados na reserva quando ela é criada (S5-09): o preço base do quarto, o valor
  * da vista e o valor de cada serviço. Se o gestor os alterar depois, só as reservas novas mudam.
  * <p>
@@ -40,8 +44,8 @@ public class Reserva {
     private int id;
     private final Cliente cliente;
     private final Quarto quarto;
-    private final LocalDate dataEntrada;
-    private final LocalDate dataSaida;
+    private LocalDate dataEntrada;
+    private LocalDate dataSaida;
     /** Preço base do quarto por noite, guardado quando a reserva foi criada. */
     private final BigDecimal precoBaseNoite;
     /** Valor da vista por noite, guardado quando a reserva foi criada. */
@@ -359,6 +363,87 @@ public class Reserva {
             throw new IllegalArgumentException("O serviço selecionado não existe.");
         }
         consumos.remove(indice);
+    }
+
+    // EDIÇÃO DE DATAS DA RESERVA (S6-08)
+
+    /**
+     * Pergunta se um quarto está ocupado num período, sem contar com uma reserva (a que está a ser editada).
+     * Em geral é o {@code ReservaDAO::existeSobreposicao}, para a regra de disponibilidade ser uma só.
+     */
+    @FunctionalInterface
+    public interface Disponibilidade {
+        /**
+         * @param idQuarto          quarto a verificar
+         * @param entrada           primeira noite
+         * @param saida             dia de saída
+         * @param idReservaIgnorada reserva que não conta como ocupação (a que está a ser editada)
+         * @return {@code true} se o quarto está ocupado por outra reserva ativa nesse período
+         */
+        boolean quartoOcupado(int idQuarto, LocalDate entrada, LocalDate saida, int idReservaIgnorada);
+    }
+
+    /**
+     * Uma reserva ocupa o quarto enquanto está pendente ou com check-in.
+     *
+     * @return {@code true} se a reserva ocupa o quarto
+     */
+    public boolean ocupaQuarto() {
+        return estado == EstadoReserva.PENDENTE || estado == EstadoReserva.CHECK_IN;
+    }
+
+    /**
+     * Regra de sobreposição de períodos, usada pelos DAO: a noite de saída de uma reserva pode ser a de
+     * entrada de outra.
+     *
+     * @param entrada primeira noite do outro período
+     * @param saida   dia de saída do outro período
+     * @return {@code true} se os dois períodos se cruzam
+     */
+    public boolean sobrepoe(LocalDate entrada, LocalDate saida) {
+        return dataEntrada.isBefore(saida) && dataSaida.isAfter(entrada);
+    }
+
+    /**
+     * Verifica se as datas desta reserva podem ser alteradas: só reservas ativas (pendentes ou com check-in).
+     *
+     * @return {@code true} se a reserva está pendente ou com check-in
+     */
+    public boolean podeEditarDatas() {
+        return ocupaQuarto();
+    }
+
+    /**
+     * Altera as datas da reserva. O quarto tem de estar livre nas novas datas (a própria reserva não conta),
+     * e o total passa a ser calculado com o novo número de noites. Depois do check-in só se pode mudar o
+     * dia de saída. Se alguma regra falhar, as datas ficam como estavam.
+     *
+     * @param novaEntrada   nova primeira noite
+     * @param novaSaida     novo dia de saída (depois da entrada)
+     * @param disponibilidade verificação de disponibilidade do quarto
+     * @throws IllegalStateException    se a reserva não estiver ativa
+     * @throws IllegalArgumentException se as datas forem inválidas, se a entrada mudar depois do check-in
+     *                                  ou se o quarto estiver ocupado nas novas datas
+     */
+    public void alterarDatas(LocalDate novaEntrada, LocalDate novaSaida, Disponibilidade disponibilidade) {
+        if (!podeEditarDatas()) {
+            throw new IllegalStateException("Só é possível alterar as datas de reservas ativas (estado: " + estado + ").");
+        }
+        Objects.requireNonNull(novaEntrada, "A data de entrada é obrigatória.");
+        Objects.requireNonNull(novaSaida, "A data de saída é obrigatória.");
+        Objects.requireNonNull(disponibilidade, "A verificação de disponibilidade é obrigatória.");
+        if (!novaSaida.isAfter(novaEntrada)) {
+            throw new IllegalArgumentException("A data de saída deve ser posterior à de entrada.");
+        }
+        if (estado == EstadoReserva.CHECK_IN && !novaEntrada.equals(dataEntrada)) {
+            throw new IllegalArgumentException("Depois do check-in só se pode alterar a data de saída.");
+        }
+        if (disponibilidade.quartoOcupado(quarto.getId(), novaEntrada, novaSaida, id)) {
+            throw new IllegalArgumentException("O " + quarto + " não está disponível entre " + novaEntrada + " e "
+                    + novaSaida + ".");
+        }
+        this.dataEntrada = novaEntrada;
+        this.dataSaida = novaSaida;
     }
 
     /**

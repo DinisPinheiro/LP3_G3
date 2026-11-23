@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<ScrollPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.hotel4you.hotel4you.View.ConfiguracaoTipoQuartoViewController"
+            fitToWidth="true">
+    <VBox spacing="10">
+        <padding>
+            <Insets top="14" right="14" bottom="14" left="14"/>
+        </padding>
+
+        <Label text="Configuração por tipo de quarto" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+        <Label text="Defina uma vez o preço base e os equipamentos de cada tipo. Os quartos herdam esta configuração e só os quartos com exceções ficam de fora."
+               wrapText="true" style="-fx-text-fill: #555555;"/>
+
+        <HBox spacing="8">
+            <Label text="Tipo de quarto"/>
+            <ComboBox fx:id="campoTipo" promptText="Individual, duplo ou família"/>
+        </HBox>
+        <Label fx:id="labelEstado" style="-fx-font-weight: bold;"/>
+
+        <HBox spacing="8">
+            <Label text="Preço base por noite (€)"/>
+            <TextField fx:id="campoPreco" promptText="ex.: 60,00"/>
+        </HBox>
+
+        <Label text="Equipamentos do tipo (produtos do stock):" style="-fx-font-weight: bold;"/>
+        <HBox spacing="8">
+            <ComboBox fx:id="campoProdutoStock" promptText="Produto em stock" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+            <TextField fx:id="campoQuantidadeProduto" promptText="Qtd." prefWidth="60"/>
+            <Button text="Pôr no tipo" onAction="#onAdicionarProduto"/>
+            <Button text="Tirar do tipo" onAction="#onRemoverProduto"/>
+        </HBox>
+        <ListView fx:id="listaProdutos" prefHeight="110"/>
+
+        <Label text="Outras características do tipo (não usam stock):"/>
+        <VBox fx:id="caixaEquipamentos" spacing="4"/>
+
+        <HBox spacing="8">
+            <Button text="Guardar configuração do tipo" defaultButton="true" onAction="#onGuardar"/>
+            <Button text="Voltar ao menu" onAction="#onVoltar"/>
+        </HBox>
+        <Label fx:id="labelMensagem" wrapText="true"/>
+    </VBox>
+</ScrollPane>

@@ -217,6 +217,15 @@ public class MenuPrincipalViewController {
         );
 
         DESTINOS.put(
+                OpcaoMenu.CONFIGURAR_TIPOS_QUARTO,
+                new Destino(
+                        "ConfiguracaoTipoQuartoView.fxml",
+                        "Hotel4You - Configuração por tipo de quarto",
+                        "Configuração por tipo de quarto"
+                )
+        );
+
+        DESTINOS.put(
                 OpcaoMenu.EDITAR_VISTAS,
                 new Destino(
                         "GestaoVistasView.fxml",

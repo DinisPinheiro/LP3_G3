@@ -43,6 +43,7 @@ public enum OpcaoMenu {
     LISTAGEM_POR_QUARTO("Passagens de cartões num quarto", GESTOR),
     LISTAGEM_POR_LOCAL("Passagens de cartões num local", GESTOR),
     CONFIGURAR_QUARTOS("Configurar quartos", GESTOR),
+    CONFIGURAR_TIPOS_QUARTO("Configuração por tipo de quarto", GESTOR),
     EDITAR_VISTAS("Valores das vistas especiais", GESTOR),
     GERIR_FORNECEDORES("Gerir fornecedores", GESTOR),
 

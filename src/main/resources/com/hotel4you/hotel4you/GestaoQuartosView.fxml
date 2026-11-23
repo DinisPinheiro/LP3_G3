@@ -63,6 +63,10 @@
                           GridPane.rowIndex="6" GridPane.columnIndex="1"/>
             </GridPane>
 
+            <Label fx:id="labelHeranca" wrapText="true" style="-fx-text-fill: #555555;"/>
+            <CheckBox fx:id="campoPrecoPersonalizado" text="Preço base próprio (exceção ao preço do tipo)"/>
+            <CheckBox fx:id="campoEquipPersonalizados" text="Equipamentos próprios (exceção aos do tipo)"/>
+
             <Label text="Equipamentos do quarto (produtos do stock):" style="-fx-font-weight: bold;"/>
             <Label text="No check-in passam para a reserva e saem do stock disponível; no check-out voltam ao stock (os consumíveis saem do stock)."
                    wrapText="true" style="-fx-text-fill: #555555;"/>

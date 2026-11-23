@@ -245,4 +245,50 @@ class ReservaDAOMemoriaDisponibilidadeTest {
         assertThrows(IllegalArgumentException.class, () -> dao.contarPorEstados(null));
         assertThrows(IllegalArgumentException.class, () -> dao.contarPorEstados(List.of()));
     }
+
+    // ---- Edição de datas (S6-08) ----------------------------------------------------------
+
+    @Test
+    void sobreposicaoPodeIgnorarUmaReserva() {
+        Reserva reserva = guardar(maria, quarto202, 0, 3);
+
+        assertTrue(dao.existeSobreposicao(1, dia(1), dia(4)));
+        assertFalse(dao.existeSobreposicao(1, dia(1), dia(4), reserva.getId()), "a própria reserva não conta");
+
+        guardar(rui, quarto202, 3, 6);
+        assertTrue(dao.existeSobreposicao(1, dia(1), dia(4), reserva.getId()), "outra reserva continua a contar");
+    }
+
+    @Test
+    void atualizarDatasGuardaOPeriodoNovo() {
+        Reserva reserva = guardar(maria, quarto202, 0, 3);
+
+        reserva.alterarDatas(dia(0), dia(5), dao::existeSobreposicao);
+        dao.atualizarDatas(reserva);
+
+        assertEquals(dia(5), dao.procurarPorId(reserva.getId()).orElseThrow().getDataSaida());
+        assertTrue(dao.existeSobreposicao(1, dia(4), dia(5)));
+    }
+
+    @Test
+    void atualizarDatasRecusaSobreposicaoComOutraReserva() {
+        Reserva reserva = guardar(maria, quarto202, 0, 3);
+        guardar(rui, quarto202, 5, 8);
+        // Reserva alterada por fora das regras do model (concorrência): o DAO volta a confirmar.
+        Reserva conflito = new Reserva(reserva.getId(), maria, quarto202, dia(0), dia(6));
+
+        assertThrows(DAOException.class, () -> dao.atualizarDatas(conflito));
+        assertEquals(dia(3), dao.procurarPorId(reserva.getId()).orElseThrow().getDataSaida());
+    }
+
+    @Test
+    void atualizarDatasRecusaReservaInexistenteOuInativa() {
+        assertThrows(DAOException.class,
+                () -> dao.atualizarDatas(new Reserva(99, maria, quarto202, dia(0), dia(2))));
+
+        Reserva reserva = guardar(maria, quarto202, 0, 3);
+        reserva.cancelar();
+        dao.atualizar(reserva);
+        assertThrows(DAOException.class, () -> dao.atualizarDatas(reserva));
+    }
 }
