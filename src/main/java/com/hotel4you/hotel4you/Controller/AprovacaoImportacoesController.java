@@ -7,7 +7,6 @@ import com.hotel4you.hotel4you.Model.Utilizador;
 import com.hotel4you.hotel4you.Model.encomenda.EncomendaFornecedor;
 import com.hotel4you.hotel4you.Model.enums.EstadoImportacao;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
-import com.hotel4you.hotel4you.Utils.LeitorEncomendaXml;
 import com.hotel4you.hotel4you.Utils.XmlInvalidoException;
 
 import java.io.IOException;
@@ -16,12 +15,13 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Aprovação ou rejeição, pelo gestor ou rececionista, dos ficheiros XML importados pelos
- * fornecedores (S5-03).
+ * Aprovação ou rejeição, pelo gestor ou rececionista, dos ficheiros importados pelos
+ * fornecedores, em XML ou JSON (S5-03, S7-03).
  * <p>
  * Os ficheiros chegam {@code PENDENTE}. Só quando um ficheiro é aprovado é que o seu material dá
  * entrada em stock (através do {@link GestaoStockController}); um ficheiro rejeitado nunca dá entrada.
- * Um ficheiro já decidido não volta a mudar de estado.
+ * Um ficheiro já decidido não volta a mudar de estado. O fluxo é igual para os dois formatos: cada importação
+ * guarda o seu {@link com.hotel4you.hotel4you.Model.enums.FormatoFicheiro} e é lida com o leitor desse formato.
  */
 public class AprovacaoImportacoesController {
 
@@ -66,7 +66,7 @@ public class AprovacaoImportacoesController {
      *
      * @param idImportacao identificador da importação
      * @return a encomenda lida do ficheiro
-     * @throws XmlInvalidoException     se o ficheiro já não cumprir o XSD em vigor
+     * @throws XmlInvalidoException     se o ficheiro já não for válido (o XML já não cumprir o XSD em vigor, por exemplo)
      * @throws IllegalArgumentException se a importação não existir
      * @throws SecurityException        se o utilizador não for gestor nem rececionista
      */
@@ -83,7 +83,7 @@ public class AprovacaoImportacoesController {
      * @param idImportacao identificador da importação
      * @throws IllegalStateException    se o ficheiro já foi aprovado ou rejeitado
      * @throws IllegalArgumentException se a importação não existir ou o material não puder dar entrada
-     * @throws XmlInvalidoException     se o ficheiro já não cumprir o XSD em vigor
+     * @throws XmlInvalidoException     se o ficheiro já não for válido (o XML já não cumprir o XSD em vigor, por exemplo)
      * @throws SecurityException        se o utilizador não for gestor nem rececionista
      * @throws AcessoDadosException     se não for possível guardar
      */
@@ -132,7 +132,8 @@ public class AprovacaoImportacoesController {
 
     private EncomendaFornecedor lerEncomenda(ImportacaoFornecedor importacao) {
         try {
-            return LeitorEncomendaXml.ler(importacao.getConteudo(), gestaoXsd.obterSchema(importacao.getFornecedor()));
+            return LeitoresEncomenda.para(importacao.getFormato(), importacao.getFornecedor(), gestaoXsd)
+                    .ler(importacao.getConteudo());
         } catch (IOException e) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro '" + importacao.getNomeFicheiro()
                     + "': " + e.getMessage(), e);

@@ -1,0 +1,218 @@
+{
+  "Order": {
+    "Header": {
+      "OrderNumber": "X012X"
+      "OrderDate": "2026-11-06",
+      "SupplierParty": {
+        "PartyIdentifier": "964070328",
+        "NameAddress": {
+          "Name": "L'industrie Alimentaire",
+          "Address1": "Rue internationale de Paris 96",
+          "City": "Paris",
+          "PostalCode": "75001",
+          "Country": {
+            "ISOCountryCode": "FR",
+            "Value": "France"
+          }
+        }
+      }
+    },
+    "Line": [
+      {
+        "LineNumber": 1,
+        "Product": {
+          "ProductIdentifier": [
+            {
+              "Agency": "Supplier",
+              "ProductIdentifierType": "PartNumber",
+              "Code": "63279196"
+            }
+          ],
+          "ProductDescription": "Croissant Brioche délifrance"
+        },
+		"Quantity": {
+          "Value": {
+            "UOM": "Unit",
+            "Value": 10000
+          }
+        },
+        "InformationalQuantity": [
+          {
+            "Value": {
+              "UOM": "Kilogram",
+              "Value": 600
+            }
+          }
+        ],
+         "PricePerUnit": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 0.25
+            },
+            "Value": {
+              "UOM": "Unit",
+              "Value": 1
+            }
+         },
+        "MonetaryAdjustment": {
+          "AdjustmentType": "Tax",
+          "MonetaryAdjustmentLine": 1,
+          "MonetaryAdjustmentStartAmount": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 2500
+            }
+          },
+          "TaxAdjustment": {
+            "TaxType": "VAT",
+            "TaxPercent": 20,
+            "TaxAmount": {
+              "CurrencyValue": {
+                "CurrencyType": "EUR",
+                "Value": 500
+              }
+            },
+            "TaxLocation": "FR"
+          }
+        },
+        
+        "LineBaseAmount": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 3000
+          }
+        }
+      },
+      {
+        "LineNumber": 2,
+        "Product": {
+          "ProductIdentifier": [
+            {
+              "Agency": "Supplier",
+              "ProductIdentifierType": "PartNumber",
+              "Code": "13576129"
+            }
+          ],
+          "ProductDescription": "Pão Campagne Francês"
+        },
+		"Quantity": {
+          "Value": {
+            "UOM": "Unit",
+            "Value": 100
+          }
+        },
+        "InformationalQuantity": [
+          {
+            "Value": {
+              "UOM": "Kilogram",
+              "Value": 40
+            }
+          }
+        ],
+         "PricePerUnit": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 2.12
+            },
+            "Value": {
+              "UOM": "Unit",
+              "Value": 1
+            }
+         },
+        "MonetaryAdjustment": {
+          "AdjustmentType": "Tax",
+          "MonetaryAdjustmentLine": 1,
+          "MonetaryAdjustmentStartAmount": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 212
+            }
+          },
+          "TaxAdjustment": {
+            "TaxType": "VAT",
+            "TaxPercent": 20,
+            "TaxAmount": {
+              "CurrencyValue": {
+                "CurrencyType": "EUR",
+                "Value": 42.40
+              }
+            },
+            "TaxLocation": "FR"
+          }
+        },
+        
+        "LineBaseAmount": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 254.40
+          }
+        }
+      },
+	  {
+        "LineNumber": 3,
+        "Product": {
+          "ProductIdentifier": [
+            {
+              "Agency": "Supplier",
+              "ProductIdentifierType": "PartNumber",
+              "Code": "659985100"
+            }
+          ],
+          "ProductDescription": "Pão Campagne Francês"
+        },
+		"Quantity": {
+          "Value": {
+            "UOM": "Unit",
+            "Value": 100
+          }
+        },
+        "InformationalQuantity": [
+          {
+            "Value": {
+              "UOM": "Kilogram",
+              "Value": 40
+            }
+          }
+        ],
+         "PricePerUnit": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 2.12
+            },
+            "Value": {
+              "UOM": "Unit",
+              "Value": 1
+            }
+         },
+        "MonetaryAdjustment": {
+          "AdjustmentType": "Tax",
+          "MonetaryAdjustmentLine": 1,
+          "MonetaryAdjustmentStartAmount": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 212
+            }
+          },
+          "TaxAdjustment": {
+            "TaxType": "VAT",
+            "TaxPercent": 20,
+            "TaxAmount": {
+              "CurrencyValue": {
+                "CurrencyType": "EUR",
+                "Value": 42.40
+              }
+            },
+            "TaxLocation": "FR"
+          }
+        },
+        
+        "LineBaseAmount": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 254.40
+          }
+        }
+      }
+    ]
+  }
+}

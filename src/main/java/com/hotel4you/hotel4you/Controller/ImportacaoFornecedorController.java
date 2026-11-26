@@ -8,8 +8,8 @@ import com.hotel4you.hotel4you.Model.Fornecedor;
 import com.hotel4you.hotel4you.Model.ImportacaoFornecedor;
 import com.hotel4you.hotel4you.Model.encomenda.EncomendaFornecedor;
 import com.hotel4you.hotel4you.Model.encomenda.FornecedorEncomenda;
+import com.hotel4you.hotel4you.Model.enums.FormatoFicheiro;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
-import com.hotel4you.hotel4you.Utils.LeitorEncomendaXml;
 import com.hotel4you.hotel4you.Utils.XmlInvalidoException;
 import com.hotel4you.hotel4you.Utils.XsdEmFaltaException;
 import com.hotel4you.hotel4you.Utils.XsdInvalidoException;
@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Importação de ficheiros XML e XSD pelo próprio fornecedor (S5-02, S6-02, S6-03).
+ * Importação de ficheiros XML ou JSON e do XSD pelo próprio fornecedor (S5-02, S6-02, S6-03, S7-03).
  * <p>
  * O fornecedor entra com a sua conta (perfil Fornecedor) e só pode importar ficheiros seus: o código
  * do fornecedor no XML tem de ser o da sua ficha. Importa o XML e, a seguir, o XSD com que ele é validado
@@ -62,7 +62,7 @@ public class ImportacaoFornecedorController {
      * @throws AcessoDadosException se não for possível ler
      */
     public Fornecedor obterFornecedorAtual() {
-        Permissoes.exigirPerfil(sessao, "Apenas um fornecedor pode importar ficheiros XML.", Perfil.FORNECEDOR);
+        Permissoes.exigirPerfil(sessao, "Apenas um fornecedor pode importar ficheiros.", Perfil.FORNECEDOR);
         int idConta = sessao.getUtilizadorAtual().orElseThrow().getId();
         try {
             return fornecedorDAO.procurarPorUtilizador(idConta).orElseThrow(() -> new SecurityException(
@@ -96,47 +96,50 @@ public class ImportacaoFornecedorController {
     }
 
     /**
-     * Valida um XML e confirma que é do fornecedor com sessão iniciada e que a encomenda ainda não foi
-     * enviada, sem guardar nada.
+     * Valida um ficheiro XML ou JSON e confirma que é do fornecedor com sessão iniciada e que a encomenda
+     * ainda não foi enviada, sem guardar nada.
      *
-     * @param ficheiro caminho do XML escolhido
+     * @param ficheiro caminho do XML ou JSON escolhido (o formato vem da extensão)
      * @return a encomenda lida do ficheiro (use {@link EncomendaFornecedor#avisos()} para os avisos de valores)
      * @throws XsdEmFaltaException      se o fornecedor ainda não importou o XSD
-     * @throws XmlInvalidoException     se o XML não cumprir o XSD (traz a linha e o motivo de cada erro)
-     * @throws IllegalArgumentException se o ficheiro não for indicado, não puder ser lido, for de outro
-     *                                  fornecedor ou for de uma encomenda já enviada
+     * @throws XmlInvalidoException     se o ficheiro for inválido: o XML não cumprir o XSD ou o JSON estiver mal
+     *                                  formado ou incompleto (traz o motivo de cada erro)
+     * @throws IllegalArgumentException se o ficheiro não for indicado, não for XML nem JSON, não puder ser lido,
+     *                                  for de outro fornecedor ou for de uma encomenda já enviada
      * @throws SecurityException        se o utilizador não for um fornecedor com ficha
      */
     public EncomendaFornecedor lerEncomenda(Path ficheiro) {
         Fornecedor fornecedor = obterFornecedorAtual();
-        return lerEValidar(lerBytes(ficheiro), fornecedor);
+        FormatoFicheiro formato = formatoDe(ficheiro);
+        return lerEValidar(lerBytes(ficheiro), formato, fornecedor);
     }
 
     /**
-     * Envia o XML ao hotel: valida-o, confirma que é do fornecedor e guarda-o no estado pendente.
-     * Opcionalmente atualiza a ficha do fornecedor com os dados que vêm no XML.
+     * Envia o ficheiro (XML ou JSON) ao hotel: valida-o, confirma que é do fornecedor e guarda-o, com o seu
+     * formato, no estado pendente. Opcionalmente atualiza a ficha do fornecedor com os dados do ficheiro.
      *
-     * @param ficheiro       caminho do XML escolhido
+     * @param ficheiro       caminho do XML ou JSON escolhido (o formato vem da extensão)
      * @param atualizarFicha {@code true} para atualizar o nome, a morada, o código postal e a cidade do
-     *                       fornecedor com os dados do XML
+     *                       fornecedor com os dados do ficheiro
      * @return a importação guardada, no estado pendente
      * @throws XsdEmFaltaException      se o fornecedor ainda não importou o XSD
-     * @throws XmlInvalidoException     se o XML não cumprir o XSD (nada é guardado)
-     * @throws IllegalArgumentException se o ficheiro for de outro fornecedor, for de uma encomenda já enviada
-     *                                  ou os dados não couberem na ficha
+     * @throws XmlInvalidoException     se o ficheiro for inválido (nada é guardado)
+     * @throws IllegalArgumentException se o ficheiro não for XML nem JSON, for de outro fornecedor, for de uma
+     *                                  encomenda já enviada ou os dados não couberem na ficha
      * @throws SecurityException        se o utilizador não for um fornecedor com ficha
      * @throws AcessoDadosException     se não for possível guardar
      */
     public ImportacaoFornecedor enviar(Path ficheiro, boolean atualizarFicha) {
         Fornecedor fornecedor = obterFornecedorAtual();
+        FormatoFicheiro formato = formatoDe(ficheiro);
         byte[] conteudo = lerBytes(ficheiro);
-        EncomendaFornecedor encomenda = lerEValidar(conteudo, fornecedor);
+        EncomendaFornecedor encomenda = lerEValidar(conteudo, formato, fornecedor);
         ValidacaoFornecedor.limitar(ficheiro.getFileName().toString(), MAX_NOME_FICHEIRO, "O nome do ficheiro");
         if (atualizarFicha) {
             validarDadosDoXml(encomenda.fornecedor());
         }
         ImportacaoFornecedor importacao = new ImportacaoFornecedor(fornecedor, ficheiro.getFileName().toString(),
-                encomenda.numero(), conteudo, LocalDateTime.now());
+                formato, encomenda.numero(), conteudo, LocalDateTime.now());
         try {
             importacaoDAO.inserir(importacao);
         } catch (DAOException e) {
@@ -162,10 +165,10 @@ public class ImportacaoFornecedorController {
         }
     }
 
-    private EncomendaFornecedor lerEValidar(byte[] conteudo, Fornecedor fornecedor) {
+    private EncomendaFornecedor lerEValidar(byte[] conteudo, FormatoFicheiro formato, Fornecedor fornecedor) {
         EncomendaFornecedor encomenda;
         try {
-            encomenda = LeitorEncomendaXml.ler(conteudo, gestaoXsd.obterSchema(fornecedor));
+            encomenda = LeitoresEncomenda.para(formato, fornecedor, gestaoXsd).ler(conteudo);
         } catch (IOException e) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro: " + e.getMessage(), e);
         }
@@ -200,10 +203,14 @@ public class ImportacaoFornecedorController {
         }
     }
 
-    private static byte[] lerBytes(Path ficheiro) {
+    private static FormatoFicheiro formatoDe(Path ficheiro) {
         if (ficheiro == null) {
-            throw new IllegalArgumentException("Escolha um ficheiro XML.");
+            throw new IllegalArgumentException("Escolha um ficheiro XML ou JSON.");
         }
+        return FormatoFicheiro.deNomeFicheiro(ficheiro.getFileName().toString());
+    }
+
+    private static byte[] lerBytes(Path ficheiro) {
         try {
             return Files.readAllBytes(ficheiro);
         } catch (IOException e) {

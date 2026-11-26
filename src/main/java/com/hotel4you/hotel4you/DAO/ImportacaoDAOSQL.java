@@ -4,6 +4,7 @@ import com.hotel4you.hotel4you.DAO.db.DBConnection;
 import com.hotel4you.hotel4you.Model.Fornecedor;
 import com.hotel4you.hotel4you.Model.ImportacaoFornecedor;
 import com.hotel4you.hotel4you.Model.enums.EstadoImportacao;
+import com.hotel4you.hotel4you.Model.enums.FormatoFicheiro;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -19,7 +20,7 @@ import java.util.Optional;
 public class ImportacaoDAOSQL implements ImportacaoDAO {
 
     private static final String SELECIONAR =
-            "SELECT i.IdImportacao, i.NomeFicheiro, i.NumeroEncomenda, i.Conteudo, i.Estado, i.DataImportacao, "
+            "SELECT i.IdImportacao, i.NomeFicheiro, i.NumeroEncomenda, i.Conteudo, i.Formato, i.Estado, i.DataImportacao, "
                     + "i.IdDecisor, i.DataDecisao, f.IdFornecedor, f.Nome, f.Nif, f.Contacto, f.Morada, "
                     + "f.CodigoPostal, f.Cidade, f.IdUtilizador "
                     + "FROM dbo.ImportacaoFornecedor i JOIN dbo.Fornecedor f ON f.IdFornecedor = i.IdFornecedor ";
@@ -28,15 +29,16 @@ public class ImportacaoDAOSQL implements ImportacaoDAO {
     @Override
     public ImportacaoFornecedor inserir(ImportacaoFornecedor importacao) {
         String sql = "INSERT INTO dbo.ImportacaoFornecedor (IdFornecedor, NomeFicheiro, NumeroEncomenda, Conteudo, "
-                + "Estado, DataImportacao) VALUES (?, ?, ?, ?, ?, ?)";
+                + "Formato, Estado, DataImportacao) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection()) {
             int id = SqlUtil.inserirComId(conn, sql, ps -> {
                 ps.setInt(1, importacao.getFornecedor().getId());
                 ps.setString(2, importacao.getNomeFicheiro());
                 ps.setString(3, importacao.getNumeroEncomenda());
                 ps.setBytes(4, importacao.getConteudo());
-                ps.setString(5, importacao.getEstado().name());
-                SqlUtil.definirDataHora(ps, 6, importacao.getDataImportacao());
+                ps.setString(5, importacao.getFormato().name());
+                ps.setString(6, importacao.getEstado().name());
+                SqlUtil.definirDataHora(ps, 7, importacao.getDataImportacao());
             });
             importacao.setId(id);
             return importacao;
@@ -108,6 +110,7 @@ public class ImportacaoDAOSQL implements ImportacaoDAO {
                 rs.getString("Contacto"), rs.getString("Morada"), rs.getString("CodigoPostal"),
                 rs.getString("Cidade"), rs.getInt("IdUtilizador"));
         return new ImportacaoFornecedor(rs.getInt("IdImportacao"), fornecedor, rs.getString("NomeFicheiro"),
+                FormatoFicheiro.valueOf(rs.getString("Formato").trim()),
                 rs.getString("NumeroEncomenda"), rs.getBytes("Conteudo"),
                 SqlUtil.lerDataHora(rs, "DataImportacao"), EstadoImportacao.valueOf(rs.getString("Estado")),
                 rs.getInt("IdDecisor"), SqlUtil.lerDataHora(rs, "DataDecisao"));

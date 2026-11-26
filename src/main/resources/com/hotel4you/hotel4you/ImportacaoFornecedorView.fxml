@@ -18,15 +18,15 @@
         <Insets top="14" right="18" bottom="14" left="18"/>
     </padding>
 
-    <Label text="Enviar entrega (XML)" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <Label text="Enviar entrega (XML ou JSON)" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
     <Label fx:id="labelFornecedor" wrapText="true" style="-fx-text-fill: #555555;"/>
 
     <HBox spacing="8">
-        <Button fx:id="botaoEscolher" text="1. Escolher ficheiro XML..." defaultButton="true" onAction="#onEscolherFicheiro"/>
+        <Button fx:id="botaoEscolher" text="1. Escolher ficheiro XML ou JSON..." defaultButton="true" onAction="#onEscolherFicheiro"/>
         <Label fx:id="labelFicheiro" text="Nenhum ficheiro escolhido." style="-fx-text-fill: #555555;"/>
     </HBox>
     <HBox spacing="8">
-        <Button fx:id="botaoEscolherXsd" text="2. Escolher ficheiro XSD..." onAction="#onEscolherXsd"/>
+        <Button fx:id="botaoEscolherXsd" text="2. Escolher ficheiro XSD (só para XML)..." onAction="#onEscolherXsd"/>
         <Label fx:id="labelXsd" wrapText="true" style="-fx-text-fill: #555555;"/>
     </HBox>
 
@@ -56,7 +56,7 @@
 
     <TextArea fx:id="areaErros" editable="false" wrapText="true" prefRowCount="5" visible="false" managed="false"/>
 
-    <CheckBox fx:id="checkAtualizarFicha" text="Atualizar a minha ficha (nome, morada, código postal e cidade) com os dados do XML"/>
+    <CheckBox fx:id="checkAtualizarFicha" text="Atualizar a minha ficha (nome, morada, código postal e cidade) com os dados do ficheiro"/>
     <HBox spacing="8">
         <Button fx:id="botaoEnviar" text="Enviar ao hotel" disable="true" onAction="#onEnviar"/>
     </HBox>
@@ -68,6 +68,7 @@
         </columnResizePolicy>
         <columns>
             <TableColumn fx:id="colunaFicheiro" text="Ficheiro" minWidth="160"/>
+            <TableColumn fx:id="colunaFormato" text="Formato" minWidth="60"/>
             <TableColumn fx:id="colunaEncomenda" text="Encomenda" minWidth="90"/>
             <TableColumn fx:id="colunaEnviadoEm" text="Enviado em" minWidth="110"/>
             <TableColumn fx:id="colunaEstado" text="Estado" minWidth="80"/>
