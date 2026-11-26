@@ -1,6 +1,7 @@
 package com.hotel4you.hotel4you.Model;
 
 import com.hotel4you.hotel4you.Model.enums.EstadoImportacao;
+import com.hotel4you.hotel4you.Model.enums.FormatoFicheiro;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -137,5 +138,46 @@ class ImportacaoFornecedorTest {
     void numeroDeEncomendaEmBrancoEInvalido() {
         assertThrows(IllegalArgumentException.class,
                 () -> ImportacaoFornecedor.exigirEncomendaNova(" ", List.of()));
+    }
+
+    // ---- S7-03: formato do ficheiro (XML ou JSON) --------------------------------------------------------
+
+    @Test
+    void importacaoSemFormatoIndicadoEXml() {
+        assertEquals(FormatoFicheiro.XML, importacao.getFormato());
+    }
+
+    @Test
+    void importacaoGuardaOFormatoIndicadoEMantemO() {
+        ImportacaoFornecedor json = new ImportacaoFornecedor(new Fornecedor(1, "ProductHero", "11PT920", ""),
+                "entrega.json", FormatoFicheiro.JSON, "OC2", new byte[]{1}, ENVIO);
+
+        assertEquals(FormatoFicheiro.JSON, json.getFormato());
+        json.aprovar(decisor, DECISAO);
+        assertEquals(FormatoFicheiro.JSON, json.getFormato(), "a decisão não muda o formato");
+    }
+
+    @Test
+    void importacaoJaGuardadaGuardaOFormato() {
+        ImportacaoFornecedor guardada = new ImportacaoFornecedor(5, new Fornecedor(1, "ProductHero", "11PT920", ""),
+                "entrega.json", FormatoFicheiro.JSON, "OC3", new byte[]{1}, ENVIO, EstadoImportacao.PENDENTE, 0, null);
+
+        assertEquals(FormatoFicheiro.JSON, guardada.getFormato());
+    }
+
+    @Test
+    void importacaoSemFormatoERecusada() {
+        Fornecedor fornecedor = new Fornecedor(1, "ProductHero", "11PT920", "");
+        assertThrows(NullPointerException.class,
+                () -> new ImportacaoFornecedor(fornecedor, "a.json", null, "OC1", new byte[]{1}, ENVIO));
+    }
+
+    @Test
+    void encomendaRepetidaContaQualquerQueSejaOFormatoDoEnvioAnterior() {
+        ImportacaoFornecedor jaEnviadaEmJson = new ImportacaoFornecedor(new Fornecedor(1, "ProductHero", "11PT920", ""),
+                "entrega.json", FormatoFicheiro.JSON, "OC9", new byte[]{1}, ENVIO);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> ImportacaoFornecedor.exigirEncomendaNova("oc9", List.of(jaEnviadaEmJson)));
     }
 }

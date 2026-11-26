@@ -1,15 +1,17 @@
 package com.hotel4you.hotel4you.Model;
 
 import com.hotel4you.hotel4you.Model.enums.EstadoImportacao;
+import com.hotel4you.hotel4you.Model.enums.FormatoFicheiro;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Objects;
 
 /**
- * Ficheiro XML enviado por um fornecedor ao hotel, à espera de ser aprovado ou rejeitado (S5-03).
+ * Ficheiro de encomenda (XML ou JSON, ver {@link FormatoFicheiro}) enviado por um fornecedor ao hotel, à espera
+ * de ser aprovado ou rejeitado (S5-03, S7-03).
  * <p>
- * Guarda os bytes do XML tal como foram enviados. A regra de aprovação está aqui: só um ficheiro
+ * Guarda os bytes do ficheiro tal como foram enviados e o seu formato, para a aprovação o saber ler. A regra de aprovação está aqui: só um ficheiro
  * {@link EstadoImportacao#PENDENTE} pode ser aprovado ou rejeitado, e a decisão fica registada com
  * quem a tomou e quando.
  */
@@ -18,6 +20,7 @@ public class ImportacaoFornecedor {
     private int id;
     private final Fornecedor fornecedor;
     private final String nomeFicheiro;
+    private final FormatoFicheiro formato;
     private final String numeroEncomenda;
     private final byte[] conteudo;
     private final LocalDateTime dataImportacao;
@@ -26,7 +29,7 @@ public class ImportacaoFornecedor {
     private LocalDateTime dataDecisao;
 
     /**
-     * Cria uma importação nova, ainda por guardar, no estado {@link EstadoImportacao#PENDENTE}.
+     * Cria uma importação nova de um ficheiro XML, ainda por guardar, no estado {@link EstadoImportacao#PENDENTE}.
      *
      * @param fornecedor      fornecedor que enviou o ficheiro
      * @param nomeFicheiro    nome do ficheiro enviado
@@ -37,12 +40,28 @@ public class ImportacaoFornecedor {
      */
     public ImportacaoFornecedor(Fornecedor fornecedor, String nomeFicheiro, String numeroEncomenda,
                                 byte[] conteudo, LocalDateTime dataImportacao) {
-        this(0, fornecedor, nomeFicheiro, numeroEncomenda, conteudo, dataImportacao,
+        this(fornecedor, nomeFicheiro, FormatoFicheiro.XML, numeroEncomenda, conteudo, dataImportacao);
+    }
+
+    /**
+     * Cria uma importação nova, ainda por guardar, no estado {@link EstadoImportacao#PENDENTE}.
+     *
+     * @param fornecedor      fornecedor que enviou o ficheiro
+     * @param nomeFicheiro    nome do ficheiro enviado
+     * @param formato         formato do ficheiro (XML ou JSON)
+     * @param numeroEncomenda número da encomenda lido do ficheiro
+     * @param conteudo        bytes do ficheiro
+     * @param dataImportacao  data e hora do envio
+     * @throws IllegalArgumentException se faltar o nome do ficheiro, o número da encomenda ou o conteúdo
+     */
+    public ImportacaoFornecedor(Fornecedor fornecedor, String nomeFicheiro, FormatoFicheiro formato,
+                                String numeroEncomenda, byte[] conteudo, LocalDateTime dataImportacao) {
+        this(0, fornecedor, nomeFicheiro, formato, numeroEncomenda, conteudo, dataImportacao,
                 EstadoImportacao.PENDENTE, 0, null);
     }
 
     /**
-     * Reconstrói uma importação já guardada (ex.: lida da base de dados).
+     * Reconstrói uma importação já guardada de um ficheiro XML (ex.: lida da base de dados).
      *
      * @param id              identificador (0 se ainda não foi guardada)
      * @param fornecedor      fornecedor que enviou o ficheiro
@@ -58,9 +77,32 @@ public class ImportacaoFornecedor {
     public ImportacaoFornecedor(int id, Fornecedor fornecedor, String nomeFicheiro, String numeroEncomenda,
                                 byte[] conteudo, LocalDateTime dataImportacao, EstadoImportacao estado,
                                 int idDecisor, LocalDateTime dataDecisao) {
+        this(id, fornecedor, nomeFicheiro, FormatoFicheiro.XML, numeroEncomenda, conteudo, dataImportacao,
+                estado, idDecisor, dataDecisao);
+    }
+
+    /**
+     * Reconstrói uma importação já guardada (ex.: lida da base de dados).
+     *
+     * @param id              identificador (0 se ainda não foi guardada)
+     * @param fornecedor      fornecedor que enviou o ficheiro
+     * @param nomeFicheiro    nome do ficheiro enviado
+     * @param formato         formato do ficheiro (XML ou JSON)
+     * @param numeroEncomenda número da encomenda
+     * @param conteudo        bytes do ficheiro
+     * @param dataImportacao  data e hora do envio
+     * @param estado          estado atual
+     * @param idDecisor       id de quem aprovou ou rejeitou (0 se ainda está pendente)
+     * @param dataDecisao     quando foi decidido (nulo se ainda está pendente)
+     * @throws IllegalArgumentException se faltar algum dado obrigatório
+     */
+    public ImportacaoFornecedor(int id, Fornecedor fornecedor, String nomeFicheiro, FormatoFicheiro formato,
+                                String numeroEncomenda, byte[] conteudo, LocalDateTime dataImportacao,
+                                EstadoImportacao estado, int idDecisor, LocalDateTime dataDecisao) {
         this.id = id;
         this.fornecedor = Objects.requireNonNull(fornecedor, "O fornecedor é obrigatório.");
         this.nomeFicheiro = exigirTexto(nomeFicheiro, "O nome do ficheiro");
+        this.formato = Objects.requireNonNull(formato, "O formato do ficheiro é obrigatório.");
         this.numeroEncomenda = exigirTexto(numeroEncomenda, "O número da encomenda");
         if (conteudo == null || conteudo.length == 0) {
             throw new IllegalArgumentException("O ficheiro está vazio.");
@@ -154,11 +196,16 @@ public class ImportacaoFornecedor {
         return nomeFicheiro;
     }
 
+    /** @return o formato do ficheiro enviado (XML ou JSON) */
+    public FormatoFicheiro getFormato() {
+        return formato;
+    }
+
     public String getNumeroEncomenda() {
         return numeroEncomenda;
     }
 
-    /** @return uma cópia dos bytes do XML */
+    /** @return uma cópia dos bytes do ficheiro, no formato indicado por {@link #getFormato()} */
     public byte[] getConteudo() {
         return conteudo.clone();
     }

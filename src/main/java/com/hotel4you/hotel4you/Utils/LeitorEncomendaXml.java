@@ -8,6 +8,7 @@ import com.hotel4you.hotel4you.Model.encomenda.Montante;
 import com.hotel4you.hotel4you.Model.encomenda.PrecoUnitario;
 import com.hotel4you.hotel4you.Model.encomenda.Quantidade;
 import com.hotel4you.hotel4you.Model.encomenda.TotaisEncomenda;
+import com.hotel4you.hotel4you.Model.enums.FormatoFicheiro;
 import com.hotel4you.hotel4you.Model.enums.UnidadeMedida;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -25,19 +26,37 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Lê um ficheiro XML de encomenda de um fornecedor e converte-o em objetos Java
  * ({@link EncomendaFornecedor}).
  * <p>
  * O ficheiro é sempre validado primeiro com o {@link ValidadorXml}; só um XML válido é lido.
- * Esta classe não guarda nada na base de dados: só converte o XML em objetos.
+ * Esta classe não guarda nada na base de dados: só converte o XML em objetos. É o leitor do formato
+ * {@link FormatoFicheiro#XML}; o do JSON é o {@link LeitorEncomendaJson}.
  */
-public final class LeitorEncomendaXml {
+public final class LeitorEncomendaXml implements LeitorEncomenda {
 
     private static final String RECUSAR_DOCTYPE = "http://apache.org/xml/features/disallow-doctype-decl";
 
-    private LeitorEncomendaXml() {
+    private final Schema schema;
+
+    /**
+     * @param schema XSD contra o qual validar os XML (o que o fornecedor importou, S6-02)
+     */
+    public LeitorEncomendaXml(Schema schema) {
+        this.schema = Objects.requireNonNull(schema, "O XSD é obrigatório.");
+    }
+
+    @Override
+    public FormatoFicheiro formato() {
+        return FormatoFicheiro.XML;
+    }
+
+    @Override
+    public EncomendaFornecedor ler(byte[] conteudo) throws IOException {
+        return ler(conteudo, schema);
     }
 
     /**

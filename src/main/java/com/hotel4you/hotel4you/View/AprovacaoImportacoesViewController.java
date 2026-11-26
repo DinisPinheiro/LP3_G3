@@ -60,6 +60,8 @@ public class AprovacaoImportacoesViewController {
     @FXML
     private TableColumn<ImportacaoFornecedor, String> colunaFicheiro;
     @FXML
+    private TableColumn<ImportacaoFornecedor, String> colunaFormato;
+    @FXML
     private TableColumn<ImportacaoFornecedor, String> colunaEncomenda;
     @FXML
     private TableColumn<ImportacaoFornecedor, String> colunaEnviadoEm;
@@ -114,6 +116,7 @@ public class AprovacaoImportacoesViewController {
     private void initialize() {
         colunaFornecedor.setCellValueFactory(c -> texto(c.getValue().getFornecedor().getNome()));
         colunaFicheiro.setCellValueFactory(c -> texto(c.getValue().getNomeFicheiro()));
+        colunaFormato.setCellValueFactory(c -> texto(c.getValue().getFormato().getNome()));
         colunaEncomenda.setCellValueFactory(c -> texto(c.getValue().getNumeroEncomenda()));
         colunaEnviadoEm.setCellValueFactory(c -> texto(c.getValue().getDataImportacao().format(FORMATO_DATA_HORA)));
         colunaEstado.setCellValueFactory(c -> texto(c.getValue().getEstado().getNome()));

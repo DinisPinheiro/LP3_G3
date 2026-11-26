@@ -30,13 +30,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * ViewController do ecrã em que o fornecedor importa os seus ficheiros XML e o XSD que os valida
- * ({@code ImportacaoFornecedorView.fxml}, S5-02, S6-02 e S6-03).
+ * ViewController do ecrã em que o fornecedor importa os seus ficheiros XML ou JSON e o XSD que valida os XML
+ * ({@code ImportacaoFornecedorView.fxml}, S5-02, S6-02, S6-03 e S7-03).
  * <p>
  * Só escolhe os ficheiros (FileChooser) e mostra o resultado; a validação contra o XSD, a verificação de
  * que o ficheiro é do fornecedor, a regra da encomenda repetida e o envio estão no
- * {@link ImportacaoFornecedorController}. Primeiro escolhe o XML e, a seguir, o XSD (que fica guardado
- * para os XML seguintes). Um ficheiro inválido mostra a linha e o motivo de cada erro; diferenças de
+ * {@link ImportacaoFornecedorController}. Primeiro escolhe o ficheiro (XML ou JSON, na mesma janela) e, para
+ * os XML, a seguir o XSD (que fica guardado para os XML seguintes; o JSON não usa XSD). Um ficheiro inválido mostra a linha e o motivo de cada erro; diferenças de
  * IVA ou de totais mostram um aviso mas deixam enviar. Nenhum erro fecha a aplicação.
  */
 public class ImportacaoFornecedorViewController {
@@ -52,8 +52,8 @@ public class ImportacaoFornecedorViewController {
     /** Ficheiro válido e do fornecedor, à espera de ser enviado; {@code null} se não houver. */
     private Path ficheiroValido;
 
-    /** Último XML escolhido, para o voltar a validar depois de o fornecedor importar o XSD. */
-    private Path xmlEscolhido;
+    /** Último ficheiro escolhido, para o voltar a validar depois de o fornecedor importar o XSD. */
+    private Path ficheiroEscolhido;
 
     @FXML
     private Label labelFornecedor;
@@ -108,6 +108,8 @@ public class ImportacaoFornecedorViewController {
     @FXML
     private TableColumn<ImportacaoFornecedor, String> colunaFicheiro;
     @FXML
+    private TableColumn<ImportacaoFornecedor, String> colunaFormato;
+    @FXML
     private TableColumn<ImportacaoFornecedor, String> colunaEncomenda;
     @FXML
     private TableColumn<ImportacaoFornecedor, String> colunaEnviadoEm;
@@ -139,9 +141,10 @@ public class ImportacaoFornecedorViewController {
         colunaSemTaxa.setCellValueFactory(c -> texto(dinheiro(c.getValue().subtotalCalculado(), c.getValue())));
         colunaValorTaxa.setCellValueFactory(c -> texto(dinheiro(c.getValue().taxaCalculada(), c.getValue())));
         colunaTotalLinha.setCellValueFactory(c -> texto(dinheiro(c.getValue().totalCalculado(), c.getValue())));
-        tabelaLinhas.setPlaceholder(new Label("Escolha um ficheiro XML para ver os seus dados."));
+        tabelaLinhas.setPlaceholder(new Label("Escolha um ficheiro XML ou JSON para ver os seus dados."));
 
         colunaFicheiro.setCellValueFactory(c -> texto(c.getValue().getNomeFicheiro()));
+        colunaFormato.setCellValueFactory(c -> texto(c.getValue().getFormato().getNome()));
         colunaEncomenda.setCellValueFactory(c -> texto(c.getValue().getNumeroEncomenda()));
         colunaEnviadoEm.setCellValueFactory(c -> texto(c.getValue().getDataImportacao().format(FORMATO_DATA_HORA)));
         colunaEstado.setCellValueFactory(c -> texto(c.getValue().getEstado().getNome()));
@@ -150,12 +153,15 @@ public class ImportacaoFornecedorViewController {
         mostrarFornecedor();
     }
 
-    /** Chamado pelo botão "Escolher ficheiro XML...". */
+    /** Chamado pelo botão "Escolher ficheiro XML ou JSON...". */
     @FXML
     private void onEscolherFicheiro() {
         FileChooser escolha = new FileChooser();
-        escolha.setTitle("Escolher o XML da entrega");
-        escolha.getExtensionFilters().add(new FileChooser.ExtensionFilter("Ficheiros XML", "*.xml"));
+        escolha.setTitle("Escolher o ficheiro da entrega (XML ou JSON)");
+        escolha.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Ficheiros XML e JSON", "*.xml", "*.json"),
+                new FileChooser.ExtensionFilter("Ficheiros XML", "*.xml"),
+                new FileChooser.ExtensionFilter("Ficheiros JSON", "*.json"));
         File ficheiro = escolha.showOpenDialog(labelMensagem.getScene().getWindow());
         if (ficheiro != null) {
             validar(ficheiro.toPath());
@@ -175,11 +181,11 @@ public class ImportacaoFornecedorViewController {
         try {
             controller.importarXsd(ficheiro.toPath());
             mostrarXsd();
-            if (xmlEscolhido != null) {
-                validar(xmlEscolhido);
+            if (ficheiroEscolhido != null) {
+                validar(ficheiroEscolhido);
             } else {
                 limparResultado();
-                mostrar("XSD importado. Escolha agora o ficheiro XML.", COR_SUCESSO);
+                mostrar("XSD importado. Escolha agora o ficheiro XML ou JSON.", COR_SUCESSO);
             }
         } catch (RuntimeException e) {
             // Inclui o XSD inválido: a mensagem diz o motivo.
@@ -196,7 +202,7 @@ public class ImportacaoFornecedorViewController {
         try {
             ImportacaoFornecedor enviada = controller.enviar(ficheiroValido, checkAtualizarFicha.isSelected());
             limparResultado();
-            xmlEscolhido = null;
+            ficheiroEscolhido = null;
             labelFicheiro.setText("Nenhum ficheiro escolhido.");
             mostrar("Ficheiro enviado: encomenda " + enviada.getNumeroEncomenda()
                     + ". Fica pendente até o hotel o aprovar.", COR_SUCESSO);
@@ -210,7 +216,7 @@ public class ImportacaoFornecedorViewController {
 
     private void validar(Path caminho) {
         limparResultado();
-        xmlEscolhido = caminho;
+        ficheiroEscolhido = caminho;
         labelFicheiro.setText(caminho.getFileName().toString());
         try {
             mostrarDados(controller.lerEncomenda(caminho));
@@ -266,12 +272,12 @@ public class ImportacaoFornecedorViewController {
         mostrarAvisos(encomenda.avisos());
     }
 
-    /** Diferenças entre o IVA e os totais do XML e os calculados: só avisam, o envio pode continuar. */
+    /** Diferenças entre o IVA e os totais do ficheiro e os calculados: só avisam, o envio pode continuar. */
     private void mostrarAvisos(List<String> avisos) {
         if (avisos.isEmpty()) {
             return;
         }
-        labelAvisos.setText("Aviso: o XML tem valores que diferem dos calculados (o envio pode continuar):"
+        labelAvisos.setText("Aviso: o ficheiro tem valores que diferem dos calculados (o envio pode continuar):"
                 + System.lineSeparator() + String.join(System.lineSeparator(), avisos));
         labelAvisos.setVisible(true);
         labelAvisos.setManaged(true);
@@ -281,7 +287,7 @@ public class ImportacaoFornecedorViewController {
         areaErros.setText(erros.stream().map(ErroXml::toString).collect(Collectors.joining(System.lineSeparator())));
         areaErros.setVisible(true);
         areaErros.setManaged(true);
-        mostrar("Ficheiro inválido (" + erros.size() + " erro(s)). Corrija o XML e escolha-o de novo.", COR_ERRO);
+        mostrar("Ficheiro inválido (" + erros.size() + " erro(s)). Corrija o ficheiro e escolha-o de novo.", COR_ERRO);
     }
 
     private void limparResultado() {

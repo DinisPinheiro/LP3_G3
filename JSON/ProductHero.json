@@ -1,0 +1,388 @@
+{
+  "Order": {
+    "Header": {
+      "OrderNumber": "OC56974",
+      "OrderDate": "2026-10-05",
+      "SupplierParty": {
+        "PartyIdentifier": "11PT920",
+        "NameAddress": {
+          "Name": "ProductHero",
+          "Address1": "Rua da Alegria",
+          "Address2": "nº1",
+          "City": "Porto",
+          "PostalCode": "4000-032",
+          "Country": {
+            "ISOCountryCode": "PT",
+            "Value": "Portugal"
+          }
+        }
+      }
+    },
+    "Line": [
+      {
+        "LineNumber": 1,
+        "Product": {
+          "ProductIdentifier": [
+            {
+              "Agency": "Supplier",
+              "ProductIdentifierType": "PartNumber",
+              "Code": "PZ-1989"
+            }
+          ],
+          "ProductDescription": "Toalha de banho 400g cinza"
+        },
+        "Quantity": {
+          "QuantityType": "Count",
+          "Value": {
+            "UOM": "Box",
+            "Value": 50
+          }
+        },
+        "InformationalQuantity": [
+          {
+            "QuantityType": "NetWeight",
+            "Value": {
+              "UOM": "Kilogram",
+              "Value": 200
+            }
+          },
+          {
+            "QuantityType": "Count",
+            "Value": {
+              "UOM": "Unit",
+              "Value": 500
+            }
+          }
+        ],
+        "PricePerUnit": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 2.51
+          },
+          "Value": {
+            "UOM": "Box",
+            "Value": 1
+          }
+        },
+        "MonetaryAdjustment": {
+          "AdjustmentType": "Tax",
+          "MonetaryAdjustmentLine": 1,
+          "MonetaryAdjustmentStartAmount": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 125.50
+            }
+          },
+          "TaxAdjustment": {
+            "TaxType": "VAT",
+            "TaxPercent": 23,
+            "TaxAmount": {
+              "CurrencyValue": {
+                "CurrencyType": "EUR",
+                "Value": 28.87
+              }
+            },
+            "TaxLocation": "PT"
+          }
+        },
+        "LineBaseAmount": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 154.37
+          }
+        }
+      },
+      {
+        "LineNumber": 2,
+        "Product": {
+          "ProductIdentifier": [
+            {
+              "Agency": "Supplier",
+              "ProductIdentifierType": "PartNumber",
+              "Code": "XQF6324"
+            }
+          ],
+          "ProductDescription": "Rituals Condicionador/Champô de banho 200ml"
+        },
+        "Quantity": {
+          "QuantityType": "Count",
+          "Value": {
+            "UOM": "Unit",
+            "Value": 200
+          }
+        },
+        "InformationalQuantity": [
+          {
+            "QuantityType": "NetWeight",
+            "Value": {
+              "UOM": "Kilogram",
+              "Value": 20
+            }
+          },
+          {
+            "QuantityType": "Count",
+            "Value": {
+              "UOM": "Box",
+              "Value": 10
+            }
+          }
+        ],
+        "PricePerUnit": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 3.49
+          },
+          "Value": {
+            "UOM": "Unit",
+            "Value": 1
+          }
+        },
+        "MonetaryAdjustment": {
+          "AdjustmentType": "Tax",
+          "MonetaryAdjustmentLine": 1,
+          "MonetaryAdjustmentStartAmount": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 698.00
+            }
+          },
+          "TaxAdjustment": {
+            "TaxType": "VAT",
+            "TaxPercent": 23,
+            "TaxAmount": {
+              "CurrencyValue": {
+                "CurrencyType": "EUR",
+                "Value": 160.51
+              }
+            },
+            "TaxLocation": "PT"
+          }
+        },
+        "LineBaseAmount": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 858.54
+          }
+        }
+      },
+      {
+        "LineNumber": 3,
+        "Product": {
+          "ProductIdentifier": [
+            {
+              "Agency": "Supplier",
+              "ProductIdentifierType": "PartNumber",
+              "Code": "X569P"
+            }
+          ],
+          "ProductDescription": "Secador de cabelo Philips Preto"
+        },
+        "Quantity": {
+          "QuantityType": "Count",
+          "Value": {
+            "UOM": "Unit",
+            "Value": 50
+          }
+        },
+        "InformationalQuantity": [
+          {
+            "QuantityType": "NetWeight",
+            "Value": {
+              "UOM": "Kilogram",
+              "Value": 38
+            }
+          }
+        ],
+        "PricePerUnit": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 29.99
+          },
+          "Value": {
+            "UOM": "Unit",
+            "Value": 1
+          }
+        },
+        "MonetaryAdjustment": {
+          "AdjustmentType": "Tax",
+          "MonetaryAdjustmentLine": 1,
+          "MonetaryAdjustmentStartAmount": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 1499.50
+            }
+          },
+          "TaxAdjustment": {
+            "TaxType": "VAT",
+            "TaxPercent": 23,
+            "TaxAmount": {
+              "CurrencyValue": {
+                "CurrencyType": "EUR",
+                "Value": 344.89
+              }
+            },
+            "TaxLocation": "PT"
+          }
+        },
+        "LineBaseAmount": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 1844.39
+          }
+        }
+      },
+      {
+        "LineNumber": 4,
+        "Product": {
+          "ProductIdentifier": [
+            {
+              "Agency": "Supplier",
+              "ProductIdentifierType": "PartNumber",
+              "Code": "LG18964"
+            }
+          ],
+          "ProductDescription": "LG 32LM6370PLA LED FullHD"
+        },
+        "Quantity": {
+          "QuantityType": "Count",
+          "Value": {
+            "UOM": "Unit",
+            "Value": 50
+          }
+        },
+        "InformationalQuantity": [
+          {
+            "QuantityType": "NetWeight",
+            "Value": {
+              "UOM": "Kilogram",
+              "Value": 250
+            }
+          }
+        ],
+        "PricePerUnit": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 180.50
+          },
+          "Value": {
+            "UOM": "Unit",
+            "Value": 1
+          }
+        },
+        "MonetaryAdjustment": {
+          "AdjustmentType": "Tax",
+          "MonetaryAdjustmentLine": 1,
+          "MonetaryAdjustmentStartAmount": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 9025
+            }
+          },
+          "TaxAdjustment": {
+            "TaxType": "VAT",
+            "TaxPercent": 23,
+            "TaxAmount": {
+              "CurrencyValue": {
+                "CurrencyType": "EUR",
+                "Value": 2075.75
+              }
+            },
+            "TaxLocation": "PT"
+          }
+        },
+        "LineBaseAmount": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 11100.75
+          }
+        }
+      },
+      {
+        "LineNumber": 5,
+        "Product": {
+          "ProductIdentifier": [
+            {
+              "Agency": "Supplier",
+              "ProductIdentifierType": "PartNumber",
+              "Code": "CF-9812"
+            }
+          ],
+          "ProductDescription": "Cofre hotel ALPHA 25"
+        },
+        "Quantity": {
+          "QuantityType": "Count",
+          "Value": {
+            "UOM": "Unit",
+            "Value": 50
+          }
+        },
+        "InformationalQuantity": [
+          {
+            "QuantityType": "NetWeight",
+            "Value": {
+              "UOM": "Kilogram",
+              "Value": 425
+            }
+          }
+        ],
+        "PricePerUnit": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 55.80
+          },
+          "Value": {
+            "UOM": "Unit",
+            "Value": 1
+          }
+        },
+        "MonetaryAdjustment": {
+          "AdjustmentType": "Tax",
+          "MonetaryAdjustmentLine": 1,
+          "MonetaryAdjustmentStartAmount": {
+            "CurrencyValue": {
+              "CurrencyType": "EUR",
+              "Value": 2790
+            }
+          },
+          "TaxAdjustment": {
+            "TaxType": "VAT",
+            "TaxPercent": 23,
+            "TaxAmount": {
+              "CurrencyValue": {
+                "CurrencyType": "EUR",
+                "Value": 641.70
+              }
+            },
+            "TaxLocation": "PT"
+          }
+        },
+        "LineBaseAmount": {
+          "CurrencyValue": {
+            "CurrencyType": "EUR",
+            "Value": 3431.70
+          }
+        }
+      }
+    ],
+    "OrderSummary": {
+      "TotalLinesAmount": {
+        "CurrencyValue": {
+          "CurrencyType": "EUR",
+          "Value": 14138.00
+        }
+      },
+      "TotalTaxAmount": {
+        "CurrencyValue": {
+          "CurrencyType": "EUR",
+          "Value": 3251.75
+        }
+      },
+      "OrderTotalAmount": {
+        "CurrencyValue": {
+          "CurrencyType": "EUR",
+          "Value": 17389.75
+        }
+      }
+    }
+  }
+}

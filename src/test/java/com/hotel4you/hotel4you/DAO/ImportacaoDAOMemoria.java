@@ -59,7 +59,7 @@ public class ImportacaoDAOMemoria implements ImportacaoDAO {
     }
 
     private static ImportacaoFornecedor copiar(ImportacaoFornecedor i) {
-        return new ImportacaoFornecedor(i.getId(), i.getFornecedor(), i.getNomeFicheiro(), i.getNumeroEncomenda(),
-                i.getConteudo(), i.getDataImportacao(), i.getEstado(), i.getIdDecisor(), i.getDataDecisao());
+        return new ImportacaoFornecedor(i.getId(), i.getFornecedor(), i.getNomeFicheiro(), i.getFormato(),
+                i.getNumeroEncomenda(), i.getConteudo(), i.getDataImportacao(), i.getEstado(), i.getIdDecisor(), i.getDataDecisao());
     }
 }

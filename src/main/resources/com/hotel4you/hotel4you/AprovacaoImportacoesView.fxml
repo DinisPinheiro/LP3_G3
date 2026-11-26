@@ -35,6 +35,7 @@
         <columns>
             <TableColumn fx:id="colunaFornecedor" text="Fornecedor" minWidth="130"/>
             <TableColumn fx:id="colunaFicheiro" text="Ficheiro" minWidth="130"/>
+            <TableColumn fx:id="colunaFormato" text="Formato" minWidth="60"/>
             <TableColumn fx:id="colunaEncomenda" text="Encomenda" minWidth="80"/>
             <TableColumn fx:id="colunaEnviadoEm" text="Enviado em" minWidth="110"/>
             <TableColumn fx:id="colunaEstado" text="Estado" minWidth="80"/>
