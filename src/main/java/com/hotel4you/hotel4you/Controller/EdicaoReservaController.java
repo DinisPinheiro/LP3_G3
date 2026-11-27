@@ -81,6 +81,9 @@ public class EdicaoReservaController {
         if (artigo == null) {
             throw new IllegalArgumentException("Escolha um produto que exista em stock.");
         }
+        if (quantidade > 0) {
+            artigo.exigirUnidadePrincipal();   // S7-02: as reservas contam na unidade principal
+        }
         try {
             reserva.alterarProduto(artigo, quantidade);
         } catch (IllegalStateException e) {

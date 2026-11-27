@@ -26,7 +26,7 @@ public class Artigo {
     private String nome;
     private String unidade;
     private int quantidadeAtual;
-    /** Quantidade em uso nas reservas pendentes e com check-in (calculada pelo DAO). */
+    /** Quantidade em uso nas reservas com check-in (calculada pelo DAO). */
     private int quantidadeReservada;
     /** Produto que se gasta com o uso (ex.: champô): no check-out não volta ao stock (S6-04). */
     private boolean consumivel;
@@ -37,6 +37,15 @@ public class Artigo {
     private String unidadePreco;
     /** Taxa de imposto da última entrada, em percentagem (ex.: 23), ou {@code null}. */
     private Integer taxaPercentagem;
+    /** Quantas unidades principais tem uma caixa (ex.: 10), ou {@code null} se ainda não se sabe (S7-02). */
+    private Integer unidadesPorCaixa;
+
+    /** Unidade principal dos produtos contados à unidade (S7-02). */
+    public static final String UNIDADE = "un";
+    /** Unidade dos produtos antigos que ainda estão guardados em caixas (S7-02). */
+    public static final String CAIXA = "cx";
+    /** Limite da conversão, para evitar enganos de digitação. */
+    public static final int MAX_UNIDADES_POR_CAIXA = 10000;
 
     /**
      * @param id              identificador (0 se ainda não foi guardado)
@@ -99,7 +108,7 @@ public class Artigo {
     }
 
     /**
-     * @return quantidade em uso nas reservas pendentes e com check-in
+     * @return quantidade em uso nas reservas com check-in
      */
     public int getQuantidadeReservada() {
         return quantidadeReservada;
@@ -108,7 +117,7 @@ public class Artigo {
     /**
      * Indica quanto deste artigo está em uso em reservas. Não altera o stock do hotel.
      *
-     * @param quantidadeReservada quantidade em uso nas reservas pendentes e com check-in, não negativa
+     * @param quantidadeReservada quantidade em uso nas reservas com check-in, não negativa
      * @throws IllegalArgumentException se for negativa
      */
     public void setQuantidadeReservada(int quantidadeReservada) {
@@ -231,6 +240,112 @@ public class Artigo {
         this.precoUnitario = preco;
         this.unidadePreco = unidadePreco == null ? null : unidadePreco.trim();
         this.taxaPercentagem = taxaPercentagem;
+    }
+
+    // ---- S7-02: unidade principal e conversão de caixas ----
+
+    /**
+     * @return quantas unidades principais tem uma caixa, ou {@code null} se a conversão não estiver definida
+     */
+    public Integer getUnidadesPorCaixa() {
+        return unidadesPorCaixa;
+    }
+
+    /** @return {@code true} se se sabe quantas unidades tem uma caixa deste produto */
+    public boolean temConversaoCaixa() {
+        return unidadesPorCaixa != null;
+    }
+
+    /**
+     * Define quantas unidades principais tem uma caixa (ex.: 1 caixa = 10 unidades).
+     *
+     * @param unidadesPorCaixa unidades numa caixa, entre 1 e {@link #MAX_UNIDADES_POR_CAIXA}
+     * @throws IllegalArgumentException se estiver fora desses limites
+     */
+    public void definirConversaoCaixa(int unidadesPorCaixa) {
+        if (unidadesPorCaixa < 1 || unidadesPorCaixa > MAX_UNIDADES_POR_CAIXA) {
+            throw new IllegalArgumentException("Uma caixa de '" + nome + "' tem de ter entre 1 e "
+                    + MAX_UNIDADES_POR_CAIXA + " unidades.");
+        }
+        this.unidadesPorCaixa = unidadesPorCaixa;
+    }
+
+    /**
+     * @return {@code true} se o produto ainda está guardado em caixas (produtos importados antes da S7-02)
+     */
+    public boolean estaEmCaixas() {
+        return CAIXA.equalsIgnoreCase(unidade);
+    }
+
+    /**
+     * Converte um produto guardado em caixas para a unidade principal: o stock real e o que está em uso
+     * passam a contar unidades (ex.: 50 cx com 1 cx = 10 un passam a 500 un).
+     *
+     * @param unidadesPorCaixa unidades numa caixa
+     * @throws IllegalStateException    se o produto não estiver em caixas
+     * @throws IllegalArgumentException se a conversão for inválida
+     */
+    public void converterCaixasParaUnidades(int unidadesPorCaixa) {
+        if (!estaEmCaixas()) {
+            throw new IllegalStateException("'" + nome + "' já está em " + unidade + ".");
+        }
+        definirConversaoCaixa(unidadesPorCaixa);
+        this.quantidadeAtual = Math.multiplyExact(quantidadeAtual, unidadesPorCaixa);
+        this.quantidadeReservada = Math.multiplyExact(quantidadeReservada, unidadesPorCaixa);
+        this.unidade = UNIDADE;
+    }
+
+    /**
+     * Converte caixas para a unidade principal com a conversão do produto.
+     *
+     * @param caixas número de caixas, não negativo
+     * @return quantidade em unidades principais
+     * @throws IllegalStateException    se a conversão não estiver definida
+     * @throws IllegalArgumentException se o número de caixas for negativo
+     */
+    public int caixasParaUnidades(int caixas) {
+        if (caixas < 0) {
+            throw new IllegalArgumentException("O número de caixas não pode ser negativo.");
+        }
+        if (!temConversaoCaixa()) {
+            throw new IllegalStateException("Defina quantas unidades tem uma caixa de '" + nome + "'.");
+        }
+        return Math.multiplyExact(caixas, unidadesPorCaixa);
+    }
+
+    /**
+     * Os quartos, as reservas e os serviços usam a unidade principal: um produto ainda em caixas não
+     * pode ser usado até a conversão ser definida.
+     *
+     * @throws IllegalArgumentException se o produto ainda estiver em caixas
+     */
+    public void exigirUnidadePrincipal() {
+        if (estaEmCaixas()) {
+            throw new IllegalArgumentException("'" + nome + "' ainda está em caixas. Defina quantas unidades tem "
+                    + "uma caixa em \"Unidades dos produtos\" antes de o usar.");
+        }
+    }
+
+    /** @return a conversão para mostrar (ex.: "1 cx = 10 un"), ou "" se não estiver definida */
+    public String descreverConversao() {
+        return temConversaoCaixa() ? "1 " + CAIXA + " = " + unidadesPorCaixa + " " + unidade : "";
+    }
+
+    /**
+     * Descreve uma quantidade na unidade principal e, se houver conversão, em caixas
+     * (ex.: "25 un (2 cx + 5 un)").
+     *
+     * @param quantidade quantidade na unidade principal
+     * @return o texto para mostrar no stock
+     */
+    public String descreverQuantidade(int quantidade) {
+        String texto = quantidade + " " + unidade;
+        if (!temConversaoCaixa() || unidadesPorCaixa == 1 || estaEmCaixas()) {
+            return texto;
+        }
+        int caixas = quantidade / unidadesPorCaixa;
+        int resto = quantidade % unidadesPorCaixa;
+        return texto + " (" + caixas + " " + CAIXA + (resto == 0 ? "" : " + " + resto + " " + unidade) + ")";
     }
 
     private static void exigirPositiva(int quantidade) {

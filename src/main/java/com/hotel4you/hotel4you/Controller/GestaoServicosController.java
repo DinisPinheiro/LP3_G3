@@ -230,6 +230,7 @@ public class GestaoServicosController {
                 .filter(artigo -> artigo.getId() == idProduto)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Escolha um produto que exista em stock."));
+        produto.exigirUnidadePrincipal();   // S7-02: a quantidade por unidade do serviço é na unidade principal
         servico.ligarProduto(produto, quantidade);
     }
 

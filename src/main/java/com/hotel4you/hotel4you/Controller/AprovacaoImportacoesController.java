@@ -12,6 +12,7 @@ import com.hotel4you.hotel4you.Utils.XmlInvalidoException;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -88,10 +89,28 @@ public class AprovacaoImportacoesController {
      * @throws AcessoDadosException     se não for possível guardar
      */
     public void aprovar(int idImportacao) {
+        aprovar(idImportacao, Map.of());
+    }
+
+    /**
+     * Igual a {@link #aprovar(int)}, com as conversões de caixa para unidades que o gestor ou o
+     * rececionista define para os produtos cujo ficheiro não as traz (S7-02).
+     *
+     * @param idImportacao identificador da importação
+     * @param conversoes   unidades por caixa de cada produto, pela descrição do produto
+     * @throws com.hotel4you.hotel4you.Model.ConversaoEmFaltaException se uma linha vier em caixas sem
+     *                                  conversão; o ficheiro continua pendente
+     * @throws IllegalStateException    se o ficheiro já foi aprovado ou rejeitado
+     * @throws IllegalArgumentException se a importação não existir ou o material não puder dar entrada
+     * @throws XmlInvalidoException     se o ficheiro já não for válido
+     * @throws SecurityException        se o utilizador não for gestor nem rececionista
+     * @throws AcessoDadosException     se não for possível guardar
+     */
+    public void aprovar(int idImportacao, Map<String, Integer> conversoes) {
         Utilizador decisor = exigirDecisor();
         ImportacaoFornecedor importacao = obter(idImportacao);
         importacao.exigirPendente();
-        gestaoStock.darEntrada(lerEncomenda(importacao));
+        gestaoStock.darEntrada(lerEncomenda(importacao), conversoes);
         importacao.aprovar(decisor, LocalDateTime.now());
         try {
             importacaoDAO.guardarDecisao(importacao);

@@ -92,8 +92,10 @@ class GestaoStockControllerTest {
         List<Artigo> stock = controller.consultarStock();
         assertEquals(5, stock.size());
         Artigo toalhas = stock.stream().filter(a -> a.getNome().startsWith("Toalha")).findFirst().orElseThrow();
-        assertEquals(50, toalhas.getQuantidadeAtual());
-        assertEquals("cx", toalhas.getUnidade());
+        // S7-02: 50 caixas com 500 unidades no ficheiro = 1 cx = 10 un; o stock fica em unidades.
+        assertEquals(500, toalhas.getQuantidadeAtual());
+        assertEquals("un", toalhas.getUnidade());
+        assertEquals(10, toalhas.getUnidadesPorCaixa());
         assertEquals("ProductHero", toalhas.getFornecedor().getNome());
 
         assertEquals(5, dao.getMovimentos().size());
@@ -143,8 +145,8 @@ class GestaoStockControllerTest {
     void unidadeDiferenteDaDoArtigoEmStockERejeitada(@TempDir Path pasta) throws Exception {
         controller.darEntrada(RecursosDeTeste.ler(recurso("ProductHero.xml")));
         String xml = Files.readString(recurso("ProductHero.xml"), StandardCharsets.UTF_8)
-                // as toalhas passam a vir em unidades (em stock estão em caixas)
-                .replace("<Value UOM=\"Box\">50</Value>", "<Value UOM=\"Unit\">50</Value>");
+                // as toalhas passam a vir em quilos (em stock estão em unidades)
+                .replace("<Value UOM=\"Box\">50</Value>", "<Value UOM=\"Kilogram\">50</Value>");
         EncomendaFornecedor encomenda = RecursosDeTeste.ler(
                 Files.writeString(pasta.resolve("unidades.xml"), xml, StandardCharsets.UTF_8));
 

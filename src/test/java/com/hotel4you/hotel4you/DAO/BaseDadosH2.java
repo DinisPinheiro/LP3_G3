@@ -88,7 +88,8 @@ public final class BaseDadosH2 {
                         + "CodigoPostal NVARCHAR(20) DEFAULT '', Cidade NVARCHAR(100) DEFAULT '', IdUtilizador INT)",
                 "CREATE TABLE dbo.Artigo (IdArtigo INT IDENTITY(1,1) PRIMARY KEY, Nome NVARCHAR(100), "
                         + "Unidade VARCHAR(20), QuantidadeAtual INT, IdFornecedor INT, PrecoUnitario DECIMAL(10,2), "
-                        + "UnidadePreco VARCHAR(20), TaxaPercent INT, Consumivel BIT NOT NULL DEFAULT 0)",
+                        + "UnidadePreco VARCHAR(20), TaxaPercent INT, Consumivel BIT NOT NULL DEFAULT 0, "
+                        + "UnidadesPorCaixa INT)",
                 "CREATE TABLE dbo.Utilizador (IdUtilizador INT IDENTITY(1,1) PRIMARY KEY, Username VARCHAR(50), "
                         + "PasswordHash VARCHAR(200), Nome NVARCHAR(100), Perfil VARCHAR(30), Ativo BIT)",
                 "CREATE TABLE dbo.MovimentoStock (IdMovimento INT IDENTITY(1,1) PRIMARY KEY, IdArtigo INT NOT NULL, "

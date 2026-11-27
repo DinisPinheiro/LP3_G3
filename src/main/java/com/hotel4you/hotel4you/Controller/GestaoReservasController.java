@@ -249,6 +249,7 @@ public class GestaoReservasController {
                 throw new IllegalArgumentException("O produto '" + escolhido.getArtigo().getNome()
                         + "' já não existe em stock.");
             }
+            artigo.exigirUnidadePrincipal();   // S7-02: as reservas contam na unidade principal
             int total = pedido.merge(artigo.getId(), escolhido.getQuantidade(), Integer::sum);
             if (total > artigo.getQuantidadeDisponivel()) {
                 throw new IllegalArgumentException("Stock insuficiente de '" + artigo.getNome() + "': há "
@@ -436,4 +437,4 @@ public class GestaoReservasController {
         exigirRececao();
         return reservaDAO.contarPorEstados(estadosHistorico(estado, filtroAplicado));
     }
-}
+}

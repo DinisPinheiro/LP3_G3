@@ -350,6 +350,14 @@ public class Main extends Application {
                 );
             }
 
+            // Janela das unidades dos produtos (S7-02)
+            if (tipo == UnidadesProdutosViewController.class) {
+
+                return new UnidadesProdutosViewController(
+                        gestaoStockController
+                );
+            }
+
 
             // Fornecedores, XSD e aprovação das entregas
             if (tipo == ImportacaoFornecedorViewController.class) {
