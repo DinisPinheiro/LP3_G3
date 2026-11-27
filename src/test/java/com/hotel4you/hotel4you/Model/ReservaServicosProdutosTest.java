@@ -131,14 +131,15 @@ class ReservaServicosProdutosTest {
     }
 
     @Test
-    void quantidadeUsadaSomaAsLinhasDoMesmoArtigo() {
+    void quantidadeNaReservaSomaAsLinhasDoMesmoArtigo() {
         Artigo champo = new Artigo(2, "Champô", "un", 30);
         Reserva reserva = reservaCom(List.of(),
                 List.of(new ProdutoReserva(toalhas, 4), new ProdutoReserva(champo, 1), new ProdutoReserva(toalhas, 2)));
 
-        assertEquals(6, reserva.quantidadeUsada(toalhas));
-        assertEquals(1, reserva.quantidadeUsada(champo));
-        assertEquals(0, reserva.quantidadeUsada(new Artigo(3, "Lençóis", "un", 10)));
+        assertEquals(6, reserva.quantidadeNaReserva(toalhas));
+        assertEquals(1, reserva.quantidadeNaReserva(champo));
+        assertEquals(0, reserva.quantidadeNaReserva(new Artigo(3, "Lençóis", "un", 10)));
+        assertEquals(0, reserva.quantidadeUsada(toalhas), "S7-01: pendente ainda não deu baixa no stock");
     }
 
     @Test

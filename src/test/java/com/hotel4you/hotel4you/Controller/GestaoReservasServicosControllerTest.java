@@ -158,26 +158,24 @@ class GestaoReservasServicosControllerTest {
         assertTrue(reservaDAO.listarTodos().isEmpty());
     }
 
-    // ---- S5-06: os produtos usados reduzem o stock disponível ----
+    // ---- S5-06 / S7-01: os produtos ficam na reserva, mas o stock só baixa no check-in ----
 
     @Test
-    void produtoUsadoNaReservaReduzOStockDisponivelENaoOStockDoHotel() {
-        controller.criarReserva(maria, quarto202, entrada, saida, List.of(), List.of(new ProdutoReserva(toalhas(), 4)));
+    void produtoEscolhidoNaCriacaoNaoBaixaOStock() {
+        Reserva reserva = controller.criarReserva(maria, quarto202, entrada, saida, List.of(),
+                List.of(new ProdutoReserva(toalhas(), 4)));
 
+        assertEquals(4, reserva.quantidadeNaReserva(toalhas()), "o produto fica escolhido na reserva");
         assertEquals(10, toalhas().getQuantidadeAtual());
-        assertEquals(6, toalhas().getQuantidadeDisponivel());
-        assertEquals(6, controller.consultarProdutosDisponiveis().get(0).getQuantidadeDisponivel());
+        assertEquals(10, toalhas().getQuantidadeDisponivel(), "S7-01: só baixa no check-in");
+        assertEquals(10, controller.consultarProdutosDisponiveis().get(0).getQuantidadeDisponivel());
     }
 
     @Test
-    void naoSeUsaMaisDoQueOStockDisponivel() {
-        controller.criarReserva(maria, quarto202, entrada, saida, List.of(), List.of(new ProdutoReserva(toalhas(), 7)));
-
-        // Restam 3 disponíveis: outra reserva não pode levar 4.
-        assertThrows(IllegalArgumentException.class, () -> controller.criarReserva(maria, quarto203, entrada, saida,
-                List.of(), List.of(new ProdutoReserva(toalhas(), 4))));
-        assertEquals(1, reservaDAO.listarTodos().size());
-        assertEquals(3, toalhas().getQuantidadeDisponivel());
+    void naoSePedeMaisDoQueOStockDisponivel() {
+        assertThrows(IllegalArgumentException.class, () -> controller.criarReserva(maria, quarto202, entrada, saida,
+                List.of(), List.of(new ProdutoReserva(toalhas(), 11))));
+        assertTrue(reservaDAO.listarTodos().isEmpty());
     }
 
     @Test
@@ -189,10 +187,10 @@ class GestaoReservasServicosControllerTest {
     }
 
     @Test
-    void produtoEsgotadoDeixaDeAparecerNaListaDeDisponiveis() {
+    void reservaPendenteNaoEsgotaOProduto() {
         controller.criarReserva(maria, quarto202, entrada, saida, List.of(), List.of(new ProdutoReserva(toalhas(), 10)));
 
-        assertTrue(controller.consultarProdutosDisponiveis().isEmpty());
+        assertEquals(1, controller.consultarProdutosDisponiveis().size(), "S7-01: a pendente ainda não usa stock");
     }
 
     @Test

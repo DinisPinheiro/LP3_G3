@@ -91,7 +91,7 @@ class ReservaStockQuartoTest {
         Cliente cliente = new Cliente(1, "Maria Silva", "PT123456", "910000000");
         Reserva reserva = new Reserva(7, cliente, quartoDuplo, LocalDate.of(2026, 11, 21), LocalDate.of(2026, 11, 23),
                 List.of(), List.of(new ProdutoReserva(toalhas, 1)));
-        toalhas.setQuantidadeReservada(1);   // a toalha extra já estava em uso (reserva pendente)
+        assertEquals(10, toalhas.getQuantidadeDisponivel(), "S7-01: a toalha extra ainda não deu baixa");
 
         reserva.fazerCheckIn(cartao(), agora, stock);
 
@@ -163,7 +163,8 @@ class ReservaStockQuartoTest {
         Cliente cliente = new Cliente(1, "Maria Silva", "PT123456", "910000000");
         Reserva reserva = new Reserva(7, cliente, quartoDuplo, LocalDate.of(2026, 11, 21), LocalDate.of(2026, 11, 23),
                 List.of(), List.of(new ProdutoReserva(toalhas, 2)));
-        assertEquals(2, reserva.quantidadeUsada(toalhas), "uma reserva pendente já tem os produtos em uso");
+        assertEquals(0, reserva.quantidadeUsada(toalhas), "S7-01: uma reserva pendente ainda não usa stock");
+        assertEquals(2, reserva.quantidadeNaReserva(toalhas));
 
         reserva.cancelar();
 
@@ -219,13 +220,14 @@ class ReservaStockQuartoTest {
     }
 
     @Test
-    void naReservaPendenteTambemSeAlteramOsProdutos() {
+    void naReservaPendenteOsProdutosMudamSemMexerNoStock() {
         Reserva reserva = reserva(7);
 
         reserva.alterarProduto(toalhas, 1);
 
-        assertEquals(1, reserva.quantidadeUsada(toalhas));
-        assertEquals(9, toalhas.getQuantidadeDisponivel());
+        assertEquals(1, reserva.quantidadeNaReserva(toalhas));
+        assertEquals(0, reserva.quantidadeUsada(toalhas), "S7-01: só baixa no check-in");
+        assertEquals(10, toalhas.getQuantidadeDisponivel());
     }
 
     @Test

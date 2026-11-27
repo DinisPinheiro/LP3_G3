@@ -34,10 +34,17 @@ import java.util.Objects;
  * Os preços ficam guardados na reserva quando ela é criada (S5-09): o preço base do quarto, o valor
  * da vista e o valor de cada serviço. Se o gestor os alterar depois, só as reservas novas mudam.
  * <p>
- * Stock (S6-05): os produtos de uma reserva pendente ou com check-in estão em uso e saem do stock
- * disponível. No check-in os equipamentos do quarto ({@link Quarto#getProdutos()}) passam para a
- * reserva; no check-out os consumíveis saem do stock real e os restantes voltam ao disponível. As
- * contas de cada produto são feitas pelo {@link Artigo}.
+ * Stock (S6-05 e S7-01): o stock só baixa no check-in, nunca na criação da reserva. Uma reserva
+ * pendente guarda os extras escolhidos, mas ainda não os tem em uso. No check-in dão baixa no stock
+ * disponível, todos ou nenhum:
+ * <ul>
+ *     <li>os produtos do stock escolhidos na reserva ({@link ProdutoReserva});</li>
+ *     <li>os equipamentos configurados do quarto ({@link Quarto#getProdutos()});</li>
+ *     <li>os produtos dos serviços e extras ligados ao stock, como as bebidas
+ *         ({@link ConsumoServico#produtoDoStock()}).</li>
+ * </ul>
+ * Durante a estadia, alterar produtos ou serviços ajusta o stock. No check-out os consumíveis saem do
+ * stock real e os restantes voltam ao disponível. As contas de cada produto são feitas pelo {@link Artigo}.
  */
 public class Reserva {
 
@@ -156,9 +163,11 @@ public class Reserva {
     }
 
     /**
-     * Check-in com baixa no stock (S6-05): além de entregar o cartão, os equipamentos do quarto
-     * ({@link Quarto#getProdutos()}) passam para a reserva e saem do stock disponível. Se o stock
-     * disponível de algum produto não chegar, nada muda (nem o estado, nem os produtos, nem o stock).
+     * Check-in com baixa no stock (S6-05 e S7-01): além de entregar o cartão, dão baixa no stock
+     * disponível os produtos escolhidos na reserva, os equipamentos configurados do quarto
+     * ({@link Quarto#getProdutos()}) e os produtos dos serviços ligados ao stock (ex.: bebidas). Ficam
+     * todos na reserva, uma linha por produto. Se o stock disponível de algum produto não chegar, nada
+     * muda (nem o estado, nem os produtos, nem o stock).
      *
      * @param cartao cartão entregue
      * @param quando momento do check-in
@@ -166,21 +175,35 @@ public class Reserva {
      *               os que a reserva usa ficam com a baixa feita
      * @throws IllegalStateException    se a reserva não estiver pendente ou o stock disponível não chegar
      * @throws IllegalArgumentException se o cartão for o mestre ou estiver desativado, ou se um
-     *                                  produto do quarto já não existir em stock
+     *                                  produto já não existir em stock
      */
     public void fazerCheckIn(CartaoMagnetico cartao, LocalDateTime quando, List<Artigo> stock) {
         validarCheckIn(cartao);
         Objects.requireNonNull(stock, "O stock é obrigatório.");
-        List<ProdutoReserva> doQuarto = new ArrayList<>();
-        for (ProdutoQuarto produto : quarto.getProdutos()) {
-            Artigo artigo = procurarNoStock(stock, produto.getArtigo());
-            doQuarto.add(new ProdutoReserva(artigo, produto.getQuantidade()));
+        List<ProdutoReserva> pedidos = new ArrayList<>();
+        for (ProdutoReserva extra : produtos) {                       // escolhidos na criação da reserva
+            pedidos.add(doStock(stock, extra.getArtigo(), extra.getQuantidade()));
         }
-        darBaixa(doQuarto);
-        for (ProdutoReserva produto : doQuarto) {
-            juntarProduto(produto.getArtigo(), produto.getQuantidade());
+        for (ProdutoQuarto equipamento : quarto.getProdutos()) {      // equipamentos configurados do quarto
+            pedidos.add(doStock(stock, equipamento.getArtigo(), equipamento.getQuantidade()));
+        }
+        for (ConsumoServico consumo : consumos) {                     // serviços com produtos (ex.: bebidas)
+            ProdutoReserva gasto = consumo.produtoDoStock();
+            if (gasto != null) {
+                pedidos.add(doStock(stock, gasto.getArtigo(), gasto.getQuantidade()));
+            }
+        }
+        darBaixa(pedidos);
+        produtos.clear();
+        for (ProdutoReserva pedido : pedidos) {
+            juntarProduto(pedido.getArtigo(), pedido.getQuantidade());
         }
         concluirCheckIn(cartao, quando);
+    }
+
+    /** O mesmo produto, mas o objeto lido agora do stock (é nesse que se faz a baixa). */
+    private static ProdutoReserva doStock(List<Artigo> stock, Artigo artigo, int quantidade) {
+        return new ProdutoReserva(procurarNoStock(stock, artigo), quantidade);
     }
 
     private void validarCheckIn(CartaoMagnetico cartao) {
@@ -365,6 +388,64 @@ public class Reserva {
         consumos.remove(indice);
     }
 
+    /**
+     * Acrescenta um serviço durante a estadia e, se o serviço estiver ligado a um produto do stock
+     * (ex.: bebidas), dá baixa desse produto (S7-01). Se o stock disponível não chegar, nada muda.
+     *
+     * @param consumo serviço que será acrescentado
+     * @param stock   produtos do stock (lidos agora do DAO)
+     * @throws IllegalStateException    se a reserva não tiver check-in ou o stock disponível não chegar
+     * @throws IllegalArgumentException se não for escolhido um serviço ou o produto já não existir em stock
+     */
+    public void adicionarServicoEdicao(ConsumoServico consumo, List<Artigo> stock) {
+        if (!podeEditarServicos()) {
+            throw new IllegalStateException("Não é possível editar os serviços desta reserva.");
+        }
+        if (consumo == null) {
+            throw new IllegalArgumentException("Tem de selecionar um serviço.");
+        }
+        Objects.requireNonNull(stock, "O stock é obrigatório.");
+        ProdutoReserva gasto = consumo.produtoDoStock();
+        if (gasto != null) {
+            Artigo artigo = procurarNoStock(stock, gasto.getArtigo());
+            artigo.darBaixa(gasto.getQuantidade());
+            juntarProduto(artigo, gasto.getQuantidade());
+        }
+        consumos.add(consumo);
+    }
+
+    /**
+     * Remove um serviço durante a estadia e devolve ao stock disponível o produto que ele usava (S7-01).
+     *
+     * @param indice posição do serviço na lista
+     * @param stock  produtos do stock (lidos agora do DAO)
+     * @throws IllegalStateException    se a reserva não tiver check-in
+     * @throws IllegalArgumentException se a posição não existir
+     */
+    public void removerServicoEdicao(int indice, List<Artigo> stock) {
+        if (!podeEditarServicos()) {
+            throw new IllegalStateException("Não é possível editar os serviços desta reserva.");
+        }
+        if (indice < 0 || indice >= consumos.size()) {
+            throw new IllegalArgumentException("O serviço selecionado não existe.");
+        }
+        Objects.requireNonNull(stock, "O stock é obrigatório.");
+        ProdutoReserva gasto = consumos.get(indice).produtoDoStock();
+        if (gasto != null) {
+            int naReserva = quantidadeNaReserva(gasto.getArtigo());
+            // Se entretanto a quantidade foi reduzida na edição, só se devolve o que ainda está na reserva.
+            int devolvido = Math.min(naReserva, gasto.getQuantidade());
+            if (devolvido > 0) {
+                Artigo artigo = procurarNoStockOuNulo(stock, gasto.getArtigo().getId());
+                if (artigo != null) {
+                    artigo.devolver(Math.min(devolvido, artigo.getQuantidadeReservada()));
+                }
+                mudarLinha(artigo != null ? artigo : gasto.getArtigo(), naReserva - devolvido);
+            }
+        }
+        consumos.remove(indice);
+    }
+
     // EDIÇÃO DE DATAS DA RESERVA (S6-08)
 
     /**
@@ -495,16 +576,24 @@ public class Reserva {
     }
 
     /**
-     * Quantidade de um artigo do stock em uso por esta reserva. Só as reservas pendentes e com check-in
-     * usam stock: uma reserva cancelada nunca usou e uma com check-out já devolveu (S6-05).
+     * Quantidade de um artigo do stock em uso por esta reserva. Só as reservas com check-in usam stock
+     * (S7-01): uma pendente ainda não deu baixa, uma cancelada nunca usou e uma com check-out já devolveu.
      *
      * @param artigo artigo do stock
-     * @return quantidade em uso (0 se a reserva não tiver esse artigo ou não estiver ativa)
+     * @return quantidade em uso (0 se a reserva não tiver esse artigo ou não tiver check-in)
      */
     public int quantidadeUsada(Artigo artigo) {
-        if (!usaStock()) {
-            return 0;
-        }
+        return usaStock() ? quantidadeNaReserva(artigo) : 0;
+    }
+
+    /**
+     * Quantidade de um artigo nas linhas da reserva, esteja ou não em uso (numa reserva pendente são os
+     * extras escolhidos, que só dão baixa no check-in).
+     *
+     * @param artigo artigo do stock
+     * @return quantidade na reserva (0 se não tiver esse artigo)
+     */
+    public int quantidadeNaReserva(Artigo artigo) {
         int quantidade = 0;
         for (ProdutoReserva produto : produtos) {
             if (produto.getArtigo().getId() == artigo.getId()) {
@@ -515,10 +604,10 @@ public class Reserva {
     }
 
     /**
-     * @return {@code true} se os produtos desta reserva estão em uso (reserva pendente ou com check-in)
+     * @return {@code true} se os produtos desta reserva estão em uso (só depois do check-in, S7-01)
      */
     public boolean usaStock() {
-        return estado == EstadoReserva.PENDENTE || estado == EstadoReserva.CHECK_IN;
+        return estado == EstadoReserva.CHECK_IN;
     }
 
     /**
@@ -527,13 +616,16 @@ public class Reserva {
      * @return {@code true} se os produtos podem ser alterados
      */
     public boolean podeEditarProdutos() {
-        return usaStock();
+        return ocupaQuarto();
     }
 
     /**
      * Muda a quantidade de um produto do stock na reserva (por exemplo, só uma pessoa num quarto duplo
-     * precisa de 1 toalha em vez de 2) e ajusta o stock (S6-05): se aumentar, a diferença sai do stock
-     * disponível; se diminuir, volta ao disponível sem ser gasta. Com quantidade 0 o produto sai da reserva.
+     * precisa de 1 toalha em vez de 2). Com quantidade 0 o produto sai da reserva.
+     * <p>
+     * Depois do check-in ajusta o stock (S6-05): se aumentar, a diferença sai do stock disponível; se
+     * diminuir, volta ao disponível sem ser gasta. Numa reserva pendente só muda o que fica escolhido,
+     * porque o stock só baixa no check-in (S7-01).
      *
      * @param artigoDoStock    o produto, lido agora do stock (com o real e o que está em uso)
      * @param novaQuantidade   nova quantidade na reserva (0 retira o produto)
@@ -550,28 +642,28 @@ public class Reserva {
         if (novaQuantidade < 0) {
             throw new IllegalArgumentException("A quantidade não pode ser negativa.");
         }
-        int atual = quantidadeUsada(artigoDoStock);
-        if (novaQuantidade > atual) {
-            artigoDoStock.darBaixa(novaQuantidade - atual);
-        } else if (novaQuantidade < atual) {
-            artigoDoStock.devolver(atual - novaQuantidade);
+        int atual = quantidadeNaReserva(artigoDoStock);
+        if (usaStock()) {
+            if (novaQuantidade > atual) {
+                artigoDoStock.darBaixa(novaQuantidade - atual);
+            } else if (novaQuantidade < atual) {
+                artigoDoStock.devolver(atual - novaQuantidade);
+            }
         }
-        produtos.removeIf(produto -> produto.getArtigo().getId() == artigoDoStock.getId());
-        if (novaQuantidade > 0) {
-            produtos.add(new ProdutoReserva(artigoDoStock, novaQuantidade));
+        mudarLinha(artigoDoStock, novaQuantidade);
+    }
+
+    /** Deixa uma só linha do produto com a quantidade indicada (0 retira o produto da reserva). */
+    private void mudarLinha(Artigo artigo, int quantidade) {
+        produtos.removeIf(produto -> produto.getArtigo().getId() == artigo.getId());
+        if (quantidade > 0) {
+            produtos.add(new ProdutoReserva(artigo, quantidade));
         }
     }
 
     /** Junta a quantidade à linha do mesmo produto (ou cria uma linha nova). */
     private void juntarProduto(Artigo artigo, int quantidade) {
-        int atual = 0;
-        for (ProdutoReserva produto : produtos) {
-            if (produto.getArtigo().getId() == artigo.getId()) {
-                atual += produto.getQuantidade();
-            }
-        }
-        produtos.removeIf(produto -> produto.getArtigo().getId() == artigo.getId());
-        produtos.add(new ProdutoReserva(artigo, atual + quantidade));
+        mudarLinha(artigo, quantidadeNaReserva(artigo) + quantidade);
     }
 
     private static Artigo procurarNoStock(List<Artigo> stock, Artigo procurado) {
@@ -656,4 +748,4 @@ public class Reserva {
         }
         return preco;
     }
-}
+}

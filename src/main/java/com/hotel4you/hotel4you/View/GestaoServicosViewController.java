@@ -1,6 +1,7 @@
 package com.hotel4you.hotel4you.View;
 
 import com.hotel4you.hotel4you.Controller.GestaoServicosController;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.Servico;
 import com.hotel4you.hotel4you.Model.enums.TipoCobranca;
 import com.hotel4you.hotel4you.Model.enums.TipoServico;
@@ -26,6 +27,9 @@ import java.util.Optional;
  * O gestor escolhe um item na lista para o editar (incluindo o preço, a forma de cobrança e o estado
  * ativo) ou carrega em "Novo". O rececionista só vê a lista (o formulário fica escondido). Só lê os campos e mostra
  * mensagens; as regras e as permissões estão no {@link GestaoServicosController}.
+ * <p>
+ * S7-01: o gestor pode escolher o produto do stock que o serviço gasta (ex.: bebidas) e a quantidade
+ * por unidade; "Sem produto" desliga o serviço do stock.
  */
 public class GestaoServicosViewController {
 
@@ -60,6 +64,10 @@ public class GestaoServicosViewController {
     private ComboBox<TipoCobranca> campoCobranca;
     @FXML
     private CheckBox campoAtivo;
+    @FXML
+    private ComboBox<Artigo> campoProduto;
+    @FXML
+    private TextField campoQuantidadeProduto;
 
     /**
      * @param controller controller que configura os serviços e extras
@@ -86,6 +94,7 @@ public class GestaoServicosViewController {
         atualizarLista();
         if (configura) {
             configurarTipos();
+            configurarProdutos();
             listaServicos.getSelectionModel().selectedItemProperty().addListener((observavel, antigo, novo) -> {
                 if (novo != null) {
                     labelMensagem.setText("");
@@ -111,17 +120,30 @@ public class GestaoServicosViewController {
             mostrar("Preço inválido. Use um número, por exemplo 8,50.", COR_ERRO);
             return;
         }
+        Artigo produto = campoProduto.getValue();
+        Integer idProduto = produto == null ? null : produto.getId();
+        int quantidadeProduto = 0;
+        if (produto != null) {
+            try {
+                quantidadeProduto = Integer.parseInt(campoQuantidadeProduto.getText().trim());
+            } catch (NumberFormatException e) {
+                mostrar("Quantidade do produto inválida. Use um número inteiro, por exemplo 1.", COR_ERRO);
+                return;
+            }
+        }
         try {
             if (servicoSelecionado == null) {
                 Servico criado = controller.criarServico(campoTipo.getValue(), campoNome.getText(),
-                        campoCategoria.getText(), campoDescricao.getText(), preco.get(), campoCobranca.getValue());
+                        campoCategoria.getText(), campoDescricao.getText(), preco.get(), campoCobranca.getValue(),
+                        idProduto, quantidadeProduto);
                 atualizarLista();
                 selecionarPorId(criado.getId());
                 mostrar("'" + criado.getNome() + "' criado.", COR_SUCESSO);
             } else {
                 int id = servicoSelecionado.getId();
                 controller.editarServico(id, campoTipo.getValue(), campoNome.getText(), campoCategoria.getText(),
-                        campoDescricao.getText(), preco.get(), campoCobranca.getValue(), campoAtivo.isSelected());
+                        campoDescricao.getText(), preco.get(), campoCobranca.getValue(), campoAtivo.isSelected(),
+                        idProduto, quantidadeProduto);
                 String nome = campoNome.getText().trim();
                 atualizarLista();
                 selecionarPorId(id);
@@ -132,6 +154,13 @@ public class GestaoServicosViewController {
         } catch (RuntimeException e) {
             mostrar("Não foi possível guardar: " + e.getMessage(), COR_ERRO);
         }
+    }
+
+    /** Chamado pelo botão "Sem produto": o serviço deixa de gastar produtos do stock. */
+    @FXML
+    private void onSemProduto() {
+        campoProduto.setValue(null);
+        campoQuantidadeProduto.clear();
     }
 
     /** Chamado pelo botão "Voltar ao menu". */
@@ -167,6 +196,39 @@ public class GestaoServicosViewController {
         });
     }
 
+    private void configurarProdutos() {
+        try {
+            campoProduto.setItems(FXCollections.observableArrayList(controller.consultarProdutosStock()));
+        } catch (RuntimeException e) {
+            mostrar(e.getMessage(), COR_ERRO);
+        }
+        campoProduto.setConverter(new StringConverter<Artigo>() {
+            @Override
+            public String toString(Artigo artigo) {
+                return artigo == null ? "" : artigo.getNome() + " (" + artigo.getUnidade() + ")";
+            }
+
+            @Override
+            public Artigo fromString(String texto) {
+                return null;
+            }
+        });
+    }
+
+    /** Escolhe na lista o produto com o mesmo id (os objetos vêm de leituras diferentes). */
+    private void selecionarProduto(Artigo produto) {
+        campoProduto.setValue(null);
+        if (produto == null) {
+            return;
+        }
+        for (Artigo artigo : campoProduto.getItems()) {
+            if (artigo.getId() == produto.getId()) {
+                campoProduto.setValue(artigo);
+                return;
+            }
+        }
+    }
+
     private void atualizarLista() {
         try {
             listaServicos.setItems(FXCollections.observableArrayList(controller.consultarServicos()));
@@ -195,6 +257,8 @@ public class GestaoServicosViewController {
         campoCobranca.setValue(TipoCobranca.POR_UNIDADE);
         campoAtivo.setSelected(true);
         campoAtivo.setDisable(true);
+        campoProduto.setValue(null);
+        campoQuantidadeProduto.clear();
         labelModo.setText("Novo serviço ou extra");
     }
 
@@ -208,6 +272,8 @@ public class GestaoServicosViewController {
         campoCobranca.setValue(servico.getCobranca());
         campoAtivo.setSelected(servico.isAtivo());
         campoAtivo.setDisable(false);
+        selecionarProduto(servico.getProduto());
+        campoQuantidadeProduto.setText(servico.temProduto() ? String.valueOf(servico.getQuantidadeProduto()) : "");
         labelModo.setText("A editar: " + servico.getNome());
     }
 
@@ -220,8 +286,10 @@ public class GestaoServicosViewController {
         String categoria = servico.getCategoria().isBlank() ? "" : "  |  " + servico.getCategoria();
         String estado = servico.isAtivo() ? "" : "  |  Inativo";
         String descricao = servico.getDescricao().isBlank() ? "" : "\n" + servico.getDescricao();
+        String produto = servico.temProduto() ? "\nStock: " + servico.getQuantidadeProduto() + " "
+                + servico.getProduto().getUnidade() + " de " + servico.getProduto().getNome() + " por unidade" : "";
         return servico.getNome() + "  |  " + servico.getTipo().getNome() + categoria + "\n"
                 + Utils.formatarPreco(servico.getValor()) + " " + servico.getCobranca().getNome().toLowerCase()
-                + estado + descricao;
+                + estado + descricao + produto;
     }
 }

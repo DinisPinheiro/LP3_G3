@@ -44,8 +44,8 @@ public interface StockDAO {
     void registarEntrada(Fornecedor fornecedor, EncomendaFornecedor encomenda, List<MovimentoStock> entradas);
 
     /**
-     * @return todos os artigos com o stock real, a quantidade em uso nas reservas pendentes e com
-     *         check-in (para o stock disponível), se é consumível, o fornecedor e o último preço e taxa,
+     * @return todos os artigos com o stock real, a quantidade em uso nas reservas com check-in
+     *         (para o stock disponível; S7-01: o stock só baixa no check-in), se é consumível, o fornecedor e o último preço e taxa,
      *         ordenados por nome
      * @throws DAOException se não for possível ler
      */

@@ -28,8 +28,8 @@ import java.util.Optional;
  * <p>
  * S6-04: as saídas de stock e os consumos no check-out ficam em {@code dbo.MovimentoStock}, com a
  * justificação; a coluna {@code dbo.Artigo.Consumivel} indica os produtos que se gastam com o uso
- * (ver {@code EsquemaDB_S6_stock_saidas_equipamentos.sql}). Só as reservas pendentes e com check-in
- * contam como stock em uso.
+ * (ver {@code EsquemaDB_S6_stock_saidas_equipamentos.sql}). S7-01: só as reservas com check-in contam
+ * como stock em uso (o stock só baixa no check-in, não na criação da reserva).
  */
 public class StockDAOSQL implements StockDAO {
 
@@ -76,14 +76,15 @@ public class StockDAOSQL implements StockDAO {
                     + "WHERE m.Tipo IN ('SAIDA', 'UTILIZACAO') "
                     + "ORDER BY m.DataHora DESC, m.IdMovimento DESC";
     /**
-     * Quantidade do artigo {@code a} em uso nas reservas pendentes e com check-in (S6-05): as canceladas
-     * nunca usaram stock e as que já fizeram check-out devolveram-no.
+     * Quantidade do artigo {@code a} em uso nas reservas com check-in (S7-01): o stock só baixa no
+     * check-in, por isso as pendentes ainda não usam stock; as canceladas nunca usaram e as que já
+     * fizeram check-out devolveram-no.
      * Também é usada pelo {@link ReservaDAOSQL} para confirmar o stock ao guardar uma reserva.
      */
     static final String SQL_USADO_EM_RESERVAS =
             "(SELECT ISNULL(SUM(rp.Quantidade), 0) FROM dbo.ReservaProduto rp "
                     + "JOIN dbo.Reserva r ON r.IdReserva = rp.IdReserva "
-                    + "WHERE rp.IdArtigo = a.IdArtigo AND r.Estado IN ('PENDENTE', 'CHECK_IN'))";
+                    + "WHERE rp.IdArtigo = a.IdArtigo AND r.Estado = 'CHECK_IN')";
     private static final String SQL_LISTAR_ARTIGOS =
             "SELECT a.IdArtigo, a.Nome, a.Unidade, a.QuantidadeAtual, a.Consumivel, "
                     + SQL_USADO_EM_RESERVAS + " AS UsadoEmReservas, "

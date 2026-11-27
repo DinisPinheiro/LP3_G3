@@ -56,7 +56,18 @@
             <Label text="Estado" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
             <CheckBox fx:id="campoAtivo" text="Ativo (disponível)"
                       GridPane.rowIndex="6" GridPane.columnIndex="1"/>
+            <Label text="Produto do stock" GridPane.rowIndex="7" GridPane.columnIndex="0"/>
+            <HBox spacing="6" GridPane.rowIndex="7" GridPane.columnIndex="1">
+                <ComboBox fx:id="campoProduto" promptText="ex.: bebidas (opcional)" maxWidth="Infinity"
+                          HBox.hgrow="ALWAYS"/>
+                <Button text="Sem produto" onAction="#onSemProduto"/>
+            </HBox>
+            <Label text="Qtd. por unidade" GridPane.rowIndex="8" GridPane.columnIndex="0"/>
+            <TextField fx:id="campoQuantidadeProduto" promptText="ex.: 1" maxWidth="Infinity"
+                       GridPane.rowIndex="8" GridPane.columnIndex="1"/>
         </GridPane>
+        <Label text="O produto do stock dá baixa no check-in da reserva." wrapText="true"
+               style="-fx-text-fill: #666666;"/>
 
         <HBox spacing="8">
             <Button text="Novo" onAction="#onNovo"/>

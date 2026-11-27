@@ -101,6 +101,7 @@ public class Main extends Application {
         GestaoServicosController gestaoServicosController =
                 new GestaoServicosController(
                         servicoDAO,
+                        stockDAO,
                         sessao
                 );
 

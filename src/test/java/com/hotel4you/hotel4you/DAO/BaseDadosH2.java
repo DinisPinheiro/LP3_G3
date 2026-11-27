@@ -102,7 +102,9 @@ public final class BaseDadosH2 {
                 "CREATE TABLE dbo.ConfigTipoQuarto_Produto (Tipo VARCHAR(20) NOT NULL, IdArtigo INT NOT NULL, "
                         + "Quantidade INT NOT NULL, PRIMARY KEY (Tipo, IdArtigo))",
                 "CREATE TABLE dbo.ReservaProduto (IdReservaProduto INT IDENTITY(1,1) PRIMARY KEY, "
-                        + "IdReserva INT NOT NULL, IdArtigo INT NOT NULL, Quantidade INT NOT NULL)");
+                        + "IdReserva INT NOT NULL, IdArtigo INT NOT NULL, Quantidade INT NOT NULL)",
+                "CREATE TABLE dbo.ServicoProduto (IdServico INT NOT NULL PRIMARY KEY, IdArtigo INT NOT NULL, "
+                        + "Quantidade INT NOT NULL)");
         return bd;
     }
 

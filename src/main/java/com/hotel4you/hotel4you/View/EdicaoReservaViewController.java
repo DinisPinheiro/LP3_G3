@@ -340,7 +340,7 @@ public class EdicaoReservaViewController {
     }
 
     /**
-     * Retira da reserva o produto selecionado na lista; volta ao stock disponível.
+     * Retira da reserva o produto selecionado na lista; com check-in volta ao stock disponível.
      */
     @FXML
     private void onRemoverProduto() {
@@ -412,4 +412,4 @@ public class EdicaoReservaViewController {
                 "Hotel4You"
         );
     }
-}
+}

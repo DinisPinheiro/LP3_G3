@@ -13,6 +13,9 @@ import java.math.BigDecimal;
  * O gestor pode alterar os dados e o valor, e desativar o item (um item desativado deixa de ser
  * oferecido, mas continua guardado porque pode já ter sido usado em reservas).
  * <p>
+ * S7-01: um serviço pode estar ligado a um produto do stock (ex.: o extra "Água 50cl" gasta 1 garrafa
+ * de água por unidade). Numa reserva, a quantidade do serviço × a quantidade do produto dá baixa no
+ * stock no check-in, como os equipamentos do quarto ({@link Reserva}).
  */
 public class Servico {
 
@@ -24,6 +27,10 @@ public class Servico {
     private BigDecimal valor;
     private TipoCobranca cobranca;
     private boolean ativo;
+    /** Produto do stock gasto por cada unidade do serviço; {@code null} se o serviço não usar stock (S7-01). */
+    private Artigo produto;
+    /** Quantidade do produto por cada unidade do serviço (0 se não houver produto). */
+    private int quantidadeProduto;
 
     /**
      * Cria um extra ativo, sem descrição e cobrado por unidade (construtor mantido por compatibilidade).
@@ -192,6 +199,45 @@ public class Servico {
      */
     public void setAtivo(boolean ativo) {
         this.ativo = ativo;
+    }
+
+    /**
+     * Liga o serviço a um produto do stock (S7-01).
+     *
+     * @param produto    produto do stock gasto pelo serviço
+     * @param quantidade quantidade do produto por cada unidade do serviço, pelo menos 1
+     * @throws IllegalArgumentException se o produto for nulo ou a quantidade for inferior a 1
+     */
+    public void ligarProduto(Artigo produto, int quantidade) {
+        if (produto == null) {
+            throw new IllegalArgumentException("Escolha o produto do stock.");
+        }
+        if (quantidade < 1) {
+            throw new IllegalArgumentException("A quantidade do produto deve ser pelo menos 1.");
+        }
+        this.produto = produto;
+        this.quantidadeProduto = quantidade;
+    }
+
+    /** O serviço deixa de usar produtos do stock. */
+    public void desligarProduto() {
+        this.produto = null;
+        this.quantidadeProduto = 0;
+    }
+
+    /** @return {@code true} se o serviço gasta um produto do stock */
+    public boolean temProduto() {
+        return produto != null;
+    }
+
+    /** @return produto do stock gasto pelo serviço, ou {@code null} */
+    public Artigo getProduto() {
+        return produto;
+    }
+
+    /** @return quantidade do produto por cada unidade do serviço (0 se não houver produto) */
+    public int getQuantidadeProduto() {
+        return quantidadeProduto;
     }
 
     @Override

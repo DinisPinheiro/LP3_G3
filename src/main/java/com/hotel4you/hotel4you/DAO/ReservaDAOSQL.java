@@ -57,8 +57,9 @@ public class ReservaDAOSQL implements ReservaDAO {
             + "AND a.QuantidadeAtual < " + StockDAOSQL.SQL_USADO_EM_RESERVAS;
     private static final String SQL_SERVICOS_DA_RESERVA = "SELECT cs.Quantidade, cs.Data, "
             + "cs.ValorUnitario AS ValorGuardado, cs.Cobranca AS CobrancaGuardada, "
-            + "s.IdServico, s.Nome, s.Categoria, s.Descricao, s.Tipo, s.Valor, s.Cobranca, s.Ativo "
-            + "FROM dbo.ConsumoServico cs JOIN dbo.Servico s ON s.IdServico = cs.IdServico "
+            + ServicoDAOSQL.COLUNAS + " "
+            + "FROM dbo.ConsumoServico cs JOIN dbo.Servico s ON s.IdServico = cs.IdServico"
+            + ServicoDAOSQL.JUNCAO_PRODUTO + " "
             + "WHERE cs.IdReserva = ? ORDER BY cs.IdConsumo";
     private static final String SQL_PRODUTOS_DA_RESERVA = "SELECT rp.Quantidade, "
             + "a.IdArtigo, a.Nome, a.Unidade, a.QuantidadeAtual "
@@ -164,20 +165,16 @@ public class ReservaDAOSQL implements ReservaDAO {
                     conn.rollback();
                     throw new DAOException("A reserva com id " + reserva.getId() + " não existe.");
                 }
-                if (reserva.usaStock()) {
-                    SqlUtil.executar(conn, "DELETE FROM dbo.ReservaProduto WHERE IdReserva = ?",
-                            ps -> ps.setInt(1, reserva.getId()));
-                    gravarProdutos(conn, reserva.getId(), reserva.getProdutos());
-                    String semStock = procurarArtigoSemStock(conn, reserva.getId());
-                    if (semStock != null) {
-                        conn.rollback();
-                        throw new DAOException("Não há stock disponível suficiente de '" + semStock + "'.");
-                    }
+                if (reserva.podeEditarProdutos()) {
+                    regravarProdutos(conn, reserva);
                 }
                 conn.commit();
             } catch (SQLException e) {
                 SqlUtil.reverter(conn, e);
                 throw new DAOException("Não foi possível atualizar a reserva.", e);
+            } catch (RuntimeException e) {
+                conn.rollback();   // ex.: o stock não chega; nada fica guardado
+                throw e;
             }
         } catch (SQLException e) {
             throw new DAOException("Não foi possível atualizar a reserva.", e);
@@ -223,8 +220,10 @@ public class ReservaDAOSQL implements ReservaDAO {
                     ps.executeUpdate();
                 }
 
-                // 3. Guarda os serviços da lista atualizada.
+                // 3. Guarda os serviços da lista atualizada e os produtos do stock (S7-01: os serviços
+                //    ligados ao stock, como as bebidas, mudam os produtos da reserva).
                 gravarServicos(conn, reserva.getId(), reserva.getConsumos());
+                regravarProdutos(conn, reserva);
 
                 // 4. Atualiza o valor total da reserva.
                 String sqlTotal = "UPDATE dbo.Reserva " + "SET ValorTotal = ? " + "WHERE IdReserva = ? AND Estado = 'CHECK_IN'";
@@ -422,6 +421,22 @@ public class ReservaDAOSQL implements ReservaDAO {
                 ps.setInt(2, produto.getArtigo().getId());
                 ps.setInt(3, produto.getQuantidade());
             });
+        }
+    }
+
+    /**
+     * Volta a gravar os produtos do stock da reserva. Se a reserva tiver check-in (stock em uso, S7-01),
+     * confirma na mesma transação que o stock real chega para tudo o que está em uso.
+     */
+    private static void regravarProdutos(Connection conn, Reserva reserva) throws SQLException {
+        SqlUtil.executar(conn, "DELETE FROM dbo.ReservaProduto WHERE IdReserva = ?",
+                ps -> ps.setInt(1, reserva.getId()));
+        gravarProdutos(conn, reserva.getId(), reserva.getProdutos());
+        if (reserva.usaStock()) {
+            String semStock = procurarArtigoSemStock(conn, reserva.getId());
+            if (semStock != null) {
+                throw new DAOException("Não há stock disponível suficiente de '" + semStock + "'.");
+            }
         }
     }
 
