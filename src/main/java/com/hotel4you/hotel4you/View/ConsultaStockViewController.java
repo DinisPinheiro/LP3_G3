@@ -25,6 +25,9 @@ import java.util.List;
  * <p>
  * S6-04: mostra o stock real e o disponível (o real menos o que está em uso nas reservas), se o produto é
  * consumível e o histórico de saídas; o botão "Dar saída de stock" abre a janela {@code SaidaStockView.fxml}.
+ * <p>
+ * S7-02: o stock mostra as unidades (ex.: "25 un (2 cx + 5 un)") e a conversão de cada produto; o botão
+ * "Unidades dos produtos" abre a janela {@code UnidadesProdutosView.fxml}.
  */
 public class ConsultaStockViewController {
 
@@ -52,6 +55,8 @@ public class ConsultaStockViewController {
     private TableColumn<Artigo, String> colunaConsumivel;
     @FXML
     private TableColumn<Artigo, String> colunaUnidade;
+    @FXML
+    private TableColumn<Artigo, String> colunaConversao;
     @FXML
     private TableColumn<Artigo, String> colunaPreco;
     @FXML
@@ -86,12 +91,14 @@ public class ConsultaStockViewController {
     @FXML
     private void initialize() {
         colunaArtigo.setCellValueFactory(c -> texto(c.getValue().getNome()));
-        colunaQuantidade.setCellValueFactory(c -> texto(String.valueOf(c.getValue().getQuantidadeAtual())));
+        // S7-02: o stock real em unidades e, se houver conversão, em caixas.
+        colunaQuantidade.setCellValueFactory(c -> texto(c.getValue().descreverQuantidade(c.getValue().getQuantidadeAtual())));
         // Stock real: o total do hotel. Disponível: o real menos o que está em uso nas reservas (S6-04).
         colunaEmUso.setCellValueFactory(c -> texto(String.valueOf(c.getValue().getQuantidadeReservada())));
         colunaDisponivel.setCellValueFactory(c -> texto(String.valueOf(c.getValue().getQuantidadeDisponivel())));
         colunaConsumivel.setCellValueFactory(c -> texto(c.getValue().isConsumivel() ? "Sim" : "Não"));
         colunaUnidade.setCellValueFactory(c -> texto(c.getValue().getUnidade()));
+        colunaConversao.setCellValueFactory(c -> texto(c.getValue().descreverConversao()));
         // Último preço unitário (sem taxa) e taxa de imposto, vindos da última entrada por XML (S5-04).
         colunaPreco.setCellValueFactory(c -> texto(formatarPreco(c.getValue())));
         colunaTaxa.setCellValueFactory(c -> texto(c.getValue().getTaxaPercentagem() == null
@@ -117,6 +124,18 @@ public class ConsultaStockViewController {
     private void onDarSaida() {
         try {
             Navegador.abrirJanela("SaidaStockView.fxml", "Hotel4You - Saída de stock");
+        } catch (RuntimeException e) {
+            labelMensagem.setText(e.getMessage());
+            labelMensagem.setStyle(COR_ERRO);
+        }
+        onAtualizar();
+    }
+
+    /** Chamado pelo botão "Unidades dos produtos" (S7-02): abre a janela das conversões e, ao fechar, atualiza. */
+    @FXML
+    private void onUnidades() {
+        try {
+            Navegador.abrirJanela("UnidadesProdutosView.fxml", "Hotel4You - Unidades dos produtos");
         } catch (RuntimeException e) {
             labelMensagem.setText(e.getMessage());
             labelMensagem.setStyle(COR_ERRO);

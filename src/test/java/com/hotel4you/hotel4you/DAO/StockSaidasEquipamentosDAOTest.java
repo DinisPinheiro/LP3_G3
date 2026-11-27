@@ -72,17 +72,17 @@ class StockSaidasEquipamentosDAOTest {
     // ================= S6-04 =================
 
     @Test
-    void listarArtigosTrazOConsumivelEOEmUsoSoDasReservasAtivas() throws SQLException {
+    void listarArtigosTrazOConsumivelEOEmUsoSoDasReservasComCheckIn() throws SQLException {
         int idToalhas = artigo("Toalha de banho").getId();
-        reserva("PENDENTE", idToalhas, 1);
+        reserva("PENDENTE", idToalhas, 1);    // S7-01: ainda não deu baixa
         reserva("CHECK_IN", idToalhas, 2);
         reserva("CHECK_OUT", idToalhas, 4);   // já devolveu
         reserva("CANCELADA", idToalhas, 3);   // nunca usou
 
         Artigo toalhas = artigo("Toalha de banho");
         assertEquals(10, toalhas.getQuantidadeAtual());
-        assertEquals(3, toalhas.getQuantidadeReservada());
-        assertEquals(7, toalhas.getQuantidadeDisponivel());
+        assertEquals(2, toalhas.getQuantidadeReservada());
+        assertEquals(8, toalhas.getQuantidadeDisponivel());
         assertTrue(artigo("Champô").isConsumivel());
         assertFalse(toalhas.isConsumivel());
     }

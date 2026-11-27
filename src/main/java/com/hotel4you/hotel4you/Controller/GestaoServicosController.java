@@ -1,6 +1,8 @@
 package com.hotel4you.hotel4you.Controller;
 
 import com.hotel4you.hotel4you.DAO.ServicoDAO;
+import com.hotel4you.hotel4you.DAO.StockDAO;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.Servico;
 import com.hotel4you.hotel4you.Model.enums.Perfil;
 import com.hotel4you.hotel4you.Model.enums.TipoCobranca;
@@ -21,6 +23,8 @@ import java.util.Objects;
  * ({@link com.hotel4you.hotel4you.Model.Reserva#calcularTotal()}) com o valor que tinham quando a
  * reserva foi criada: alterar o preço aqui só se aplica às reservas seguintes.
  * <p>
+ * S7-01: o gestor pode ligar um serviço a um produto do stock (ex.: o extra "Água 50cl" gasta 1 garrafa
+ * de água). Nas reservas, esse produto dá baixa no stock no check-in.
  */
 public class GestaoServicosController {
 
@@ -31,6 +35,8 @@ public class GestaoServicosController {
     private static final BigDecimal PRECO_MAXIMO = new BigDecimal("99999999.99");
 
     private final ServicoDAO servicoDAO;
+    /** Produtos do stock que podem ser ligados a um serviço (S7-01); {@code null} se não forem usados. */
+    private final StockDAO stockDAO;
     private final Sessao sessao;
 
     /**
@@ -38,8 +44,27 @@ public class GestaoServicosController {
      * @param sessao     sessão com o utilizador autenticado
      */
     public GestaoServicosController(ServicoDAO servicoDAO, Sessao sessao) {
+        this(servicoDAO, null, sessao);
+    }
+
+    /**
+     * @param servicoDAO onde os serviços e extras são guardados
+     * @param stockDAO   stock do hotel, para ligar serviços a produtos (S7-01)
+     * @param sessao     sessão com o utilizador autenticado
+     */
+    public GestaoServicosController(ServicoDAO servicoDAO, StockDAO stockDAO, Sessao sessao) {
         this.servicoDAO = Objects.requireNonNull(servicoDAO);
+        this.stockDAO = stockDAO;
         this.sessao = Objects.requireNonNull(sessao);
+    }
+
+    /**
+     * @return os produtos do stock que podem ser ligados a um serviço (vazio se o stock não for usado)
+     * @throws SecurityException se o utilizador não for gestor
+     */
+    public List<Artigo> consultarProdutosStock() {
+        exigirGestor();
+        return stockDAO == null ? List.of() : stockDAO.listarArtigos();
     }
 
     /**
@@ -79,10 +104,25 @@ public class GestaoServicosController {
      */
     public Servico criarServico(TipoServico tipo, String nome, String categoria, String descricao,
                                 BigDecimal valor, TipoCobranca cobranca) {
+        return criarServico(tipo, nome, categoria, descricao, valor, cobranca, null, 0);
+    }
+
+    /**
+     * Igual a {@link #criarServico(TipoServico, String, String, String, BigDecimal, TipoCobranca)}, com o
+     * produto do stock que o serviço gasta (S7-01).
+     *
+     * @param idProduto         produto do stock ligado ao serviço, ou {@code null} se não usar stock
+     * @param quantidadeProduto quantidade do produto por cada unidade do serviço (pelo menos 1 se houver produto)
+     * @throws IllegalArgumentException também se o produto não existir em stock ou a quantidade for inválida
+     */
+    public Servico criarServico(TipoServico tipo, String nome, String categoria, String descricao,
+                                BigDecimal valor, TipoCobranca cobranca, Integer idProduto, int quantidadeProduto) {
         exigirGestor();
         BigDecimal preco = validar(tipo, nome, categoria, descricao, valor, cobranca);
         exigirNomeLivre(nome, 0);
-        return servicoDAO.inserir(new Servico(0, tipo, nome, categoria, descricao, preco, cobranca, true));
+        Servico servico = new Servico(0, tipo, nome, categoria, descricao, preco, cobranca, true);
+        ligarProduto(servico, idProduto, quantidadeProduto);
+        return servicoDAO.inserir(servico);
     }
 
     /**
@@ -103,11 +143,35 @@ public class GestaoServicosController {
      */
     public void editarServico(int id, TipoServico tipo, String nome, String categoria, String descricao,
                               BigDecimal valor, TipoCobranca cobranca, boolean ativo) {
+        editar(id, tipo, nome, categoria, descricao, valor, cobranca, ativo, false, null, 0);
+    }
+
+    /**
+     * Igual a {@link #editarServico(int, TipoServico, String, String, String, BigDecimal, TipoCobranca, boolean)},
+     * com o produto do stock que o serviço gasta (S7-01). Mudar o produto só se aplica às reservas que
+     * ainda não fizeram check-in.
+     *
+     * @param idProduto         produto do stock ligado ao serviço, ou {@code null} para deixar de usar stock
+     * @param quantidadeProduto quantidade do produto por cada unidade do serviço (pelo menos 1 se houver produto)
+     * @throws IllegalArgumentException também se o produto não existir em stock ou a quantidade for inválida
+     */
+    public void editarServico(int id, TipoServico tipo, String nome, String categoria, String descricao,
+                              BigDecimal valor, TipoCobranca cobranca, boolean ativo,
+                              Integer idProduto, int quantidadeProduto) {
+        editar(id, tipo, nome, categoria, descricao, valor, cobranca, ativo, true, idProduto, quantidadeProduto);
+    }
+
+    private void editar(int id, TipoServico tipo, String nome, String categoria, String descricao,
+                        BigDecimal valor, TipoCobranca cobranca, boolean ativo,
+                        boolean mudaProduto, Integer idProduto, int quantidadeProduto) {
         exigirGestor();
         Servico servico = servicoDAO.procurarPorId(id)
                 .orElseThrow(() -> new IllegalArgumentException("O serviço ou extra selecionado não existe."));
         BigDecimal preco = validar(tipo, nome, categoria, descricao, valor, cobranca);
         exigirNomeLivre(nome, id);
+        if (mudaProduto) {
+            ligarProduto(servico, idProduto, quantidadeProduto);
+        }
 
         servico.setTipo(tipo);
         servico.setNome(nome);
@@ -151,6 +215,23 @@ public class GestaoServicosController {
                     + PRECO_MAXIMO.toPlainString().replace('.', ',') + ".");
         }
         return preco;
+    }
+
+    /** Liga o serviço ao produto escolhido (lido agora do stock) ou desliga-o se não houver produto. */
+    private void ligarProduto(Servico servico, Integer idProduto, int quantidade) {
+        if (idProduto == null) {
+            servico.desligarProduto();
+            return;
+        }
+        if (stockDAO == null) {
+            throw new IllegalStateException("O stock não está disponível neste ecrã.");
+        }
+        Artigo produto = stockDAO.listarArtigos().stream()
+                .filter(artigo -> artigo.getId() == idProduto)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Escolha um produto que exista em stock."));
+        produto.exigirUnidadePrincipal();   // S7-02: a quantidade por unidade do serviço é na unidade principal
+        servico.ligarProduto(produto, quantidade);
     }
 
     private void exigirNomeLivre(String nome, int idIgnorado) {

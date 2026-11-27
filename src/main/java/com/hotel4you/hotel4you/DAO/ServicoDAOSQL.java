@@ -1,6 +1,7 @@
 package com.hotel4you.hotel4you.DAO;
 
 import com.hotel4you.hotel4you.DAO.db.DBConnection;
+import com.hotel4you.hotel4you.Model.Artigo;
 import com.hotel4you.hotel4you.Model.Servico;
 import com.hotel4you.hotel4you.Model.enums.TipoCobranca;
 import com.hotel4you.hotel4you.Model.enums.TipoServico;
@@ -20,20 +21,38 @@ import java.util.Optional;
  * As colunas Descricao, Tipo e Ativo são criadas por {@code DATABASE/EsquemaDB_S4_servicos_extras.sql};
  * a coluna Cobranca (por unidade ou por noite) por {@code DATABASE/EsquemaDB_S5_servicos_produtos_reserva.sql}.
  * <p>
+ * S7-01: o produto do stock ligado ao serviço (ex.: bebidas) fica na tabela de ligação
+ * {@code dbo.ServicoProduto} (IdServico, IdArtigo, Quantidade), criada por
+ * {@code DATABASE/EsquemaDB_S7_baixa_stock_checkin.sql}. É gravada na mesma transação do serviço.
  */
 public class ServicoDAOSQL implements ServicoDAO {
 
-    private static final String COLUNAS = "IdServico, Nome, Categoria, Descricao, Tipo, Valor, Cobranca, Ativo";
-    private static final String ORDEM = " ORDER BY Tipo, Categoria, Nome, IdServico";
+    /** Colunas do serviço ({@code s}) e do produto do stock ligado (também usadas pelo ReservaDAOSQL). */
+    static final String COLUNAS = "s.IdServico, s.Nome, s.Categoria, s.Descricao, s.Tipo, s.Valor, s.Cobranca, s.Ativo, "
+            + "sp.IdArtigo AS IdArtigoProduto, sp.Quantidade AS QuantidadeProduto, pa.Nome AS NomeProduto, "
+            + "pa.Unidade AS UnidadeProduto, pa.QuantidadeAtual AS StockProduto";
+    /** Junta a {@code dbo.Servico s} o produto do stock ligado, se houver (S7-01). */
+    static final String JUNCAO_PRODUTO = " LEFT JOIN dbo.ServicoProduto sp ON sp.IdServico = s.IdServico "
+            + "LEFT JOIN dbo.Artigo pa ON pa.IdArtigo = sp.IdArtigo";
+    private static final String SELECT = "SELECT " + COLUNAS + " FROM dbo.Servico s" + JUNCAO_PRODUTO;
+    private static final String ORDEM = " ORDER BY s.Tipo, s.Categoria, s.Nome, s.IdServico";
 
     @Override
     public Servico inserir(Servico servico) {
         String sql = "INSERT INTO dbo.Servico (Nome, Categoria, Descricao, Tipo, Valor, Cobranca, Ativo) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection()) {
-            int id = SqlUtil.inserirComId(conn, sql, ps -> preencher(ps, servico));
-            servico.setId(id);
-            return servico;
+            conn.setAutoCommit(false);
+            try {
+                int id = SqlUtil.inserirComId(conn, sql, ps -> preencher(ps, servico));
+                gravarProduto(conn, id, servico);
+                conn.commit();
+                servico.setId(id);
+                return servico;
+            } catch (SQLException e) {
+                SqlUtil.reverter(conn, e);
+                throw e;
+            }
         } catch (SQLException e) {
             if (SqlUtil.violaUnicidade(e)) {
                 throw new DAOException("Já existe um serviço ou extra com o nome '" + servico.getNome() + "'.", e);
@@ -47,12 +66,21 @@ public class ServicoDAOSQL implements ServicoDAO {
         String sql = "UPDATE dbo.Servico SET Nome = ?, Categoria = ?, Descricao = ?, Tipo = ?, Valor = ?, "
                 + "Cobranca = ?, Ativo = ? WHERE IdServico = ?";
         try (Connection conn = DBConnection.getConnection()) {
-            int linhas = SqlUtil.executar(conn, sql, ps -> {
-                preencher(ps, servico);
-                ps.setInt(8, servico.getId());
-            });
-            if (linhas == 0) {
-                throw new DAOException("O serviço com id " + servico.getId() + " não existe.");
+            conn.setAutoCommit(false);
+            try {
+                int linhas = SqlUtil.executar(conn, sql, ps -> {
+                    preencher(ps, servico);
+                    ps.setInt(8, servico.getId());
+                });
+                if (linhas == 0) {
+                    conn.rollback();
+                    throw new DAOException("O serviço com id " + servico.getId() + " não existe.");
+                }
+                gravarProduto(conn, servico.getId(), servico);
+                conn.commit();
+            } catch (SQLException e) {
+                SqlUtil.reverter(conn, e);
+                throw e;
             }
         } catch (SQLException e) {
             if (SqlUtil.violaUnicidade(e)) {
@@ -79,7 +107,7 @@ public class ServicoDAOSQL implements ServicoDAO {
 
     @Override
     public Optional<Servico> procurarPorId(int id) {
-        String sql = "SELECT " + COLUNAS + " FROM dbo.Servico WHERE IdServico = ?";
+        String sql = SELECT + " WHERE s.IdServico = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
@@ -93,12 +121,12 @@ public class ServicoDAOSQL implements ServicoDAO {
 
     @Override
     public List<Servico> listarTodos() {
-        return listar("SELECT " + COLUNAS + " FROM dbo.Servico" + ORDEM);
+        return listar(SELECT + ORDEM);
     }
 
     @Override
     public List<Servico> listarAtivos() {
-        return listar("SELECT " + COLUNAS + " FROM dbo.Servico WHERE Ativo = 1" + ORDEM);
+        return listar(SELECT + " WHERE s.Ativo = 1" + ORDEM);
     }
 
     private List<Servico> listar(String sql) {
@@ -125,10 +153,32 @@ public class ServicoDAOSQL implements ServicoDAO {
         ps.setBoolean(7, servico.isAtivo());
     }
 
-    /** Cria o serviço a partir de uma linha com as colunas de {@code dbo.Servico} (também usado pelo ReservaDAOSQL). */
+    /** Grava o produto do stock ligado ao serviço (apaga o anterior; sem produto fica sem linha). */
+    private static void gravarProduto(Connection conn, int idServico, Servico servico) throws SQLException {
+        SqlUtil.executar(conn, "DELETE FROM dbo.ServicoProduto WHERE IdServico = ?", ps -> ps.setInt(1, idServico));
+        if (servico.temProduto()) {
+            SqlUtil.executar(conn, "INSERT INTO dbo.ServicoProduto (IdServico, IdArtigo, Quantidade) VALUES (?, ?, ?)",
+                    ps -> {
+                        ps.setInt(1, idServico);
+                        ps.setInt(2, servico.getProduto().getId());
+                        ps.setInt(3, servico.getQuantidadeProduto());
+                    });
+        }
+    }
+
+    /**
+     * Cria o serviço a partir de uma linha com as {@link #COLUNAS} (também usado pelo ReservaDAOSQL),
+     * já com o produto do stock ligado, se houver.
+     */
     static Servico mapear(ResultSet rs) throws SQLException {
-        return new Servico(rs.getInt("IdServico"), TipoServico.valueOf(rs.getString("Tipo")), rs.getString("Nome"),
-                rs.getString("Categoria"), rs.getString("Descricao"), rs.getBigDecimal("Valor"),
+        Servico servico = new Servico(rs.getInt("IdServico"), TipoServico.valueOf(rs.getString("Tipo")),
+                rs.getString("Nome"), rs.getString("Categoria"), rs.getString("Descricao"), rs.getBigDecimal("Valor"),
                 TipoCobranca.valueOf(rs.getString("Cobranca")), rs.getBoolean("Ativo"));
+        int idArtigo = rs.getInt("IdArtigoProduto");
+        if (!rs.wasNull()) {
+            servico.ligarProduto(new Artigo(idArtigo, rs.getString("NomeProduto"), rs.getString("UnidadeProduto"),
+                    rs.getInt("StockProduto")), rs.getInt("QuantidadeProduto"));
+        }
+        return servico;
     }
 }

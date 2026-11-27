@@ -101,6 +101,7 @@ public class Main extends Application {
         GestaoServicosController gestaoServicosController =
                 new GestaoServicosController(
                         servicoDAO,
+                        stockDAO,
                         sessao
                 );
 
@@ -345,6 +346,14 @@ public class Main extends Application {
             if (tipo == SaidaStockViewController.class) {
 
                 return new SaidaStockViewController(
+                        gestaoStockController
+                );
+            }
+
+            // Janela das unidades dos produtos (S7-02)
+            if (tipo == UnidadesProdutosViewController.class) {
+
+                return new UnidadesProdutosViewController(
                         gestaoStockController
                 );
             }

@@ -3,6 +3,7 @@ package com.hotel4you.hotel4you.Controller;
 import com.hotel4you.hotel4you.DAO.DAOException;
 import com.hotel4you.hotel4you.DAO.StockDAO;
 import com.hotel4you.hotel4you.Model.Artigo;
+import com.hotel4you.hotel4you.Model.ConversaoUnidades;
 import com.hotel4you.hotel4you.Model.Fornecedor;
 import com.hotel4you.hotel4you.Model.MovimentoStock;
 import com.hotel4you.hotel4you.Model.Utilizador;
@@ -35,6 +36,11 @@ import java.util.Objects;
  * S6-04: saída de stock com justificação (avarias, perdas), histórico de saídas e indicação dos
  * produtos consumíveis. A regra do stock (não fica negativo, a justificação é obrigatória) está no
  * model ({@link Artigo#aplicar(MovimentoStock)} e {@link MovimentoStock}).
+ * <p>
+ * S7-02: o stock fica sempre na unidade principal de cada produto. Uma linha em caixas é convertida com
+ * a conversão do ficheiro ou, se não vier, com a que o gestor ou o funcionário define
+ * ({@link #darEntrada(EncomendaFornecedor, Map)}); a regra está em {@link ConversaoUnidades}. A conversão
+ * de cada produto também se define em "Unidades dos produtos" ({@link #definirConversaoCaixa(int, int)}).
  */
 public class GestaoStockController {
 
@@ -62,17 +68,37 @@ public class GestaoStockController {
      *
      * @param encomenda encomenda lida de um XML válido (a que o fornecedor enviou e o hotel aprovou)
      * @return o número de linhas que deram entrada
+     * @throws com.hotel4you.hotel4you.Model.ConversaoEmFaltaException se uma linha vier em caixas sem
+     *                                  conversão conhecida (S7-02); nada é guardado
      * @throws IllegalArgumentException se alguma linha for inválida (quantidade a zero, textos longos
      *                                  demais ou unidade diferente da do artigo já em stock); nada é guardado
      * @throws SecurityException        se o utilizador não for rececionista nem gestor
      * @throws AcessoDadosException     se não for possível guardar
      */
     public int darEntrada(EncomendaFornecedor encomenda) {
+        return darEntrada(encomenda, Map.of());
+    }
+
+    /**
+     * Igual a {@link #darEntrada(EncomendaFornecedor)}, com as conversões definidas pelo gestor ou pelo
+     * funcionário para os produtos cujo ficheiro não as traz (S7-02).
+     *
+     * @param encomenda  encomenda lida de um ficheiro válido
+     * @param conversoes unidades por caixa de cada produto, pela descrição do produto (maiúsculas e
+     *                   minúsculas não contam); a conversão do ficheiro tem prioridade
+     * @return o número de linhas que deram entrada
+     * @throws com.hotel4you.hotel4you.Model.ConversaoEmFaltaException se uma linha vier em caixas sem
+     *                                  conversão conhecida; nada é guardado
+     * @throws IllegalArgumentException se alguma linha for inválida; nada é guardado
+     * @throws SecurityException        se o utilizador não for rececionista nem gestor
+     * @throws AcessoDadosException     se não for possível guardar
+     */
+    public int darEntrada(EncomendaFornecedor encomenda, Map<String, Integer> conversoes) {
         exigirStock();
         Objects.requireNonNull(encomenda, "A encomenda é obrigatória.");
         encomenda.validarValores();
         Fornecedor fornecedor = criarFornecedor(encomenda.fornecedor());
-        List<MovimentoStock> entradas = criarEntradas(encomenda.linhas());
+        List<MovimentoStock> entradas = criarEntradas(encomenda.linhas(), chavesPorNome(conversoes));
         try {
             stockDAO.registarEntrada(fornecedor, encomenda, entradas);
         } catch (DAOException e) {
@@ -162,6 +188,35 @@ public class GestaoStockController {
     }
 
     /** Lê o produto agora (com o stock real e o que está em uso). */
+    /**
+     * Define quantas unidades tem uma caixa de um produto (S7-02). Se o produto ainda estiver guardado em
+     * caixas (importado antes da S7-02), o stock, os quartos, as reservas e o histórico passam a contar
+     * unidades (ex.: 5 cx com 1 cx = 10 un passam a 50 un).
+     *
+     * @param idArtigo         produto do stock
+     * @param unidadesPorCaixa unidades numa caixa (pelo menos 1)
+     * @return o produto já com a conversão
+     * @throws IllegalArgumentException se o produto não existir ou a conversão for inválida
+     * @throws SecurityException        se o utilizador não for rececionista nem gestor
+     * @throws AcessoDadosException     se não for possível guardar
+     */
+    public Artigo definirConversaoCaixa(int idArtigo, int unidadesPorCaixa) {
+        exigirStock();
+        Artigo artigo = procurarArtigo(idArtigo);
+        boolean converter = artigo.estaEmCaixas();
+        if (converter) {
+            artigo.converterCaixasParaUnidades(unidadesPorCaixa);
+        } else {
+            artigo.definirConversaoCaixa(unidadesPorCaixa);
+        }
+        try {
+            stockDAO.guardarConversaoCaixa(idArtigo, unidadesPorCaixa, converter);
+        } catch (DAOException e) {
+            throw new AcessoDadosException(e.getMessage(), e);
+        }
+        return artigo;
+    }
+
     private Artigo procurarArtigo(int idArtigo) {
         for (Artigo artigo : consultarStock()) {
             if (artigo.getId() == idArtigo) {
@@ -177,37 +232,75 @@ public class GestaoStockController {
         return new Fornecedor(0, dados.nome(), dados.identificador(), "");
     }
 
-    private List<MovimentoStock> criarEntradas(List<LinhaEncomenda> linhas) {
-        Map<String, String> unidades = unidadesEmStock();
+    /**
+     * Uma entrada por linha, já na unidade principal do produto (S7-02). A conversão de caixas vem do
+     * ficheiro, das conversões definidas agora ou da que o produto já tem (ver {@link ConversaoUnidades}).
+     */
+    private List<MovimentoStock> criarEntradas(List<LinhaEncomenda> linhas, Map<String, Integer> conversoes) {
+        Map<String, Artigo> emStock = artigosEmStock();
+        Map<String, String> unidades = new HashMap<>();
+        emStock.forEach((chave, artigo) -> unidades.put(chave, artigo.getUnidade()));
         LocalDateTime agora = LocalDateTime.now();
         List<MovimentoStock> entradas = new ArrayList<>();
         for (LinhaEncomenda linha : linhas) {
             String nome = linha.descricao();
-            String unidade = linha.quantidade().unidade().getAbreviatura();
+            String chave = chave(nome);
             String prefixo = "Linha " + linha.numero() + ": ";
             if (linha.quantidade().valor() < 1) {
                 throw new IllegalArgumentException(prefixo + "a quantidade tem de ser pelo menos 1.");
             }
             limitar(nome, MAX_NOME, prefixo + "a descrição do produto");
+            Artigo existente = emStock.get(chave);
+            Integer conversao = ConversaoUnidades.escolherConversao(linha, conversoes.get(chave),
+                    existente == null ? null : existente.getUnidadesPorCaixa());
+            String unidade = ConversaoUnidades.unidadePrincipal(linha);
+            int quantidade = ConversaoUnidades.quantidadeNaUnidadePrincipal(linha, conversao);
             limitar(unidade, MAX_UNIDADE, prefixo + "a unidade");
-            String existente = unidades.putIfAbsent(nome.trim().toLowerCase(Locale.ROOT), unidade);
-            if (existente != null && !existente.equals(unidade)) {
-                throw new IllegalArgumentException(prefixo + "'" + nome.trim() + "' está em stock em '" + existente
-                        + "' e o XML indica '" + unidade + "'. Não se somam unidades diferentes.");
+            exigirMesmaUnidade(unidades, chave, unidade, prefixo + "'" + nome.trim() + "'");
+            Artigo pedido = new Artigo(0, nome, unidade, 0);
+            if (conversao != null) {
+                pedido.definirConversaoCaixa(conversao);
             }
-            entradas.add(new MovimentoStock(TipoMovimento.ENTRADA, linha.quantidade().valor(), agora,
-                    utilizadorAtual(), new Artigo(0, nome, unidade, 0)));
+            entradas.add(new MovimentoStock(TipoMovimento.ENTRADA, quantidade, agora, utilizadorAtual(), pedido));
         }
         return entradas;
     }
 
-    /** Unidade de cada artigo já em stock, pelo nome em minúsculas. */
-    private Map<String, String> unidadesEmStock() {
-        Map<String, String> unidades = new HashMap<>();
-        for (Artigo artigo : consultarStock()) {
-            unidades.put(artigo.getNome().toLowerCase(Locale.ROOT), artigo.getUnidade());
+    /** Não se somam unidades diferentes no mesmo produto (nem com um produto antigo ainda em caixas). */
+    private static void exigirMesmaUnidade(Map<String, String> unidades, String chave, String unidade,
+                                           String descricao) {
+        String existente = unidades.putIfAbsent(chave, unidade);
+        if (existente == null || existente.equals(unidade)) {
+            return;
         }
-        return unidades;
+        if (Artigo.CAIXA.equalsIgnoreCase(existente)) {
+            throw new IllegalArgumentException(descricao + " ainda está em stock em caixas. Defina quantas "
+                    + "unidades tem uma caixa em \"Unidades dos produtos\" e aprove de novo.");
+        }
+        throw new IllegalArgumentException(descricao + " está em stock em '" + existente
+                + "' e o ficheiro indica '" + unidade + "'. Não se somam unidades diferentes.");
+    }
+
+    /** Cada artigo já em stock, pelo nome em minúsculas. */
+    private Map<String, Artigo> artigosEmStock() {
+        Map<String, Artigo> artigos = new HashMap<>();
+        for (Artigo artigo : consultarStock()) {
+            artigos.put(chave(artigo.getNome()), artigo);
+        }
+        return artigos;
+    }
+
+    /** As conversões definidas pelo utilizador, com os nomes na mesma forma que {@link #chave(String)}. */
+    private static Map<String, Integer> chavesPorNome(Map<String, Integer> conversoes) {
+        Map<String, Integer> porChave = new HashMap<>();
+        if (conversoes != null) {
+            conversoes.forEach((nome, valor) -> porChave.put(chave(nome), valor));
+        }
+        return porChave;
+    }
+
+    private static String chave(String nome) {
+        return nome.trim().toLowerCase(Locale.ROOT);
     }
 
     private Utilizador utilizadorAtual() {

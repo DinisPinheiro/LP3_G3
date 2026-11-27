@@ -44,8 +44,8 @@ public interface StockDAO {
     void registarEntrada(Fornecedor fornecedor, EncomendaFornecedor encomenda, List<MovimentoStock> entradas);
 
     /**
-     * @return todos os artigos com o stock real, a quantidade em uso nas reservas pendentes e com
-     *         check-in (para o stock disponível), se é consumível, o fornecedor e o último preço e taxa,
+     * @return todos os artigos com o stock real, a quantidade em uso nas reservas com check-in
+     *         (para o stock disponível; S7-01: o stock só baixa no check-in), se é consumível, o fornecedor e o último preço e taxa,
      *         ordenados por nome
      * @throws DAOException se não for possível ler
      */
@@ -77,4 +77,17 @@ public interface StockDAO {
      * @throws DAOException se o artigo não existir ou não for possível guardar
      */
     void definirConsumivel(int idArtigo, boolean consumivel);
+
+    /**
+     * Guarda quantas unidades tem uma caixa do artigo (S7-02). Com {@code converterCaixas}, um artigo
+     * ainda guardado em caixas passa para unidades: o stock, os produtos dos quartos, das configurações
+     * de tipo de quarto, das reservas e dos serviços, e os movimentos são multiplicados pela conversão,
+     * tudo ou nada.
+     *
+     * @param idArtigo         identificador do artigo
+     * @param unidadesPorCaixa unidades numa caixa (pelo menos 1)
+     * @param converterCaixas  {@code true} para converter um artigo que está em caixas
+     * @throws DAOException se o artigo não existir (ou já não estiver em caixas) ou não for possível guardar
+     */
+    void guardarConversaoCaixa(int idArtigo, int unidadesPorCaixa, boolean converterCaixas);
 }

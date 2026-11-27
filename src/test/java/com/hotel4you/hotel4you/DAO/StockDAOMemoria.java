@@ -54,6 +54,9 @@ public class StockDAOMemoria implements StockDAO {
             }
             artigo.aplicar(entrada);
             artigo.setFornecedor(guardado);
+            if (entrada.getArtigo().temConversaoCaixa()) {   // S7-02
+                artigo.definirConversaoCaixa(entrada.getArtigo().getUnidadesPorCaixa());
+            }
             if (encomenda != null) {
                 LinhaEncomenda linha = encomenda.linhas().get(i);
                 artigo.setUltimoPreco(linha.precoUnitario().preco().valor(),
@@ -154,6 +157,30 @@ public class StockDAOMemoria implements StockDAO {
         artigos.get(nome.toLowerCase()).setQuantidadeReservada(quantidade);
     }
 
+    @Override
+    public void guardarConversaoCaixa(int idArtigo, int unidadesPorCaixa, boolean converterCaixas) {
+        Artigo artigo = artigos.values().stream().filter(a -> a.getId() == idArtigo).findFirst()
+                .orElseThrow(() -> new DAOException("O artigo com id " + idArtigo + " não existe."));
+        if (converterCaixas) {
+            if (!artigo.estaEmCaixas()) {
+                throw new DAOException("O artigo com id " + idArtigo + " já não está em caixas.");
+            }
+            artigo.converterCaixasParaUnidades(unidadesPorCaixa);
+        } else {
+            artigo.definirConversaoCaixa(unidadesPorCaixa);
+        }
+    }
+
+    /**
+     * Junta um artigo diretamente ao stock (para os testes de produtos antigos, ainda em caixas).
+     *
+     * @param artigo artigo a guardar; recebe um identificador novo
+     */
+    public void guardarArtigo(Artigo artigo) {
+        artigo.setId(proximoIdArtigo++);
+        artigos.put(artigo.getNome().toLowerCase(), artigo);
+    }
+
     /** @return os fornecedores guardados (para os testes confirmarem) */
     public List<Fornecedor> getFornecedores() {
         return new ArrayList<>(fornecedores.values());
@@ -170,6 +197,9 @@ public class StockDAOMemoria implements StockDAO {
         copia.setFornecedor(original.getFornecedor());
         copia.setQuantidadeReservada(original.getQuantidadeReservada());
         copia.setConsumivel(original.isConsumivel());
+        if (original.temConversaoCaixa()) {
+            copia.definirConversaoCaixa(original.getUnidadesPorCaixa());
+        }
         copia.setUltimoPreco(original.getPrecoUnitario(), original.getUnidadePreco(), original.getTaxaPercentagem());
     }
 }

@@ -28,8 +28,11 @@ import java.util.Optional;
  * <p>
  * S6-04: as saídas de stock e os consumos no check-out ficam em {@code dbo.MovimentoStock}, com a
  * justificação; a coluna {@code dbo.Artigo.Consumivel} indica os produtos que se gastam com o uso
- * (ver {@code EsquemaDB_S6_stock_saidas_equipamentos.sql}). Só as reservas pendentes e com check-in
- * contam como stock em uso.
+ * (ver {@code EsquemaDB_S6_stock_saidas_equipamentos.sql}). S7-01: só as reservas com check-in contam
+ * como stock em uso (o stock só baixa no check-in, não na criação da reserva).
+ * <p>
+ * S7-02: a coluna {@code dbo.Artigo.UnidadesPorCaixa} guarda a conversão de caixa para a unidade principal
+ * (ver {@code EsquemaDB_S7_unidades_conversao.sql}).
  */
 public class StockDAOSQL implements StockDAO {
 
@@ -41,6 +44,16 @@ public class StockDAOSQL implements StockDAO {
             "SELECT IdArtigo, Nome, Unidade, QuantidadeAtual FROM dbo.Artigo WHERE Nome = ?";
     private static final String SQL_INSERIR_ARTIGO =
             "INSERT INTO dbo.Artigo (Nome, Unidade, QuantidadeAtual, IdFornecedor) VALUES (?, ?, 0, ?)";
+    /** S7-02: conversão de caixa para unidades (vinda do ficheiro ou definida pelo utilizador). */
+    private static final String SQL_ATUALIZAR_CONVERSAO =
+            "UPDATE dbo.Artigo SET UnidadesPorCaixa = ? WHERE IdArtigo = ?";
+    /** S7-02: um artigo guardado em caixas passa para unidades (só se ainda estiver em caixas). */
+    private static final String SQL_CONVERTER_ARTIGO =
+            "UPDATE dbo.Artigo SET QuantidadeAtual = QuantidadeAtual * ?, Unidade = 'un', UnidadesPorCaixa = ? "
+                    + "WHERE IdArtigo = ? AND Unidade = 'cx'";
+    /** Tabelas com quantidades do artigo que passam de caixas para unidades na conversão (S7-02). */
+    private static final String[] TABELAS_COM_QUANTIDADE = {
+            "QuartoProduto", "ConfigTipoQuarto_Produto", "ReservaProduto", "ServicoProduto", "MovimentoStock"};
     private static final String SQL_ATUALIZAR_ARTIGO =
             "UPDATE dbo.Artigo SET QuantidadeAtual = ?, IdFornecedor = ? WHERE IdArtigo = ?";
     /** Como o anterior, mas guarda também o último preço unitário, a unidade do preço e a taxa do artigo. */
@@ -76,16 +89,17 @@ public class StockDAOSQL implements StockDAO {
                     + "WHERE m.Tipo IN ('SAIDA', 'UTILIZACAO') "
                     + "ORDER BY m.DataHora DESC, m.IdMovimento DESC";
     /**
-     * Quantidade do artigo {@code a} em uso nas reservas pendentes e com check-in (S6-05): as canceladas
-     * nunca usaram stock e as que já fizeram check-out devolveram-no.
+     * Quantidade do artigo {@code a} em uso nas reservas com check-in (S7-01): o stock só baixa no
+     * check-in, por isso as pendentes ainda não usam stock; as canceladas nunca usaram e as que já
+     * fizeram check-out devolveram-no.
      * Também é usada pelo {@link ReservaDAOSQL} para confirmar o stock ao guardar uma reserva.
      */
     static final String SQL_USADO_EM_RESERVAS =
             "(SELECT ISNULL(SUM(rp.Quantidade), 0) FROM dbo.ReservaProduto rp "
                     + "JOIN dbo.Reserva r ON r.IdReserva = rp.IdReserva "
-                    + "WHERE rp.IdArtigo = a.IdArtigo AND r.Estado IN ('PENDENTE', 'CHECK_IN'))";
+                    + "WHERE rp.IdArtigo = a.IdArtigo AND r.Estado = 'CHECK_IN')";
     private static final String SQL_LISTAR_ARTIGOS =
-            "SELECT a.IdArtigo, a.Nome, a.Unidade, a.QuantidadeAtual, a.Consumivel, "
+            "SELECT a.IdArtigo, a.Nome, a.Unidade, a.QuantidadeAtual, a.Consumivel, a.UnidadesPorCaixa, "
                     + SQL_USADO_EM_RESERVAS + " AS UsadoEmReservas, "
                     + "a.PrecoUnitario, a.UnidadePreco, a.TaxaPercent, "
                     + "f.IdFornecedor, f.Nome AS NomeFornecedor, f.Nif, f.Contacto "
@@ -198,6 +212,47 @@ public class StockDAOSQL implements StockDAO {
             }
         } catch (SQLException e) {
             throw new DAOException("Não foi possível guardar o artigo.", e);
+        }
+    }
+
+    @Override
+    public void guardarConversaoCaixa(int idArtigo, int unidadesPorCaixa, boolean converterCaixas) {
+        try (Connection conn = DBConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                int linhas;
+                if (converterCaixas) {
+                    linhas = SqlUtil.executar(conn, SQL_CONVERTER_ARTIGO, ps -> {
+                        ps.setInt(1, unidadesPorCaixa);
+                        ps.setInt(2, unidadesPorCaixa);
+                        ps.setInt(3, idArtigo);
+                    });
+                    if (linhas == 1) {
+                        for (String tabela : TABELAS_COM_QUANTIDADE) {
+                            SqlUtil.executar(conn, "UPDATE dbo." + tabela + " SET Quantidade = Quantidade * ? "
+                                    + "WHERE IdArtigo = ?", ps -> {
+                                ps.setInt(1, unidadesPorCaixa);
+                                ps.setInt(2, idArtigo);
+                            });
+                        }
+                    }
+                } else {
+                    linhas = SqlUtil.executar(conn, SQL_ATUALIZAR_CONVERSAO, ps -> {
+                        ps.setInt(1, unidadesPorCaixa);
+                        ps.setInt(2, idArtigo);
+                    });
+                }
+                if (linhas == 0) {
+                    conn.rollback();
+                    throw new DAOException("O artigo com id " + idArtigo + " não existe ou já não está em caixas.");
+                }
+                conn.commit();
+            } catch (SQLException e) {
+                SqlUtil.reverter(conn, e);
+                throw new DAOException("Não foi possível guardar a conversão do artigo.", e);
+            }
+        } catch (SQLException e) {
+            throw new DAOException("Não foi possível guardar a conversão do artigo.", e);
         }
     }
 
@@ -315,6 +370,12 @@ public class StockDAOSQL implements StockDAO {
                 ps.setInt(6, atualizado.getId());
             });
         }
+        if (pedido.temConversaoCaixa()) {   // S7-02: guarda a conversão do ficheiro ou a definida na aprovação
+            SqlUtil.executar(conn, SQL_ATUALIZAR_CONVERSAO, ps -> {
+                ps.setInt(1, pedido.getUnidadesPorCaixa());
+                ps.setInt(2, atualizado.getId());
+            });
+        }
         inserirMovimento(conn, atualizado.getId(), entrada);
         if (linha != null) {
             guardarLinha(conn, idEncomenda, atualizado.getId(), pedido.getUnidade(), entrada.getQuantidade(), linha);
@@ -370,6 +431,10 @@ public class StockDAOSQL implements StockDAO {
                 rs.getString("Unidade"), rs.getInt("QuantidadeAtual"));
         artigo.setQuantidadeReservada(rs.getInt("UsadoEmReservas"));
         artigo.setConsumivel(rs.getBoolean("Consumivel"));
+        int unidadesPorCaixa = rs.getInt("UnidadesPorCaixa");
+        if (!rs.wasNull()) {
+            artigo.definirConversaoCaixa(unidadesPorCaixa);
+        }
         BigDecimal preco = rs.getBigDecimal("PrecoUnitario");
         int taxa = rs.getInt("TaxaPercent");
         boolean semTaxa = rs.wasNull();

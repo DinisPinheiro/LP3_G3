@@ -558,6 +558,7 @@ public class GestaoQuartosController {
                 throw new IllegalArgumentException("O produto '" + pedido.getArtigo().getNome()
                         + "' não existe em stock.");
             }
+            artigo.exigirUnidadePrincipal();   // S7-02: os quartos contam na unidade principal
             validos.put(artigo.getId(), new ProdutoQuarto(artigo, pedido.getQuantidade()));
         }
         return new ArrayList<>(validos.values());

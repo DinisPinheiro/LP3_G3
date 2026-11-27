@@ -1,6 +1,8 @@
 package com.hotel4you.hotel4you.View;
 
 import com.hotel4you.hotel4you.Controller.AprovacaoImportacoesController;
+import com.hotel4you.hotel4you.Model.Artigo;
+import com.hotel4you.hotel4you.Model.ConversaoEmFaltaException;
 import com.hotel4you.hotel4you.Model.ImportacaoFornecedor;
 import com.hotel4you.hotel4you.Model.encomenda.EncomendaFornecedor;
 import com.hotel4you.hotel4you.Model.encomenda.LinhaEncomenda;
@@ -18,9 +20,13 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextInputDialog;
 
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -173,16 +179,46 @@ public class AprovacaoImportacoesViewController {
         if (selecionada == null) {
             return;
         }
-        try {
-            controller.aprovar(selecionada.getId());
-            onAtualizar();
-            mostrar("Ficheiro aprovado: o material da encomenda " + selecionada.getNumeroEncomenda()
-                    + " deu entrada em stock.", COR_SUCESSO);
-        } catch (XmlInvalidoException e) {
-            mostrarErros(e);
-        } catch (RuntimeException e) {
-            mostrar(e.getMessage(), COR_ERRO);
+        Map<String, Integer> conversoes = new HashMap<>();
+        while (true) {
+            try {
+                controller.aprovar(selecionada.getId(), conversoes);
+                onAtualizar();
+                mostrar("Ficheiro aprovado: o material da encomenda " + selecionada.getNumeroEncomenda()
+                        + " deu entrada em stock.", COR_SUCESSO);
+                return;
+            } catch (ConversaoEmFaltaException e) {
+                // S7-02: o ficheiro não diz quantas unidades tem uma caixa; o utilizador define-a.
+                Optional<Integer> conversao = pedirConversao(e);
+                if (conversao.isEmpty()) {
+                    mostrar("O ficheiro continua pendente: indique um número inteiro entre 1 e "
+                            + Artigo.MAX_UNIDADES_POR_CAIXA + ". " + e.getMessage(), COR_ERRO);
+                    return;
+                }
+                conversoes.put(e.getProduto(), conversao.get());
+            } catch (XmlInvalidoException e) {
+                mostrarErros(e);
+                return;
+            } catch (RuntimeException e) {
+                mostrar(e.getMessage(), COR_ERRO);
+                return;
+            }
         }
+    }
+
+    /**
+     * Pergunta quantas unidades tem uma caixa do produto (S7-02).
+     *
+     * @param falta linha e produto sem conversão
+     * @return a conversão escrita, ou vazio se o utilizador cancelar ou escrever um valor inválido
+     */
+    private Optional<Integer> pedirConversao(ConversaoEmFaltaException falta) {
+        TextInputDialog dialogo = new TextInputDialog();
+        dialogo.setTitle("Conversão de caixas");
+        dialogo.setHeaderText("Linha " + falta.getNumeroLinha() + ": '" + falta.getProduto() + "' vem em caixas.");
+        dialogo.setContentText("1 caixa = quantas unidades?");
+        return dialogo.showAndWait()
+                .flatMap(resposta -> Utils.converterInteiro(resposta, 1, Artigo.MAX_UNIDADES_POR_CAIXA));
     }
 
     /** Chamado pelo botão "Rejeitar". */

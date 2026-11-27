@@ -18,6 +18,10 @@ import java.util.List;
  * S6-05: também se alteram os produtos do stock da reserva (por exemplo, uma só pessoa num quarto duplo
  * fica com 1 toalha em vez de 2). A alteração ajusta o stock disponível; a regra está no model
  * ({@link Reserva#alterarProduto(Artigo, int)}).
+ * <p>
+ * S7-01: o stock só baixa no check-in. Numa reserva pendente os produtos mudam sem mexer no stock; com
+ * check-in a diferença sai do stock ou volta a ele. Acrescentar ou remover um serviço ligado ao stock
+ * (ex.: bebidas) também dá baixa ou devolve o produto.
  */
 public class EdicaoReservaController {
 
@@ -53,8 +57,8 @@ public class EdicaoReservaController {
     }
 
     /**
-     * Muda a quantidade de um produto do stock na reserva e ajusta o stock disponível (S6-05).
-     * Com quantidade 0 o produto sai da reserva.
+     * Muda a quantidade de um produto do stock na reserva. Com check-in ajusta o stock disponível
+     * (S6-05); numa reserva pendente o stock ainda não baixou (S7-01). Com quantidade 0 o produto sai da reserva.
      *
      * @param idReserva  identificador da reserva
      * @param idArtigo   identificador do produto
@@ -76,6 +80,9 @@ public class EdicaoReservaController {
         }
         if (artigo == null) {
             throw new IllegalArgumentException("Escolha um produto que exista em stock.");
+        }
+        if (quantidade > 0) {
+            artigo.exigirUnidadePrincipal();   // S7-02: as reservas contam na unidade principal
         }
         try {
             reserva.alterarProduto(artigo, quantidade);
@@ -109,7 +116,11 @@ public class EdicaoReservaController {
     }
 
     /**
-     * Acrescenta um serviço à reserva.
+     * Acrescenta um serviço à reserva. Se o serviço estiver ligado a um produto do stock (ex.: bebidas),
+     * esse produto dá baixa no stock (S7-01).
+     *
+     * @throws IllegalArgumentException se o serviço não existir ou não estiver ativo, a quantidade for
+     *                                  inválida ou não houver stock disponível do produto do serviço
      */
     public void adicionarServico(int idReserva, Servico servico, int quantidade) {
         verificarPermissao();
@@ -131,20 +142,43 @@ public class EdicaoReservaController {
         }
 
         ConsumoServico consumo = new ConsumoServico(servicoGuardado, quantidade, LocalDate.now());
-        reserva.adicionarServicoEdicao(consumo);
+        if (stockDAO == null) {
+            reserva.adicionarServicoEdicao(consumo);
+        } else {
+            List<Artigo> stock = stockDAO.listarArtigos();
+            exigirServicosEditaveis(reserva);
+            try {
+                reserva.adicionarServicoEdicao(consumo, stock);   // a baixa do produto é feita no model
+            } catch (IllegalStateException e) {
+                throw new IllegalArgumentException(e.getMessage(), e);   // stock disponível insuficiente
+            }
+        }
         reservaDAO.atualizarServicos(reserva);
     }
 
     /**
-     * Remove um serviço da reserva.
+     * Remove um serviço da reserva. Se o serviço usava um produto do stock, esse produto volta ao stock
+     * disponível (S7-01).
      *
      * O índice corresponde à posição do serviço na lista.
      */
     public void removerServico(int idReserva, int indice) {
         verificarPermissao();
         Reserva reserva = consultarReserva(idReserva);
-        reserva.removerServicoEdicao(indice);
+        if (stockDAO == null) {
+            reserva.removerServicoEdicao(indice);
+        } else {
+            exigirServicosEditaveis(reserva);
+            reserva.removerServicoEdicao(indice, stockDAO.listarArtigos());
+        }
         reservaDAO.atualizarServicos(reserva);
+    }
+
+    /** Os serviços só se editam com check-in (o erro é o mesmo com ou sem stock). */
+    private static void exigirServicosEditaveis(Reserva reserva) {
+        if (!reserva.podeEditarServicos()) {
+            throw new IllegalStateException("Não é possível editar os serviços desta reserva.");
+        }
     }
 
     /**
@@ -200,4 +234,4 @@ public class EdicaoReservaController {
     private void verificarPermissao() {
         Permissoes.exigirPerfil(sessao, "Apenas o rececionista ou gestor pode gerir reservas.", Perfil.RECECIONISTA, Perfil.GESTOR);
     }
-}
+}

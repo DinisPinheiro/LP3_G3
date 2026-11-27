@@ -72,6 +72,19 @@ public class ConsumoServico {
         return total;
     }
 
+    /**
+     * Produto do stock que esta linha gasta (S7-01): o produto do serviço, com a quantidade do produto
+     * × a quantidade da linha (ex.: 3 águas de 1 garrafa = 3 garrafas).
+     *
+     * @return o produto e a quantidade, ou {@code null} se o serviço não usar stock
+     */
+    public ProdutoReserva produtoDoStock() {
+        if (!servico.temProduto()) {
+            return null;
+        }
+        return new ProdutoReserva(servico.getProduto(), servico.getQuantidadeProduto() * quantidade);
+    }
+
     public Servico getServico() {
         return servico;
     }

@@ -175,7 +175,8 @@ public class GestaoReservasController {
      * guardada na base de dados com o valor total estimado.
      * <p>
      * Os preços em vigor neste momento (preço base do quarto, vista e serviços) ficam guardados na
-     * reserva. Os produtos escolhidos passam a contar como usados e reduzem o stock disponível.
+     * reserva. Confirma-se que há stock disponível dos produtos escolhidos, mas o stock só baixa no
+     * check-in (S7-01).
      *
      * @param cliente  cliente que reserva (tem de estar registado)
      * @param quarto   quarto pretendido (tem de estar ativo e livre no período)
@@ -248,6 +249,7 @@ public class GestaoReservasController {
                 throw new IllegalArgumentException("O produto '" + escolhido.getArtigo().getNome()
                         + "' já não existe em stock.");
             }
+            artigo.exigirUnidadePrincipal();   // S7-02: as reservas contam na unidade principal
             int total = pedido.merge(artigo.getId(), escolhido.getQuantidade(), Integer::sum);
             if (total > artigo.getQuantidadeDisponivel()) {
                 throw new IllegalArgumentException("Stock insuficiente de '" + artigo.getNome() + "': há "
